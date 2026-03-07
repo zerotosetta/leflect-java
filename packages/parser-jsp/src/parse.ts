@@ -1,3 +1,6 @@
+import fs from "fs/promises";
+import path from "path";
+
 export type TaglibDirective = {
   prefix: string;
   uri: string;
@@ -31,6 +34,21 @@ export function parseJsp(content: string): JspParseResult {
     tags: extractTags(content),
     scriptlets: extractScriptlets(content)
   };
+}
+
+export async function writeJspMeta(
+  outDir: string,
+  jspPath: string,
+  result: JspParseResult
+): Promise<string> {
+  const normalized = normalizePath(jspPath);
+  const target = path.join(outDir, `${normalized}.json`);
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(
+    target,
+    JSON.stringify({ path: normalized, ...result }, null, 2)
+  );
+  return target;
 }
 
 function extractTaglibs(content: string): TaglibDirective[] {
@@ -86,4 +104,8 @@ function extractScriptlets(content: string): ScriptletBlock[] {
   }
 
   return blocks;
+}
+
+function normalizePath(target: string): string {
+  return target.split(path.sep).join("/");
 }

@@ -1,13 +1,17 @@
 import fs from "fs";
 import fsp from "fs/promises";
 import path from "path";
+import crypto from "crypto";
 import ignore from "ignore";
 
 export type FileRecord = {
   path: string;
+  type: "java" | "jsp" | "tld" | "other";
   ext: string;
   size: number;
   mtimeMs: number;
+  domain?: string;
+  hash: string;
 };
 
 export type ScanOptions = {
@@ -80,23 +84,27 @@ export async function scanWorkspace(options: ScanOptions): Promise<ScanResult> {
     }
 
     const ext = path.extname(filePath).toLowerCase();
+    const type = classifyType(ext);
     totalFiles += 1;
     totalBytes += stat.size;
     byExtension[ext] = (byExtension[ext] ?? 0) + 1;
 
-    if (ext === ".java") {
+    if (type === "java") {
       javaFiles.push(relativePath);
-    } else if (ext === ".jsp" || ext === ".jspx") {
+    } else if (type === "jsp") {
       jspFiles.push(relativePath);
-    } else if (ext === ".tld") {
+    } else if (type === "tld") {
       tldFiles.push(relativePath);
     }
 
     const record: FileRecord = {
       path: relativePath,
+      type,
       ext,
       size: stat.size,
-      mtimeMs: stat.mtimeMs
+      mtimeMs: stat.mtimeMs,
+      domain: resolveDomain(relativePath),
+      hash: await hashFile(filePath)
     };
 
     filesStream.write(`${JSON.stringify(record)}\n`);
@@ -200,6 +208,40 @@ async function ensureDir(target: string): Promise<void> {
 
 function normalizePath(target: string): string {
   return target.split(path.sep).join("/");
+}
+
+function resolveDomain(relativePath: string): string | undefined {
+  const segments = relativePath.split("/");
+  if (segments.length <= 1) {
+    return undefined;
+  }
+  return segments[0] || undefined;
+}
+
+function classifyType(ext: string): FileRecord["type"] {
+  if (ext === ".java") {
+    return "java";
+  }
+  if (ext === ".jsp" || ext === ".jspx") {
+    return "jsp";
+  }
+  if (ext === ".tld") {
+    return "tld";
+  }
+  return "other";
+}
+
+async function hashFile(filePath: string): Promise<string> {
+  const hash = crypto.createHash("sha1");
+
+  await new Promise<void>((resolve, reject) => {
+    const stream = fs.createReadStream(filePath);
+    stream.on("error", reject);
+    stream.on("data", (chunk) => hash.update(chunk));
+    stream.on("end", () => resolve());
+  });
+
+  return `sha1:${hash.digest("hex")}`;
 }
 
 async function writeListManifest(

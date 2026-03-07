@@ -19,6 +19,7 @@ describe("loadConfig", () => {
     expect(result.config.root).toBe(root);
     expect(result.config.analysisOut).toBe(path.join(root, "analysis"));
     expect(result.config.labelsOut).toBe(path.join(root, "analysis", "index", "labels.json"));
+    expect(result.config.java).toBeDefined();
   });
 
   it("loads config file and resolves relative paths", async () => {
@@ -30,7 +31,11 @@ describe("loadConfig", () => {
       JSON.stringify({
         analysisOut: "out",
         ignoreFile: ".leflectignore",
-        labelsOut: "labels.json"
+        labelsOut: "labels.json",
+        java: {
+          workerJar: "java-worker/target/leflectjava-java-worker.jar",
+          javaHome: "./.java"
+        }
       })
     );
 
@@ -40,6 +45,10 @@ describe("loadConfig", () => {
     expect(result.config.analysisOut).toBe(path.join(root, "out"));
     expect(result.config.ignoreFile).toBe(path.join(root, ".leflectignore"));
     expect(result.config.labelsOut).toBe(path.join(root, "labels.json"));
+    expect(result.config.java?.workerJar).toBe(
+      path.join(root, "java-worker", "target", "leflectjava-java-worker.jar")
+    );
+    expect(result.config.java?.javaHome).toBe(path.join(root, ".java"));
   });
 
   it("applies overrides", async () => {

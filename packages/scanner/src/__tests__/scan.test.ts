@@ -46,5 +46,18 @@ describe("scanWorkspace", () => {
     };
 
     expect(manifest.totalFiles).toBe(2);
+
+    const filesPath = path.join(analysisOut, "files", "files.jsonl");
+    const lines = (await readFile(filesPath, "utf8")).trim().split("\n");
+    const records = lines.map((line) => JSON.parse(line) as { path: string; domain?: string; hash: string; type: string });
+
+    const javaRecord = records.find((record) => record.path === "src/A.java");
+    const jspRecord = records.find((record) => record.path === "view/B.jsp");
+
+    expect(javaRecord?.domain).toBe("src");
+    expect(jspRecord?.domain).toBe("view");
+    expect(javaRecord?.type).toBe("java");
+    expect(jspRecord?.type).toBe("jsp");
+    expect(javaRecord?.hash.startsWith("sha1:")).toBe(true);
   });
 });
