@@ -57,6 +57,18 @@ function resolveConfigPaths(config: LeflectConfig, root: string): LeflectConfig 
           javaHome: javaConfig.javaHome ? resolvePath(root, javaConfig.javaHome) : undefined
         }
       : javaConfig;
+  const jspConfig = config.jsp;
+  const resolvedJsp =
+    jspConfig && (jspConfig.webappRoot || jspConfig.generatedJavaOut || jspConfig.astOut)
+      ? {
+          ...jspConfig,
+          webappRoot: jspConfig.webappRoot ? resolvePath(root, jspConfig.webappRoot) : undefined,
+          generatedJavaOut: jspConfig.generatedJavaOut
+            ? resolvePath(root, jspConfig.generatedJavaOut)
+            : undefined,
+          astOut: jspConfig.astOut ? resolvePath(root, jspConfig.astOut) : undefined
+        }
+      : jspConfig;
 
   return {
     ...config,
@@ -64,7 +76,8 @@ function resolveConfigPaths(config: LeflectConfig, root: string): LeflectConfig 
     analysisOut: resolvePath(root, config.analysisOut),
     ignoreFile: config.ignoreFile ? resolvePath(root, config.ignoreFile) : undefined,
     labelsOut: config.labelsOut ? resolvePath(root, config.labelsOut) : undefined,
-    java: resolvedJava
+    java: resolvedJava,
+    jsp: resolvedJsp
   };
 }
 
@@ -97,6 +110,27 @@ function validateConfig(config: LeflectConfig): void {
     }
     if (config.java.javaHome && typeof config.java.javaHome !== "string") {
       throw new Error("Config 'java.javaHome' must be a string");
+    }
+  }
+  if (config.jsp) {
+    if (typeof config.jsp !== "object") {
+      throw new Error("Config 'jsp' must be an object");
+    }
+    if (
+      config.jsp.astMode &&
+      config.jsp.astMode !== "lightweight" &&
+      config.jsp.astMode !== "jasper"
+    ) {
+      throw new Error("Config 'jsp.astMode' must be 'lightweight' or 'jasper'");
+    }
+    if (config.jsp.webappRoot && typeof config.jsp.webappRoot !== "string") {
+      throw new Error("Config 'jsp.webappRoot' must be a string");
+    }
+    if (config.jsp.generatedJavaOut && typeof config.jsp.generatedJavaOut !== "string") {
+      throw new Error("Config 'jsp.generatedJavaOut' must be a string");
+    }
+    if (config.jsp.astOut && typeof config.jsp.astOut !== "string") {
+      throw new Error("Config 'jsp.astOut' must be a string");
     }
   }
 }

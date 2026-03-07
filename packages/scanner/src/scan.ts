@@ -111,7 +111,7 @@ export async function scanWorkspace(options: ScanOptions): Promise<ScanResult> {
   });
 
   await new Promise<void>((resolve, reject) => {
-    filesStream.end((err) => {
+    filesStream.end((err?: Error | null) => {
       if (err) {
         reject(err);
       } else {

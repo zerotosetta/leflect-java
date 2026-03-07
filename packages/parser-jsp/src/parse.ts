@@ -1,6 +1,8 @@
 import fs from "fs/promises";
 import path from "path";
 
+import { JspAstMode } from "@lefectjava/schema";
+
 export type TaglibDirective = {
   prefix: string;
   uri: string;
@@ -17,10 +19,17 @@ export type ScriptletBlock = {
   code: string;
 };
 
+export type JspAstReference = {
+  mode: JspAstMode;
+  generatedServletPath?: string;
+  astPath?: string;
+};
+
 export type JspParseResult = {
   taglibs: TaglibDirective[];
   tags: JspTag[];
   scriptlets: ScriptletBlock[];
+  ast?: JspAstReference;
 };
 
 const TAGLIB_REGEX = /<%@\s*taglib\s+([^%]*)%>/gi;
@@ -49,6 +58,16 @@ export async function writeJspMeta(
     JSON.stringify({ path: normalized, ...result }, null, 2)
   );
   return target;
+}
+
+export function attachJspAstReference(
+  result: JspParseResult,
+  ast: JspAstReference
+): JspParseResult {
+  return {
+    ...result,
+    ast
+  };
 }
 
 function extractTaglibs(content: string): TaglibDirective[] {

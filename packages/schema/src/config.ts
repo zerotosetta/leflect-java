@@ -1,3 +1,5 @@
+export type JspAstMode = "lightweight" | "jasper";
+
 export type LeflectConfig = {
   root: string;
   analysisOut: string;
@@ -6,6 +8,12 @@ export type LeflectConfig = {
   java?: {
     workerJar?: string;
     javaHome?: string;
+  };
+  jsp?: {
+    astMode?: JspAstMode;
+    webappRoot?: string;
+    generatedJavaOut?: string;
+    astOut?: string;
   };
 };
 
@@ -18,5 +26,8 @@ export type LeflectConfigInput = Partial<
 export const defaultConfig: Omit<LeflectConfig, "root"> = {
   analysisOut: "analysis",
   labelsOut: "analysis/index/labels.json",
-  java: {}
+  java: {},
+  jsp: {
+    astMode: "lightweight"
+  }
 };

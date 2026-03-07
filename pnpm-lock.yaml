@@ -32,6 +32,12 @@ importers:
       '@lefectjava/core':
         specifier: workspace:*
         version: link:../core
+      '@lefectjava/java-bridge':
+        specifier: workspace:*
+        version: link:../java-bridge
+      '@lefectjava/parser-jsp':
+        specifier: workspace:*
+        version: link:../parser-jsp
       '@lefectjava/scanner':
         specifier: workspace:*
         version: link:../scanner
@@ -53,7 +59,11 @@ importers:
         specifier: workspace:*
         version: link:../parser-tld
 
-  packages/java-bridge: {}
+  packages/java-bridge:
+    dependencies:
+      '@lefectjava/schema':
+        specifier: workspace:*
+        version: link:../schema
 
   packages/labeler: {}
 
@@ -62,6 +72,9 @@ importers:
       '@lefectjava/parser-tld':
         specifier: workspace:*
         version: link:../parser-tld
+      '@lefectjava/schema':
+        specifier: workspace:*
+        version: link:../schema
 
   packages/parser-tld:
     dependencies:
