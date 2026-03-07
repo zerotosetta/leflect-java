@@ -1,0 +1,24 @@
+#!/usr/bin/env node
+"use strict";
+
+const path = require("path");
+
+const cliEntry = path.resolve(__dirname, "..", "packages", "cli", "dist", "index.js");
+
+try {
+  const cli = require(cliEntry);
+  if (typeof cli.run === "function") {
+    cli.run(process.argv.slice(2));
+  } else if (typeof cli.default === "function") {
+    cli.default(process.argv.slice(2));
+  } else {
+    console.error("LeflectJava CLI is not ready. Build the workspace first.");
+    process.exitCode = 1;
+  }
+} catch (error) {
+  console.error("LeflectJava CLI is not built yet. Run 'pnpm build' first.");
+  if (error && error.message) {
+    console.error(error.message);
+  }
+  process.exitCode = 1;
+}
