@@ -44,6 +44,9 @@ importers:
       '@lefectjava/parser-jsp':
         specifier: workspace:*
         version: link:../parser-jsp
+      '@lefectjava/parser-tld':
+        specifier: workspace:*
+        version: link:../parser-tld
       '@lefectjava/reporter':
         specifier: workspace:*
         version: link:../reporter
@@ -107,6 +110,9 @@ importers:
 
   packages/scanner:
     dependencies:
+      '@lefectjava/schema':
+        specifier: workspace:*
+        version: link:../schema
       ignore:
         specifier: ^5.3.1
         version: 5.3.1

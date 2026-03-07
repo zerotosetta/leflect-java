@@ -4,6 +4,8 @@ import path from "path";
 import crypto from "crypto";
 import ignore from "ignore";
 
+import { CachedFileEntry, FileHashesCache } from "@lefectjava/schema";
+
 export type FileRecord = {
   path: string;
   type: "java" | "jsp" | "tld" | "other";
@@ -29,6 +31,8 @@ export type ScanResult = {
   javaFiles: string[];
   jspFiles: string[];
   tldFiles: string[];
+  changedFiles: string[];
+  removedFiles: string[];
 };
 
 const DEFAULT_IGNORE = [".git/", "node_modules/"];
@@ -58,6 +62,7 @@ export async function scanWorkspace(options: ScanOptions): Promise<ScanResult> {
 
   await ensureDir(path.join(analysisOut, "files"));
   await ensureDir(path.join(analysisOut, "manifests"));
+  await ensureDir(path.join(analysisOut, "cache"));
 
   const filesStream = fs.createWriteStream(
     path.join(analysisOut, "files", "files.jsonl"),
@@ -68,6 +73,7 @@ export async function scanWorkspace(options: ScanOptions): Promise<ScanResult> {
   const javaFiles: string[] = [];
   const jspFiles: string[] = [];
   const tldFiles: string[] = [];
+  const fileHashes: Record<string, CachedFileEntry> = {};
 
   let totalFiles = 0;
   let totalBytes = 0;
@@ -105,6 +111,14 @@ export async function scanWorkspace(options: ScanOptions): Promise<ScanResult> {
       mtimeMs: stat.mtimeMs,
       domain: resolveDomain(relativePath),
       hash: await hashFile(filePath)
+    };
+
+    fileHashes[relativePath] = {
+      hash: record.hash,
+      type: record.type,
+      size: record.size,
+      mtimeMs: record.mtimeMs,
+      domain: record.domain
     };
 
     filesStream.write(`${JSON.stringify(record)}\n`);
@@ -149,6 +163,33 @@ export async function scanWorkspace(options: ScanOptions): Promise<ScanResult> {
   await writeListManifest(root, analysisOut, "jsp-files.json", jspFiles);
   await writeListManifest(root, analysisOut, "tld-files.json", tldFiles);
 
+  const cachePath = path.join(analysisOut, "cache", "file-hashes.json");
+  const previousCache = await readHashesCache(cachePath);
+  const configHash = await buildScanConfigHash(root, ignoreFile);
+  const changedFiles =
+    !previousCache || previousCache.configHash !== configHash
+      ? Object.keys(fileHashes).sort()
+      : Object.keys(fileHashes)
+          .filter((file) => previousCache.files[file]?.hash !== fileHashes[file].hash)
+          .sort();
+  const removedFiles = previousCache
+    ? Object.keys(previousCache.files)
+        .filter((file) => !fileHashes[file])
+        .sort()
+    : [];
+
+  const cachePayload: FileHashesCache = {
+    schemaVersion: "1.0",
+    generatedAt: new Date().toISOString(),
+    root,
+    configHash,
+    files: fileHashes,
+    changed: changedFiles,
+    removed: removedFiles
+  };
+
+  await fsp.writeFile(cachePath, JSON.stringify(cachePayload, null, 2));
+
   return {
     root,
     analysisOut,
@@ -157,7 +198,9 @@ export async function scanWorkspace(options: ScanOptions): Promise<ScanResult> {
     byExtension,
     javaFiles,
     jspFiles,
-    tldFiles
+    tldFiles,
+    changedFiles,
+    removedFiles
   };
 }
 
@@ -242,6 +285,29 @@ async function hashFile(filePath: string): Promise<string> {
   });
 
   return `sha1:${hash.digest("hex")}`;
+}
+
+async function readHashesCache(filePath: string): Promise<FileHashesCache | undefined> {
+  try {
+    const raw = await fsp.readFile(filePath, "utf8");
+    return JSON.parse(raw) as FileHashesCache;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
+async function buildScanConfigHash(root: string, ignoreFile?: string): Promise<string> {
+  const payload = {
+    version: "0.1.0",
+    root,
+    ignoreFile: ignoreFile ? normalizePath(path.relative(root, ignoreFile)) : undefined,
+    ignoreContent: ignoreFile ? await fsp.readFile(ignoreFile, "utf8") : undefined
+  };
+
+  return `sha1:${crypto.createHash("sha1").update(JSON.stringify(payload)).digest("hex")}`;
 }
 
 async function writeListManifest(

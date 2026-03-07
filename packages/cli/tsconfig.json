@@ -12,6 +12,7 @@
     { "path": "../java-bridge" },
     { "path": "../labeler" },
     { "path": "../parser-jsp" },
+    { "path": "../parser-tld" },
     { "path": "../reporter" },
     { "path": "../scanner" }
   ]

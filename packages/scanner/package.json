@@ -12,6 +12,7 @@
     "clean": "tsc -b --clean"
   },
   "dependencies": {
+    "@lefectjava/schema": "workspace:*",
     "ignore": "^5.3.1"
   }
 }
