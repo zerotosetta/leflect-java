@@ -1,0 +1,7 @@
+<taglib>
+  <uri>/WEB-INF/form.tld</uri>
+  <tag>
+    <name>form</name>
+    <tag-class>FormTag</tag-class>
+  </tag>
+</taglib>
