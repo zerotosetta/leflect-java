@@ -13,7 +13,9 @@
   },
   "dependencies": {
     "@lefectjava/core": "workspace:*",
+    "@lefectjava/graph": "workspace:*",
     "@lefectjava/java-bridge": "workspace:*",
+    "@lefectjava/labeler": "workspace:*",
     "@lefectjava/parser-jsp": "workspace:*",
     "@lefectjava/scanner": "workspace:*"
   }

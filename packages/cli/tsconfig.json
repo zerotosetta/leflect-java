@@ -8,7 +8,9 @@
   "include": ["src"],
   "references": [
     { "path": "../core" },
+    { "path": "../graph" },
     { "path": "../java-bridge" },
+    { "path": "../labeler" },
     { "path": "../parser-jsp" },
     { "path": "../scanner" }
   ]

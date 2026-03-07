@@ -2,7 +2,9 @@ import fs from "fs/promises";
 import path from "path";
 
 import { buildJavaInputManifest, buildJspInputManifest, loadConfig } from "@lefectjava/core";
+import { buildGraphs, GraphClassRecord, GraphJspRecord, JavaCallRecord, writeGraphFiles } from "@lefectjava/graph";
 import { runJavaWorker, writeJavaManifest, writeJspManifest } from "@lefectjava/java-bridge";
+import { buildLabelsIndex, LabelerClassRecord, LabelerJspRecord, LabelerMethodRecord, writeLabelsIndex } from "@lefectjava/labeler";
 import { attachJspAstReference, parseJsp, writeJspMeta } from "@lefectjava/parser-jsp";
 import { scanWorkspace } from "@lefectjava/scanner";
 
@@ -28,6 +30,9 @@ export async function run(argv: string[]): Promise<void> {
       return;
     case "parse-jsp":
       await runParseJsp(rest);
+      return;
+    case "build-graph":
+      await runBuildGraph(rest);
       return;
     default:
       console.error(`Unknown command: ${command}`);
@@ -173,6 +178,49 @@ async function runParseJsp(args: string[]): Promise<void> {
   console.log(`JSP parse complete. Output: ${metaDir}`);
 }
 
+async function runBuildGraph(args: string[]): Promise<void> {
+  const parsed = parseArgs(args);
+  const root = parsed["root"] ? path.resolve(parsed["root"]) : process.cwd();
+  const configPath = parsed["config"] ? path.resolve(parsed["config"]) : undefined;
+  const analysisOut = parsed["analysis"]
+    ? path.resolve(parsed["analysis"])
+    : parsed["out"]
+      ? path.resolve(parsed["out"])
+      : undefined;
+  const labelsOut = parsed["labels-out"] ? path.resolve(parsed["labels-out"]) : undefined;
+
+  const { config } = await loadConfig({
+    root,
+    configPath,
+    overrides: buildOverrides({
+      analysisOut,
+      labelsOut
+    })
+  });
+
+  const indexDir = path.join(config.analysisOut, "index");
+  const classes = await readJsonArray<GraphClassRecord & LabelerClassRecord>(
+    path.join(indexDir, "classes.json")
+  );
+  const methods = await readJsonArray<LabelerMethodRecord>(path.join(indexDir, "methods.json"));
+  const calls = await readJsonArray<JavaCallRecord>(path.join(indexDir, "calls.json"));
+  const jspDocs = await readJsonArray<GraphJspRecord & LabelerJspRecord>(
+    path.join(indexDir, "jsp-docs.json")
+  );
+
+  const graphs = buildGraphs(calls, jspDocs, classes);
+  await writeGraphFiles(config.analysisOut, graphs);
+
+  const labels = buildLabelsIndex({
+    classes,
+    methods,
+    jsps: jspDocs.map((entry) => ({ path: entry.path }))
+  });
+  await writeLabelsIndex(config.labelsOut ?? path.join(config.analysisOut, "index", "labels.json"), labels);
+
+  console.log(`Graph build complete. Output: ${path.join(config.analysisOut, "graph")}`);
+}
+
 function parseArgs(args: string[]): Record<string, string> {
   const result: Record<string, string> = {};
 
@@ -205,12 +253,15 @@ function printHelp(): void {
   console.log("  scan            Scan repository and build file inventory");
   console.log("  parse-java      Convert Java source files to JavaParser AST JSON");
   console.log("  parse-jsp       Parse JSP metadata and optionally Jasper->JavaParser AST");
+  console.log("  build-graph     Build graph outputs and labels.json from analysis indexes");
   console.log("\nOptions:");
   console.log("  --root <path>        Repository root");
+  console.log("  --analysis <path>    Analysis directory (for build-graph)");
   console.log("  --out <path>         Analysis output directory");
   console.log("  --config <path>      Config file path (default: <root>/leflect.config.json)");
   console.log("  --ignore-file <path> Ignore rules file (.gitignore syntax)");
   console.log("  --jsp-ast-mode <m>   JSP AST mode: lightweight | jasper");
+  console.log("  --labels-out <path>  Label output path (default: analysis/index/labels.json)");
   console.log("  -h, --help           Show help");
   console.log("  -v, --version        Show version");
 }
@@ -224,6 +275,19 @@ async function readScannerManifest(manifestPath: string): Promise<string[]> {
   const raw = await fs.readFile(manifestPath, "utf8");
   const payload = JSON.parse(raw) as { files?: string[] };
   return payload.files ?? [];
+}
+
+async function readJsonArray<T>(filePath: string): Promise<T[]> {
+  try {
+    const raw = await fs.readFile(filePath, "utf8");
+    const payload = JSON.parse(raw) as T[];
+    return Array.isArray(payload) ? payload : [];
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
 }
 
 function toAnalysisRelative(analysisOut: string, target: string): string {
