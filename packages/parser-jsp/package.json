@@ -10,5 +10,8 @@
   "scripts": {
     "build": "tsc -b",
     "clean": "tsc -b --clean"
+  },
+  "dependencies": {
+    "@lefectjava/parser-tld": "workspace:*"
   }
 }

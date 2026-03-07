@@ -1,1 +1,2 @@
-export const packageName = "@lefectjava/parser-jsp";
+export * from "./parse";
+export * from "./resolve";

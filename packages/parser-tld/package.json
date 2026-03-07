@@ -10,5 +10,8 @@
   "scripts": {
     "build": "tsc -b",
     "clean": "tsc -b --clean"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^4.4.0"
   }
 }
