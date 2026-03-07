@@ -25,7 +25,6 @@ export type LeflectConfigInput = Partial<
 
 export const defaultConfig: Omit<LeflectConfig, "root"> = {
   analysisOut: "analysis",
-  labelsOut: "analysis/index/labels.json",
   java: {},
   jsp: {
     astMode: "lightweight"
