@@ -17,6 +17,15 @@ public class CommandRouter {
       WorkerOptions options = new WorkerOptions(manifestPath);
       return new ParseJavaCommand().run(options);
     }
+    if ("parse-jsp".equals(command)) {
+      String manifestPath = parseManifestPath(args);
+      if (manifestPath == null || manifestPath.isEmpty()) {
+        System.err.println("Missing --manifest <path>");
+        return 1;
+      }
+      WorkerOptions options = new WorkerOptions(manifestPath);
+      return new ParseJspCommand().run(options);
+    }
 
     System.err.println("Unknown command: " + command);
     printUsage();
@@ -34,6 +43,6 @@ public class CommandRouter {
 
   private void printUsage() {
     System.out.println("LeflectJava Java Worker");
-    System.out.println("Usage: parse-java --manifest <path>");
+    System.out.println("Usage: parse-java|parse-jsp --manifest <path>");
   }
 }

@@ -2,6 +2,8 @@ import { spawn } from "child_process";
 import fs from "fs/promises";
 import path from "path";
 
+import { JavaInputManifest, JspInputManifest } from "@lefectjava/schema";
+
 export type JavaWorkerCommand = {
   javaPath?: string;
   javaHome?: string;
@@ -14,13 +16,6 @@ export type JavaWorkerResult = {
   code: number | null;
   stdout: string;
   stderr: string;
-};
-
-export type JavaInputManifest = {
-  root: string;
-  files: string[];
-  outputDir: string;
-  errorLog: string;
 };
 
 export function buildJavaCommand(command: JavaWorkerCommand): {
@@ -62,6 +57,20 @@ export function runJavaWorker(command: JavaWorkerCommand): Promise<JavaWorkerRes
 export async function writeJavaManifest(
   manifestPath: string,
   manifest: JavaInputManifest
+): Promise<void> {
+  await writeManifest(manifestPath, manifest);
+}
+
+export async function writeJspManifest(
+  manifestPath: string,
+  manifest: JspInputManifest
+): Promise<void> {
+  await writeManifest(manifestPath, manifest);
+}
+
+async function writeManifest(
+  manifestPath: string,
+  manifest: JavaInputManifest | JspInputManifest
 ): Promise<void> {
   await fs.mkdir(path.dirname(manifestPath), { recursive: true });
   await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2));

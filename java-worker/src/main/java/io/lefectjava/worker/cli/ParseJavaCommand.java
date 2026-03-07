@@ -1,18 +1,17 @@
 package io.lefectjava.worker.cli;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import io.lefectjava.worker.io.FileLayout;
+import io.lefectjava.worker.io.JsonWriters;
 import io.lefectjava.worker.manifest.InputManifest;
+import io.lefectjava.worker.parser.JavaAstExporter;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class ParseJavaCommand {
   public int run(WorkerOptions options) {
@@ -33,31 +32,26 @@ public class ParseJavaCommand {
       Files.createDirectories(indexDir);
       Path summaryPath = indexDir.resolve("java-summary.jsonl");
 
-      ObjectMapper mapper = new ObjectMapper();
-      mapper.enable(SerializationFeature.INDENT_OUTPUT);
+      ObjectMapper mapper = JsonWriters.createMapper();
+      JavaAstExporter exporter = new JavaAstExporter();
 
       try (BufferedWriter summaryWriter = Files.newBufferedWriter(summaryPath)) {
         for (String file : safeList(manifest.files)) {
           Path source = resolveSource(root, file);
           Path astPath = FileLayout.resolveAstPath(outputDir, root, source);
-          if (astPath.getParent() != null) {
-            Files.createDirectories(astPath.getParent());
+          String relativePath = root.relativize(source).toString().replace("\\", "/");
+          JavaAstExporter.ExportResult result = exporter.export(source, relativePath, "java");
+
+          JsonWriters.writeJson(mapper, astPath, result.ast);
+          for (var problem : result.problems) {
+            Files.writeString(
+                errorLog,
+                mapper.writeValueAsString(problem) + System.lineSeparator(),
+                java.nio.file.StandardOpenOption.APPEND
+            );
           }
 
-          String relativePath = root.relativize(source).toString().replace("\\", "/");
-
-          Map<String, Object> payload = new HashMap<>();
-          payload.put("path", relativePath);
-          payload.put("status", "stub");
-
-          mapper.writeValue(astPath.toFile(), payload);
-
-          Map<String, Object> summary = new HashMap<>();
-          summary.put("path", relativePath);
-          summary.put("classCount", 0);
-          summary.put("methodCount", 0);
-          summaryWriter.write(mapper.writeValueAsString(summary));
-          summaryWriter.newLine();
+          JsonWriters.appendJsonLine(mapper, summaryWriter, result.ast);
         }
       }
 

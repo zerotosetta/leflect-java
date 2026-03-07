@@ -38,18 +38,18 @@ function normalizeTags(node: unknown): TldTag[] {
   const nodes = Array.isArray(node) ? node : [node];
 
   return nodes
-    .map((item) => {
+    .map((item): TldTag | undefined => {
       if (!item || typeof item !== "object") {
-        return null;
+        return undefined;
       }
       const record = item as Record<string, unknown>;
       const name = typeof record["name"] === "string" ? (record["name"] as string) : undefined;
       const handlerClass =
         typeof record["tag-class"] === "string" ? (record["tag-class"] as string) : undefined;
       if (!name) {
-        return null;
+        return undefined;
       }
       return { name, handlerClass };
     })
-    .filter((tag): tag is TldTag => tag !== null);
+    .filter((tag): tag is TldTag => tag !== undefined);
 }

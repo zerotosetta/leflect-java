@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseJsp } from "../parse";
+import { attachJspAstReference, parseJsp } from "../parse";
 import { resolveTagHandlers } from "../resolve";
 import { TldIndex } from "@lefectjava/parser-tld";
 
@@ -37,5 +37,17 @@ describe("parseJsp", () => {
       uri: "http://example.com/tags",
       handlerClass: "com.example.HelloTag"
     });
+  });
+
+  it("attaches jasper ast metadata", () => {
+    const parsed = parseJsp("<%= 1 %>");
+    const withAst = attachJspAstReference(parsed, {
+      mode: "jasper",
+      generatedServletPath: "analysis/generated-jsp-java/view/index_jsp.java",
+      astPath: "analysis/jsp-ast/view/index.jsp.json"
+    });
+
+    expect(withAst.ast?.mode).toBe("jasper");
+    expect(withAst.ast?.generatedServletPath).toContain("generated-jsp-java");
   });
 });

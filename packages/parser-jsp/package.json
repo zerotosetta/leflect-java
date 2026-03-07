@@ -12,6 +12,7 @@
     "clean": "tsc -b --clean"
   },
   "dependencies": {
-    "@lefectjava/parser-tld": "workspace:*"
+    "@lefectjava/parser-tld": "workspace:*",
+    "@lefectjava/schema": "workspace:*"
   }
 }
