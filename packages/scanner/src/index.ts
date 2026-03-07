@@ -1,1 +1,1 @@
-export const packageName = "@lefectjava/scanner";
+export * from "./scan";

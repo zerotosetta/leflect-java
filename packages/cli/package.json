@@ -10,5 +10,9 @@
   "scripts": {
     "build": "tsc -b",
     "clean": "tsc -b --clean"
+  },
+  "dependencies": {
+    "@lefectjava/core": "workspace:*",
+    "@lefectjava/scanner": "workspace:*"
   }
 }
