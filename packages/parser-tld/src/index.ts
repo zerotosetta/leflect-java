@@ -1,1 +1,1 @@
-export const packageName = "@lefectjava/parser-tld";
+export * from "./parse";
