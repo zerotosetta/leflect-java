@@ -35,6 +35,9 @@ importers:
       '@lefectjava/graph':
         specifier: workspace:*
         version: link:../graph
+      '@lefectjava/indexer':
+        specifier: workspace:*
+        version: link:../indexer
       '@lefectjava/java-bridge':
         specifier: workspace:*
         version: link:../java-bridge

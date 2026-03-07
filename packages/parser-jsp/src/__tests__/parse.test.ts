@@ -17,7 +17,9 @@ describe("parseJsp", () => {
     ]);
     expect(result.tags[0].prefix).toBe("c");
     expect(result.tags[0].name).toBe("hello");
+    expect(result.scriptlets).toHaveLength(1);
     expect(result.scriptlets[0].kind).toBe("scriptlet");
+    expect(result.scriptlets[0].code).toBe("int x = 1;");
   });
 
   it("resolves tag handlers", () => {

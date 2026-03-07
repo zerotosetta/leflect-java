@@ -21,6 +21,14 @@ import {
   JavaCallRecord,
   writeGraphFiles
 } from "@lefectjava/graph";
+import {
+  buildJavaIndex,
+  buildJspIndex,
+  buildReverseIndex,
+  writeJavaIndex,
+  writeJspIndex,
+  writeReverseIndex
+} from "@lefectjava/indexer";
 import { runJavaWorker, writeJavaManifest, writeJspManifest } from "@lefectjava/java-bridge";
 import {
   buildLabelsIndex,
@@ -29,7 +37,13 @@ import {
   LabelerMethodRecord,
   writeLabelsIndex
 } from "@lefectjava/labeler";
-import { attachJspAstReference, parseJsp, writeJspMeta } from "@lefectjava/parser-jsp";
+import {
+  attachJspAstReference,
+  JspParseResult,
+  parseJsp,
+  resolveTagHandlers,
+  writeJspMeta
+} from "@lefectjava/parser-jsp";
 import { parseTld, TldIndex } from "@lefectjava/parser-tld";
 import {
   buildReports,
@@ -87,8 +101,14 @@ export async function run(argv: string[]): Promise<void> {
     case "parse-tld":
       await runParseTld(rest);
       return;
+    case "build-index":
+      await runBuildIndex(rest);
+      return;
     case "build-graph":
       await runBuildGraph(rest);
+      return;
+    case "analyze":
+      await runAnalyze(rest);
       return;
     case "report":
       await runReport(rest);
@@ -346,6 +366,58 @@ async function runBuildGraph(args: string[]): Promise<void> {
   console.log(`Graph build complete. Output: ${path.join(config.analysisOut, "graph")}`);
 }
 
+async function runBuildIndex(args: string[]): Promise<void> {
+  const parsed = parseArgs(args);
+  const config = await loadCliConfig(parsed, {
+    analysisOut: parsed["analysis"] ? path.resolve(parsed["analysis"]) : undefined
+  });
+
+  const indexDir = path.join(config.analysisOut, "index");
+  const javaFiles = await readScannerManifest(path.join(config.analysisOut, "manifests", "java-files.json"));
+  const taglibs = await readJsonArray<TldIndex>(path.join(indexDir, "taglibs.json"));
+  const jspDocs = await readJspMetaEntries(path.join(config.analysisOut, "jsp-meta"));
+  const enrichedJspDocs = jspDocs.map((entry) => ({
+    ...entry,
+    resolvedTags: resolveTagHandlers(entry.tags, entry.taglibs, taglibs)
+  }));
+
+  const javaIndex = buildJavaIndex({ files: javaFiles });
+  await writeJavaIndex(indexDir, javaIndex);
+  await writeJspIndex(indexDir, buildJspIndex(enrichedJspDocs));
+  await writeReverseIndex(
+    indexDir,
+    buildReverseIndex(
+      enrichedJspDocs.flatMap((entry) =>
+        (entry.resolvedTags ?? []).map((tag) => ({
+          ...tag,
+          jspPath: entry.path
+        }))
+      )
+    )
+  );
+
+  console.log(`Index build complete. Output: ${indexDir}`);
+}
+
+async function runAnalyze(args: string[]): Promise<void> {
+  const parsed = parseArgs(args);
+  const config = await loadCliConfig(parsed);
+
+  await runScan(args);
+  await runParseTld(args);
+  await runParseJsp(args);
+
+  if (config.java?.workerJar) {
+    await runParseJava(args);
+  } else {
+    console.log("Java parse skipped. Config 'java.workerJar' is not set.");
+  }
+
+  await runBuildIndex(args);
+  await runBuildGraph(args);
+  await runReport(["summary", ...args]);
+}
+
 async function runReport(args: string[]): Promise<void> {
   const [subcommand, ...rest] = args;
   const parsed = parseArgs(rest);
@@ -450,7 +522,9 @@ function printHelp(): void {
   console.log("  parse-java          Convert Java source files to JavaParser AST JSON");
   console.log("  parse-jsp           Parse JSP metadata and optionally Jasper->JavaParser AST");
   console.log("  parse-tld           Parse TLD files and write taglibs.json");
+  console.log("  build-index         Build analysis indexes from manifests and parsed outputs");
   console.log("  build-graph         Build graph outputs and labels.json from analysis indexes");
+  console.log("  analyze             Run the end-to-end analysis pipeline");
   console.log("  report <subcommand> Generate report artifacts and print one result");
   console.log("  query <subcommand>  Query analysis outputs");
   console.log("\nReport Subcommands:");
@@ -486,6 +560,7 @@ async function loadCliConfig(
   const ignoreFile = parsed["ignore-file"] ? path.resolve(parsed["ignore-file"]) : undefined;
   const analysisOut =
     directOverrides.analysisOut ??
+    (parsed["analysis"] ? path.resolve(parsed["analysis"]) : undefined) ??
     (parsed["out"] ? path.resolve(parsed["out"]) : undefined);
   const labelsOut =
     directOverrides.labelsOut ??
@@ -593,6 +668,45 @@ async function writeTaglibIndex(analysisOut: string, taglibs: TldIndex[]): Promi
   const indexDir = path.join(analysisOut, "index");
   await fs.mkdir(indexDir, { recursive: true });
   await fs.writeFile(path.join(indexDir, "taglibs.json"), JSON.stringify(taglibs, null, 2));
+}
+
+async function readJspMetaEntries(metaDir: string): Promise<Array<Record<string, unknown> & {
+  path: string;
+} & JspParseResult>> {
+  const files = await listFiles(metaDir);
+  const entries: Array<{ path: string } & JspParseResult> = [];
+
+  for (const file of files) {
+    if (!file.endsWith(".json")) {
+      continue;
+    }
+
+    const raw = await fs.readFile(file, "utf8");
+    entries.push(JSON.parse(raw) as { path: string } & JspParseResult);
+  }
+
+  return entries.sort((left, right) => left.path.localeCompare(right.path));
+}
+
+async function listFiles(dir: string): Promise<string[]> {
+  try {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    const files = await Promise.all(
+      entries.map(async (entry) => {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          return listFiles(fullPath);
+        }
+        return [fullPath];
+      })
+    );
+    return files.flat();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
 }
 
 function toAnalysisRelative(analysisOut: string, target: string): string {

@@ -112,6 +112,11 @@ function extractScriptlets(content: string): ScriptletBlock[] {
     const raw = match[0];
     const body = match[1];
 
+    // JSP directives (`<%@ ... %>`) are metadata, not executable scriptlets.
+    if (raw.startsWith("<%@")) {
+      continue;
+    }
+
     let kind: ScriptletBlock["kind"] = "scriptlet";
     if (raw.startsWith("<%=")) {
       kind = "expression";
