@@ -2,6 +2,7 @@
   "name": "@lefectjava/workspace",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@9.0.0",
   "bin": {
     "leflect": "bin/leflect"
   },
@@ -13,7 +14,8 @@
     "clean": "tsc -b --clean",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "release:check": "pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {
     "@types/node": "^20.11.30",
