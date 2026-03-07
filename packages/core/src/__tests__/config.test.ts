@@ -76,6 +76,7 @@ describe("loadConfig", () => {
     });
 
     expect(result.config.analysisOut).toBe(path.join(root, "custom"));
+    expect(result.config.labelsOut).toBe(path.join(root, "custom", "index", "labels.json"));
   });
 
   it("builds java and jsp worker manifests from config", async () => {

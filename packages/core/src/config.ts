@@ -48,6 +48,7 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Loade
 }
 
 function resolveConfigPaths(config: LeflectConfig, root: string): LeflectConfig {
+  const resolvedAnalysisOut = resolvePath(root, config.analysisOut);
   const javaConfig = config.java;
   const resolvedJava =
     javaConfig && (javaConfig.workerJar || javaConfig.javaHome)
@@ -73,9 +74,11 @@ function resolveConfigPaths(config: LeflectConfig, root: string): LeflectConfig 
   return {
     ...config,
     root,
-    analysisOut: resolvePath(root, config.analysisOut),
+    analysisOut: resolvedAnalysisOut,
     ignoreFile: config.ignoreFile ? resolvePath(root, config.ignoreFile) : undefined,
-    labelsOut: config.labelsOut ? resolvePath(root, config.labelsOut) : undefined,
+    labelsOut: config.labelsOut
+      ? resolvePath(root, config.labelsOut)
+      : path.join(resolvedAnalysisOut, "index", "labels.json"),
     java: resolvedJava,
     jsp: resolvedJsp
   };
