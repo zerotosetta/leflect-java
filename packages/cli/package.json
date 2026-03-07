@@ -17,6 +17,7 @@
     "@lefectjava/java-bridge": "workspace:*",
     "@lefectjava/labeler": "workspace:*",
     "@lefectjava/parser-jsp": "workspace:*",
+    "@lefectjava/parser-tld": "workspace:*",
     "@lefectjava/reporter": "workspace:*",
     "@lefectjava/scanner": "workspace:*"
   }

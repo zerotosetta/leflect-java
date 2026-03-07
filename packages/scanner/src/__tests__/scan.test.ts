@@ -59,5 +59,25 @@ describe("scanWorkspace", () => {
     expect(javaRecord?.type).toBe("java");
     expect(jspRecord?.type).toBe("jsp");
     expect(javaRecord?.hash.startsWith("sha1:")).toBe(true);
+
+    const cachePath = path.join(analysisOut, "cache", "file-hashes.json");
+    const cache = JSON.parse(await readFile(cachePath, "utf8")) as {
+      changed: string[];
+      removed: string[];
+    };
+
+    expect(cache.changed).toEqual(["src/A.java", "view/B.jsp"]);
+    expect(cache.removed).toEqual([]);
+
+    await writeFile(path.join(root, "src", "A.java"), "class A { int value; }");
+
+    const secondRun = await scanWorkspace({
+      root,
+      analysisOut,
+      ignoreFile
+    });
+
+    expect(secondRun.changedFiles).toEqual(["src/A.java"]);
+    expect(secondRun.removedFiles).toEqual([]);
   });
 });

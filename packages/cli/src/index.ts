@@ -1,7 +1,19 @@
 import fs from "fs/promises";
 import path from "path";
 
-import { buildJspInputManifest, buildJavaInputManifest, loadConfig } from "@lefectjava/core";
+import {
+  buildJspInputManifest,
+  buildJavaInputManifest,
+  buildStageIncrementalPlan,
+  createCacheKey,
+  createStageCacheState,
+  ensureCacheDir,
+  loadConfig,
+  readFileHashesCache,
+  readStageCacheState,
+  removeRelativeJsonFiles,
+  writeStageCacheState
+} from "@lefectjava/core";
 import {
   buildGraphs,
   GraphClassRecord,
@@ -18,6 +30,7 @@ import {
   writeLabelsIndex
 } from "@lefectjava/labeler";
 import { attachJspAstReference, parseJsp, writeJspMeta } from "@lefectjava/parser-jsp";
+import { parseTld, TldIndex } from "@lefectjava/parser-tld";
 import {
   buildReports,
   formatJavaUsagesResult,
@@ -32,6 +45,21 @@ import {
 import { scanWorkspace } from "@lefectjava/scanner";
 
 type OutputFormat = "json" | "text";
+type StageName = "java-parse" | "jsp-parse" | "tld-parse";
+type PreparedStageContext<TEntry = never> = {
+  cacheKey: string;
+  statePath: string;
+  fileHashesCache: Awaited<ReturnType<typeof readFileHashesCache>>;
+  previousState: Awaited<ReturnType<typeof readStageCacheState<TEntry>>>;
+  plan: {
+    reason: "initial" | "invalidated" | "changed" | "cache-hit";
+    selectedFiles: string[];
+    removedFiles: string[];
+    unchangedFiles: string[];
+  };
+};
+
+const PIPELINE_VERSION = "0.1.0";
 
 export async function run(argv: string[]): Promise<void> {
   const [command, ...rest] = argv;
@@ -42,7 +70,7 @@ export async function run(argv: string[]): Promise<void> {
   }
 
   if (command === "--version" || command === "-v") {
-    console.log("0.1.0");
+    console.log(PIPELINE_VERSION);
     return;
   }
 
@@ -55,6 +83,9 @@ export async function run(argv: string[]): Promise<void> {
       return;
     case "parse-jsp":
       await runParseJsp(rest);
+      return;
+    case "parse-tld":
+      await runParseTld(rest);
       return;
     case "build-graph":
       await runBuildGraph(rest);
@@ -75,27 +106,61 @@ export async function run(argv: string[]): Promise<void> {
 async function runScan(args: string[]): Promise<void> {
   const parsed = parseArgs(args);
   const config = await loadCliConfig(parsed);
+  const incremental = parsed["incremental"] === "true";
 
-  await scanWorkspace({
+  const result = await scanWorkspace({
     root: config.root,
     analysisOut: config.analysisOut,
     ignoreFile: config.ignoreFile
   });
 
   console.log(`Scan complete. Output: ${config.analysisOut}`);
+  if (incremental) {
+    console.log(
+      `Changed: ${result.changedFiles.length}, Removed: ${result.removedFiles.length}`
+    );
+  }
 }
 
 async function runParseJava(args: string[]): Promise<void> {
   const parsed = parseArgs(args);
   const config = await loadCliConfig(parsed);
-
+  const incremental = parsed["incremental"] === "true";
   const workerJar = config.java?.workerJar;
+
   if (!workerJar) {
     throw new Error("Config 'java.workerJar' is required for parse-java");
   }
 
   const files = await readScannerManifest(path.join(config.analysisOut, "manifests", "java-files.json"));
-  const manifest = buildJavaInputManifest(config, files);
+  const stage = await prepareStageContext(
+    "java-parse",
+    config.analysisOut,
+    files,
+    createCacheKey({
+      version: PIPELINE_VERSION,
+      stage: "java-parse",
+      java: config.java ?? {}
+    }),
+    incremental
+  );
+
+  if (stage.plan.reason === "cache-hit") {
+    console.log("Java AST parse skipped (cache hit).");
+    return;
+  }
+
+  if (stage.plan.removedFiles.length > 0) {
+    await removeRelativeJsonFiles(path.join(config.analysisOut, "java-ast"), stage.plan.removedFiles);
+  }
+
+  if (stage.plan.selectedFiles.length === 0) {
+    await persistStageState("java-parse", stage, files);
+    console.log(`Java AST parse complete. Removed: ${stage.plan.removedFiles.length}`);
+    return;
+  }
+
+  const manifest = buildJavaInputManifest(config, stage.plan.selectedFiles);
   const manifestPath = path.join(config.analysisOut, "manifests", "java-parse.json");
   await writeJavaManifest(manifestPath, manifest);
 
@@ -110,12 +175,16 @@ async function runParseJava(args: string[]): Promise<void> {
     throw new Error(result.stderr || `Java worker failed with exit code ${result.code}`);
   }
 
-  console.log(`Java AST parse complete. Output: ${manifest.outputDir}`);
+  await persistStageState("java-parse", stage, files);
+  console.log(
+    `Java AST parse complete. Processed: ${stage.plan.selectedFiles.length}, Removed: ${stage.plan.removedFiles.length}`
+  );
 }
 
 async function runParseJsp(args: string[]): Promise<void> {
   const parsed = parseArgs(args);
   const baseConfig = await loadCliConfig(parsed);
+  const incremental = parsed["incremental"] === "true";
   const astModeOverride: "jasper" | "lightweight" =
     parsed["jsp-ast-mode"] === "jasper" ? "jasper" : "lightweight";
 
@@ -130,11 +199,33 @@ async function runParseJsp(args: string[]): Promise<void> {
     : baseConfig;
 
   const files = await readScannerManifest(path.join(config.analysisOut, "manifests", "jsp-files.json"));
-  const metaDir = path.join(config.analysisOut, "jsp-meta");
   const astMode = config.jsp?.astMode ?? "lightweight";
+  const metaDir = path.join(config.analysisOut, "jsp-meta");
   const astOutDir = config.jsp?.astOut ?? path.join(config.analysisOut, "jsp-ast");
+  const stage = await prepareStageContext(
+    "jsp-parse",
+    config.analysisOut,
+    files,
+    createCacheKey({
+      version: PIPELINE_VERSION,
+      stage: "jsp-parse",
+      java: config.java ?? {},
+      jsp: config.jsp ?? {}
+    }),
+    incremental
+  );
 
-  for (const file of files) {
+  if (stage.plan.reason === "cache-hit") {
+    console.log("JSP parse skipped (cache hit).");
+    return;
+  }
+
+  if (stage.plan.removedFiles.length > 0) {
+    await removeRelativeJsonFiles(metaDir, stage.plan.removedFiles);
+    await removeRelativeJsonFiles(astOutDir, stage.plan.removedFiles);
+  }
+
+  for (const file of stage.plan.selectedFiles) {
     const absolutePath = path.join(config.root, file);
     const content = await fs.readFile(absolutePath, "utf8");
     const parsedJsp = parseJsp(content);
@@ -151,13 +242,13 @@ async function runParseJsp(args: string[]): Promise<void> {
     await writeJspMeta(metaDir, file, withAst);
   }
 
-  if (astMode === "jasper") {
+  if (astMode === "jasper" && stage.plan.selectedFiles.length > 0) {
     const workerJar = config.java?.workerJar;
     if (!workerJar) {
       throw new Error("Config 'java.workerJar' is required for parse-jsp with jasper mode");
     }
 
-    const manifest = buildJspInputManifest(config, files);
+    const manifest = buildJspInputManifest(config, stage.plan.selectedFiles);
     const manifestPath = path.join(config.analysisOut, "manifests", "jsp-parse.json");
     await writeJspManifest(manifestPath, manifest);
 
@@ -173,7 +264,57 @@ async function runParseJsp(args: string[]): Promise<void> {
     }
   }
 
-  console.log(`JSP parse complete. Output: ${metaDir}`);
+  await persistStageState("jsp-parse", stage, files);
+  console.log(
+    `JSP parse complete. Processed: ${stage.plan.selectedFiles.length}, Removed: ${stage.plan.removedFiles.length}`
+  );
+}
+
+async function runParseTld(args: string[]): Promise<void> {
+  const parsed = parseArgs(args);
+  const config = await loadCliConfig(parsed);
+  const incremental = parsed["incremental"] === "true";
+  const files = await readScannerManifest(path.join(config.analysisOut, "manifests", "tld-files.json"));
+  const stage = await prepareStageContext<TldIndex>(
+    "tld-parse",
+    config.analysisOut,
+    files,
+    createCacheKey({
+      version: PIPELINE_VERSION,
+      stage: "tld-parse"
+    }),
+    incremental
+  );
+
+  if (stage.plan.reason === "cache-hit") {
+    console.log("TLD parse skipped (cache hit).");
+    return;
+  }
+
+  const entries: Record<string, TldIndex> =
+    stage.previousState && stage.previousState.cacheKey === stage.cacheKey
+      ? { ...(stage.previousState.entries ?? {}) }
+      : {};
+
+  for (const file of stage.plan.removedFiles) {
+    delete entries[file];
+  }
+
+  for (const file of stage.plan.selectedFiles) {
+    const absolutePath = path.join(config.root, file);
+    const content = await fs.readFile(absolutePath, "utf8");
+    entries[file] = parseTld(content);
+  }
+
+  const taglibs = files
+    .map((file) => entries[file])
+    .filter((entry): entry is TldIndex => entry !== undefined);
+
+  await writeTaglibIndex(config.analysisOut, taglibs);
+  await persistStageState("tld-parse", stage, files, entries);
+  console.log(
+    `TLD parse complete. Processed: ${stage.plan.selectedFiles.length}, Removed: ${stage.plan.removedFiles.length}`
+  );
 }
 
 async function runBuildGraph(args: string[]): Promise<void> {
@@ -308,6 +449,7 @@ function printHelp(): void {
   console.log("  scan                Scan repository and build file inventory");
   console.log("  parse-java          Convert Java source files to JavaParser AST JSON");
   console.log("  parse-jsp           Parse JSP metadata and optionally Jasper->JavaParser AST");
+  console.log("  parse-tld           Parse TLD files and write taglibs.json");
   console.log("  build-graph         Build graph outputs and labels.json from analysis indexes");
   console.log("  report <subcommand> Generate report artifacts and print one result");
   console.log("  query <subcommand>  Query analysis outputs");
@@ -326,10 +468,11 @@ function printHelp(): void {
   console.log("  --config <path>      Config file path (default: <root>/leflect.config.json)");
   console.log("  --ignore-file <path> Ignore rules file (.gitignore syntax)");
   console.log("  --jsp-ast-mode <m>   JSP AST mode: lightweight | jasper");
-  console.log("  --labels-out <path>  Label output path (default: analysis/index/labels.json)");
+  console.log("  --labels-out <path>  Label output path (default: analysisOut/index/labels.json)");
   console.log("  --file <path>        Target JSP path for query jsp-impact");
   console.log("  --class <name>       Target Java/tag handler class for queries");
   console.log("  --format <type>      Query output format: text | json");
+  console.log("  --incremental        Use cache state and process only changed files");
   console.log("  -h, --help           Show help");
   console.log("  -v, --version        Show version");
 }
@@ -341,9 +484,11 @@ async function loadCliConfig(
   const root = parsed["root"] ? path.resolve(parsed["root"]) : process.cwd();
   const configPath = parsed["config"] ? path.resolve(parsed["config"]) : undefined;
   const ignoreFile = parsed["ignore-file"] ? path.resolve(parsed["ignore-file"]) : undefined;
-  const analysisOut = directOverrides.analysisOut ??
+  const analysisOut =
+    directOverrides.analysisOut ??
     (parsed["out"] ? path.resolve(parsed["out"]) : undefined);
-  const labelsOut = directOverrides.labelsOut ??
+  const labelsOut =
+    directOverrides.labelsOut ??
     (parsed["labels-out"] ? path.resolve(parsed["labels-out"]) : undefined);
 
   const { config } = await loadConfig({
@@ -357,6 +502,54 @@ async function loadCliConfig(
   });
 
   return config;
+}
+
+async function prepareStageContext<TEntry = never>(
+  stageName: StageName,
+  analysisOut: string,
+  files: string[],
+  cacheKey: string,
+  incremental: boolean
+): Promise<PreparedStageContext<TEntry>> {
+  const cacheDir = await ensureCacheDir(analysisOut);
+  const fileHashesCache = await readFileHashesCache(path.join(cacheDir, "file-hashes.json"));
+  const statePath = path.join(cacheDir, `${stageName}-state.json`);
+  const previousState = await readStageCacheState<TEntry>(statePath);
+  const plan =
+    incremental && fileHashesCache
+      ? buildStageIncrementalPlan(files, fileHashesCache.files, previousState, cacheKey)
+      : {
+          reason: "initial" as const,
+          selectedFiles: [...files],
+          removedFiles: previousState
+            ? Object.keys(previousState.files).filter((file) => !files.includes(file))
+            : [],
+          unchangedFiles: []
+        };
+
+  return {
+    cacheKey,
+    statePath,
+    fileHashesCache,
+    previousState,
+    plan
+  };
+}
+
+async function persistStageState<TEntry>(
+  stageName: StageName,
+  stage: PreparedStageContext<TEntry>,
+  files: string[],
+  entries?: Record<string, TEntry>
+): Promise<void> {
+  if (!stage.fileHashesCache) {
+    return;
+  }
+
+  await writeStageCacheState(
+    stage.statePath,
+    createStageCacheState(stageName, stage.cacheKey, files, stage.fileHashesCache.files, entries)
+  );
 }
 
 function buildOverrides<T extends Record<string, unknown>>(overrides: T): Partial<T> {
@@ -394,6 +587,12 @@ async function readJsonArray<T>(filePath: string): Promise<T[]> {
     }
     throw error;
   }
+}
+
+async function writeTaglibIndex(analysisOut: string, taglibs: TldIndex[]): Promise<void> {
+  const indexDir = path.join(analysisOut, "index");
+  await fs.mkdir(indexDir, { recursive: true });
+  await fs.writeFile(path.join(indexDir, "taglibs.json"), JSON.stringify(taglibs, null, 2));
 }
 
 function toAnalysisRelative(analysisOut: string, target: string): string {
