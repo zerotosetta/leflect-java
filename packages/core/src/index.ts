@@ -1,1 +1,1 @@
-export const packageName = "@lefectjava/core";
+export * from "./config";
