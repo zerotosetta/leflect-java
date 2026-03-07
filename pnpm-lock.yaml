@@ -32,9 +32,15 @@ importers:
       '@lefectjava/core':
         specifier: workspace:*
         version: link:../core
+      '@lefectjava/graph':
+        specifier: workspace:*
+        version: link:../graph
       '@lefectjava/java-bridge':
         specifier: workspace:*
         version: link:../java-bridge
+      '@lefectjava/labeler':
+        specifier: workspace:*
+        version: link:../labeler
       '@lefectjava/parser-jsp':
         specifier: workspace:*
         version: link:../parser-jsp
@@ -48,7 +54,11 @@ importers:
         specifier: workspace:*
         version: link:../schema
 
-  packages/graph: {}
+  packages/graph:
+    dependencies:
+      '@lefectjava/schema':
+        specifier: workspace:*
+        version: link:../schema
 
   packages/indexer:
     dependencies:
@@ -65,7 +75,11 @@ importers:
         specifier: workspace:*
         version: link:../schema
 
-  packages/labeler: {}
+  packages/labeler:
+    dependencies:
+      '@lefectjava/schema':
+        specifier: workspace:*
+        version: link:../schema
 
   packages/parser-jsp:
     dependencies:
