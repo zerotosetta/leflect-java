@@ -48,12 +48,23 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Loade
 }
 
 function resolveConfigPaths(config: LeflectConfig, root: string): LeflectConfig {
+  const javaConfig = config.java;
+  const resolvedJava =
+    javaConfig && (javaConfig.workerJar || javaConfig.javaHome)
+      ? {
+          ...javaConfig,
+          workerJar: javaConfig.workerJar ? resolvePath(root, javaConfig.workerJar) : undefined,
+          javaHome: javaConfig.javaHome ? resolvePath(root, javaConfig.javaHome) : undefined
+        }
+      : javaConfig;
+
   return {
     ...config,
     root,
     analysisOut: resolvePath(root, config.analysisOut),
     ignoreFile: config.ignoreFile ? resolvePath(root, config.ignoreFile) : undefined,
-    labelsOut: config.labelsOut ? resolvePath(root, config.labelsOut) : undefined
+    labelsOut: config.labelsOut ? resolvePath(root, config.labelsOut) : undefined,
+    java: resolvedJava
   };
 }
 
@@ -76,6 +87,17 @@ function validateConfig(config: LeflectConfig): void {
   }
   if (config.labelsOut && typeof config.labelsOut !== "string") {
     throw new Error("Config 'labelsOut' must be a string");
+  }
+  if (config.java) {
+    if (typeof config.java !== "object") {
+      throw new Error("Config 'java' must be an object");
+    }
+    if (config.java.workerJar && typeof config.java.workerJar !== "string") {
+      throw new Error("Config 'java.workerJar' must be a string");
+    }
+    if (config.java.javaHome && typeof config.java.javaHome !== "string") {
+      throw new Error("Config 'java.javaHome' must be a string");
+    }
   }
 }
 

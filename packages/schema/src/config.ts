@@ -3,6 +3,10 @@ export type LeflectConfig = {
   analysisOut: string;
   ignoreFile?: string;
   labelsOut?: string;
+  java?: {
+    workerJar?: string;
+    javaHome?: string;
+  };
 };
 
 export type LeflectConfigInput = Partial<
@@ -13,5 +17,6 @@ export type LeflectConfigInput = Partial<
 
 export const defaultConfig: Omit<LeflectConfig, "root"> = {
   analysisOut: "analysis",
-  labelsOut: "analysis/index/labels.json"
+  labelsOut: "analysis/index/labels.json",
+  java: {}
 };
