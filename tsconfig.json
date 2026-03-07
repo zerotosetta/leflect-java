@@ -1,0 +1,17 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/cli" },
+    { "path": "./packages/core" },
+    { "path": "./packages/scanner" },
+    { "path": "./packages/parser-jsp" },
+    { "path": "./packages/parser-tld" },
+    { "path": "./packages/java-bridge" },
+    { "path": "./packages/indexer" },
+    { "path": "./packages/graph" },
+    { "path": "./packages/labeler" },
+    { "path": "./packages/reporter" },
+    { "path": "./packages/schema" },
+    { "path": "./packages/testkit" }
+  ]
+}
