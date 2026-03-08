@@ -42,7 +42,10 @@ public class ParseJavaCommand {
           String relativePath = root.relativize(source).toString().replace("\\", "/");
           JavaAstExporter.ExportResult result = exporter.export(source, relativePath, "java");
 
-          JsonWriters.writeJson(mapper, astPath, result.ast);
+          if (astPath.getParent() != null) {
+            Files.createDirectories(astPath.getParent());
+          }
+          Files.writeString(astPath, result.rawAstJson);
           for (var problem : result.problems) {
             Files.writeString(
                 errorLog,

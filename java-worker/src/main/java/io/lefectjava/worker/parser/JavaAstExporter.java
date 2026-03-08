@@ -15,23 +15,27 @@ public class JavaAstExporter {
   private final JavaParser parser;
   private final JavaSummaryExtractor summaryExtractor;
   private final ParseProblemCollector problemCollector;
+  private final JavaParserAstSerializer astSerializer;
 
   public JavaAstExporter() {
     this(
         ParserFactory.createJavaParser(),
         new JavaSummaryExtractor(),
-        new ParseProblemCollector()
+        new ParseProblemCollector(),
+        new JavaParserAstSerializer()
     );
   }
 
   public JavaAstExporter(
       JavaParser parser,
       JavaSummaryExtractor summaryExtractor,
-      ParseProblemCollector problemCollector
+      ParseProblemCollector problemCollector,
+      JavaParserAstSerializer astSerializer
   ) {
     this.parser = parser;
     this.summaryExtractor = summaryExtractor;
     this.problemCollector = problemCollector;
+    this.astSerializer = astSerializer;
   }
 
   public ExportResult export(Path source, String relativePath, String sourceKind) throws IOException {
@@ -40,15 +44,18 @@ public class JavaAstExporter {
     List<ParseProblemRecord> problems = problemCollector.collect(relativePath, result);
     CompilationUnit unit = result.getResult().orElseGet(CompilationUnit::new);
     AstFileResult ast = summaryExtractor.extract(relativePath, unit, sourceKind);
-    return new ExportResult(ast, problems);
+    String rawAstJson = astSerializer.serialize(unit);
+    return new ExportResult(ast, rawAstJson, problems);
   }
 
   public static class ExportResult {
     public final AstFileResult ast;
+    public final String rawAstJson;
     public final List<ParseProblemRecord> problems;
 
-    public ExportResult(AstFileResult ast, List<ParseProblemRecord> problems) {
+    public ExportResult(AstFileResult ast, String rawAstJson, List<ParseProblemRecord> problems) {
       this.ast = ast;
+      this.rawAstJson = rawAstJson;
       this.problems = problems;
     }
   }

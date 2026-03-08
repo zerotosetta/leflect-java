@@ -12,7 +12,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -40,10 +39,11 @@ public class ParseJspCommand {
       for (String file : safeList(manifest.files)) {
         Path source = resolveSource(root, file);
         String relativeJspPath = root.relativize(source).toString().replace("\\", "/");
+        String relativeServletPath = null;
 
         try {
           Path generatedServlet = compiler.compile(webappRoot, source, servletOutputDir);
-          String relativeServletPath = servletOutputDir
+          relativeServletPath = servletOutputDir
               .relativize(generatedServlet)
               .toString()
               .replace("\\", "/");
@@ -55,12 +55,10 @@ public class ParseJspCommand {
           );
 
           Path astPath = FileLayout.resolveJspAstPath(astOutputDir, root, source);
-          Map<String, Object> payload = new LinkedHashMap<>();
-          payload.put("jspPath", relativeJspPath);
-          payload.put("generatedServletPath", relativeServletPath);
-          payload.put("ast", result.ast);
-
-          JsonWriters.writeJson(mapper, astPath, payload);
+          if (astPath.getParent() != null) {
+            Files.createDirectories(astPath.getParent());
+          }
+          Files.writeString(astPath, result.rawAstJson);
 
           for (var problem : result.problems) {
             Files.writeString(
@@ -74,6 +72,7 @@ public class ParseJspCommand {
               errorLog,
               mapper.writeValueAsString(Map.of(
                   "path", relativeJspPath,
+                  "generatedServletPath", relativeServletPath == null ? "" : relativeServletPath,
                   "message", ex.getMessage()
               )) + System.lineSeparator(),
               StandardOpenOption.APPEND
