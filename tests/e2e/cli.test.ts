@@ -24,6 +24,8 @@ describe("cli e2e", () => {
         workspace.root,
         "--out",
         workspace.analysisOut,
+        "--jsp-ast-mode",
+        "lightweight",
         "--incremental"
       ]);
 

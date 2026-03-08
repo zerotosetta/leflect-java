@@ -16,6 +16,8 @@ describe("integration analyze", () => {
         workspace.root,
         "--out",
         workspace.analysisOut,
+        "--jsp-ast-mode",
+        "lightweight",
         "--incremental"
       ]);
 

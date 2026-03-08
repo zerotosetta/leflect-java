@@ -8,6 +8,7 @@ SAMPLE_URL=${PETCLINIC_GIT_URL:-https://github.com/spring-petclinic/spring-frame
 SAMPLE_TAG=${PETCLINIC_GIT_TAG:-v5.0.8}
 TARGET_DIR=${1:-"$REPO_ROOT/.examples/spring-framework-petclinic-$SAMPLE_TAG"}
 CONFIG_PATH="$TARGET_DIR/leflect.config.json"
+JSP_AST_MODE=${LEFLECT_JSP_AST_MODE:-$(if [ -n "${LEFLECT_JAVA_WORKER_JAR:-}" ]; then echo "jasper"; else echo "lightweight"; fi)}
 
 mkdir -p "$(dirname "$TARGET_DIR")"
 
@@ -25,7 +26,7 @@ cat >"$CONFIG_PATH" <<EOF
   "ignoreFile": ".gitignore",
   "labelsOut": "./analysis/index/labels.json",
   "jsp": {
-    "astMode": "lightweight",
+    "astMode": "$JSP_AST_MODE",
     "webappRoot": "src/main/webapp"
   }$(if [ -n "${LEFLECT_JAVA_WORKER_JAR:-}" ]; then
     printf ',\n  "java": {\n    "workerJar": "%s"%s\n  }' \
@@ -39,6 +40,7 @@ EOF
 
 echo "Sample ready: $TARGET_DIR"
 echo "Config ready: $CONFIG_PATH"
+echo "JSP AST mode: $JSP_AST_MODE"
 echo "Validation hints:"
 grep -n "<packaging>\\|<java.version>" "$TARGET_DIR/pom.xml" || true
 find "$TARGET_DIR/src/main/webapp/WEB-INF/jsp" -type f | sed "s|$TARGET_DIR/||" | sort | head -n 5

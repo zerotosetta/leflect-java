@@ -27,6 +27,6 @@ export const defaultConfig: Omit<LeflectConfig, "root"> = {
   analysisOut: "analysis",
   java: {},
   jsp: {
-    astMode: "lightweight"
+    astMode: "jasper"
   }
 };

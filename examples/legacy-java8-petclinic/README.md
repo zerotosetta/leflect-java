@@ -45,4 +45,7 @@ bash examples/legacy-java8-petclinic/run.sh /absolute/path/to/sample
   Spring taglibs remain unresolved in the current lightweight run.
 - If you have a built Java worker JAR, export `LEFLECT_JAVA_WORKER_JAR` before
   running `fetch.sh` or `run.sh`. The generated `leflect.config.json` will include
-  the Java worker settings and `analyze` will execute `parse-java`.
+  the Java worker settings and switch JSP AST mode to `jasper`, so `analyze` will
+  execute both `parse-java` and full JSP AST generation.
+- Without a Java worker JAR, the example pins `jsp.astMode` to `lightweight` so the
+  sample remains runnable. You can override this with `LEFLECT_JSP_AST_MODE=jasper`.

@@ -21,7 +21,7 @@ describe("loadConfig", () => {
     expect(result.config.analysisOut).toBe(path.join(root, "analysis"));
     expect(result.config.labelsOut).toBe(path.join(root, "analysis", "index", "labels.json"));
     expect(result.config.java).toBeDefined();
-    expect(result.config.jsp?.astMode).toBe("lightweight");
+    expect(result.config.jsp?.astMode).toBe("jasper");
   });
 
   it("loads config file and resolves relative paths", async () => {
@@ -63,6 +63,25 @@ describe("loadConfig", () => {
       path.join(root, "analysis", "generated-jsp-java")
     );
     expect(result.config.jsp?.astOut).toBe(path.join(root, "analysis", "jsp-ast"));
+  });
+
+  it("preserves nested jsp defaults when config file overrides only one field", async () => {
+    const root = await tempDir("leflect-config-");
+    const configPath = path.join(root, "leflect.config.json");
+
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        jsp: {
+          webappRoot: "src/main/webapp"
+        }
+      })
+    );
+
+    const result = await loadConfig({ root });
+
+    expect(result.config.jsp?.astMode).toBe("jasper");
+    expect(result.config.jsp?.webappRoot).toBe(path.join(root, "src", "main", "webapp"));
   });
 
   it("applies overrides", async () => {

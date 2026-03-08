@@ -34,8 +34,18 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Loade
     root,
     ...defaultConfig,
     ...fileConfig,
-    ...options.overrides
-  } as LeflectConfig;
+    ...options.overrides,
+    java: {
+      ...(defaultConfig.java ?? {}),
+      ...(fileConfig.java ?? {}),
+      ...(options.overrides?.java ?? {})
+    },
+    jsp: {
+      ...(defaultConfig.jsp ?? {}),
+      ...(fileConfig.jsp ?? {}),
+      ...(options.overrides?.jsp ?? {})
+    }
+  };
 
   const resolved = resolveConfigPaths(merged, root);
   validateConfig(resolved);
