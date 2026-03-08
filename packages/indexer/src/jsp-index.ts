@@ -3,6 +3,8 @@ import path from "path";
 
 import { JspParseResult, SourceLocation } from "@lefectjava/parser-jsp";
 
+import { MethodCallParameterEntry, MethodIndexEntry } from "./java-index";
+
 export type JspResolvedTag = {
   prefix: string;
   name: string;
@@ -18,6 +20,7 @@ export type JspDocIndexEntry = JspParseResult & {
 export type JspFileIndexEntry = {
   path: string;
   imports: string[];
+  importIds: string[];
   includes: string[];
   taglibCount: number;
   tagCount: number;
@@ -27,8 +30,10 @@ export type JspFileIndexEntry = {
 };
 
 export type JspImportIndexEntry = {
+  id: string;
   file: string;
   import: string;
+  simpleName?: string;
   location?: SourceLocation;
 };
 
@@ -59,6 +64,8 @@ export type JspScriptletIndexEntry = {
 export type JspClassReferenceIndexEntry = {
   file: string;
   className: string;
+  classPath?: string;
+  importId?: string;
   kind: "import" | "tag-handler" | "scriptlet";
   location?: SourceLocation;
   snippet?: string;
@@ -69,12 +76,18 @@ export type JspClassReferenceIndexEntry = {
 export type JspMethodCallIndexEntry = {
   file: string;
   methodName: string;
+  methodId?: string;
   qualifier?: string;
+  classPath?: string;
+  importId?: string;
+  inputParameters?: MethodCallParameterEntry[];
+  responseType?: string;
   location?: SourceLocation;
   snippet?: string;
 };
 
 export type JspFileMetadata = JspFileIndexEntry & {
+  importEntries: JspImportIndexEntry[];
   taglibs: JspTaglibUsageIndexEntry[];
   tags: JspTagUsageIndexEntry[];
   scriptlets: JspScriptletIndexEntry[];
@@ -93,7 +106,26 @@ export type JspIndex = {
   methodCalls: JspMethodCallIndexEntry[];
 };
 
-export function buildJspIndex(entries: JspDocIndexEntry[]): JspIndex {
+export type JspIndexOptions = {
+  javaMethods?: MethodIndexEntry[];
+};
+
+type JspImportLookup = {
+  byExact: Map<string, string>;
+  bySimple: Map<string, string>;
+  wildcards: JspImportIndexEntry[];
+};
+
+type JspRawMethodCall = {
+  file: string;
+  methodName: string;
+  qualifier?: string;
+  argumentExpressions: string[];
+  location?: SourceLocation;
+  snippet?: string;
+};
+
+export function buildJspIndex(entries: JspDocIndexEntry[], options: JspIndexOptions = {}): JspIndex {
   const docs = [...entries].sort((left, right) => left.path.localeCompare(right.path));
   const files: JspFileIndexEntry[] = [];
   const imports: JspImportIndexEntry[] = [];
@@ -102,6 +134,7 @@ export function buildJspIndex(entries: JspDocIndexEntry[]): JspIndex {
   const scriptlets: JspScriptletIndexEntry[] = [];
   const classReferences: JspClassReferenceIndexEntry[] = [];
   const methodCalls: JspMethodCallIndexEntry[] = [];
+  const methodsByClassAndName = groupMethodsByClassAndName(options.javaMethods ?? []);
 
   for (const entry of docs) {
     const normalizedPath = normalizePath(entry.path);
@@ -110,6 +143,7 @@ export function buildJspIndex(entries: JspDocIndexEntry[]): JspIndex {
       resolvedByTag.set(`${resolved.prefix}:${resolved.name}`, resolved);
     }
 
+    const fileImportEntries: JspImportIndexEntry[] = [];
     for (const directive of entry.directives ?? []) {
       if (directive.kind !== "page") {
         continue;
@@ -124,16 +158,29 @@ export function buildJspIndex(entries: JspDocIndexEntry[]): JspIndex {
           continue;
         }
         const location = locateWithinDirective(directive, normalizedImport);
-        imports.push({ file: normalizedPath, import: normalizedImport, location });
+        const importEntry: JspImportIndexEntry = {
+          id: buildImportId(normalizedPath, normalizedImport),
+          file: normalizedPath,
+          import: normalizedImport,
+          simpleName: extractSimpleName(normalizedImport),
+          location
+        };
+        fileImportEntries.push(importEntry);
+        imports.push(importEntry);
         classReferences.push({
           file: normalizedPath,
           className: normalizedImport,
+          classPath: normalizedImport,
+          importId: importEntry.id,
           kind: "import",
           location,
           snippet: normalizedImport
         });
       }
     }
+    const importLookup = createImportLookup(fileImportEntries);
+    const fileClassReferences: JspClassReferenceIndexEntry[] = [];
+    const rawMethodCalls: JspRawMethodCall[] = [];
 
     for (const taglib of entry.taglibs) {
       taglibs.push({
@@ -156,15 +203,19 @@ export function buildJspIndex(entries: JspDocIndexEntry[]): JspIndex {
         location: tag.location
       });
       if (resolved?.handlerClass) {
-        classReferences.push({
+        const classReference: JspClassReferenceIndexEntry = {
           file: normalizedPath,
           className: resolved.handlerClass,
+          classPath: resolved.handlerClass,
+          importId: resolveImportId(importLookup, resolved.handlerClass, extractSimpleName(resolved.handlerClass)),
           kind: "tag-handler",
           location: tag.location,
           snippet: tag.raw,
           uri: resolved.uri,
           handlerClass: resolved.handlerClass
-        });
+        };
+        classReferences.push(classReference);
+        fileClassReferences.push(classReference);
       }
     }
 
@@ -176,13 +227,46 @@ export function buildJspIndex(entries: JspDocIndexEntry[]): JspIndex {
         location: scriptlet.location
       });
 
-      classReferences.push(...extractScriptletClassReferences(normalizedPath, scriptlet));
-      methodCalls.push(...extractScriptletMethodCalls(normalizedPath, scriptlet));
+      const scriptletClassReferences = extractScriptletClassReferences(normalizedPath, scriptlet).map((reference) => {
+        const classPath = resolveClassPath(reference.className, importLookup) ?? reference.className;
+        return {
+          ...reference,
+          classPath,
+          importId: resolveImportId(importLookup, classPath, reference.className)
+        };
+      });
+      classReferences.push(...scriptletClassReferences);
+      fileClassReferences.push(...scriptletClassReferences);
+
+      rawMethodCalls.push(...extractScriptletMethodCalls(normalizedPath, scriptlet));
+    }
+
+    for (const call of rawMethodCalls) {
+      const classPath = resolveMethodClassPath(call, fileClassReferences, importLookup);
+      const method = resolveMethodEntry(
+        methodsByClassAndName,
+        classPath,
+        call.methodName,
+        call.argumentExpressions.length
+      );
+      methodCalls.push({
+        file: call.file,
+        methodName: call.methodName,
+        methodId: method?.id,
+        qualifier: call.qualifier,
+        classPath: classPath ?? method?.classId,
+        importId: resolveImportId(importLookup, classPath ?? method?.classId, extractSimpleName(classPath ?? call.qualifier)),
+        inputParameters: buildMethodCallParameters(method?.parameters, call.argumentExpressions),
+        responseType: method?.returnType,
+        location: call.location,
+        snippet: call.snippet
+      });
     }
 
     files.push({
       path: normalizedPath,
       imports: [...(entry.imports ?? [])].sort(),
+      importIds: fileImportEntries.map((item) => item.id),
       includes: [...(entry.includes ?? [])].sort(),
       taglibCount: entry.taglibs.length,
       tagCount: entry.tags.length,
@@ -196,8 +280,8 @@ export function buildJspIndex(entries: JspDocIndexEntry[]): JspIndex {
   taglibs.sort((left, right) => `${left.file}:${left.prefix}:${left.uri}`.localeCompare(`${right.file}:${right.prefix}:${right.uri}`));
   tags.sort((left, right) => `${left.file}:${left.prefix}:${left.name}`.localeCompare(`${right.file}:${right.prefix}:${right.name}`));
   scriptlets.sort((left, right) => `${left.file}:${left.kind}:${left.code}`.localeCompare(`${right.file}:${right.kind}:${right.code}`));
-  classReferences.sort((left, right) => `${left.file}:${left.className}:${serializeLocation(left.location)}`.localeCompare(`${right.file}:${right.className}:${serializeLocation(right.location)}`));
-  methodCalls.sort((left, right) => `${left.file}:${left.methodName}:${serializeLocation(left.location)}`.localeCompare(`${right.file}:${right.methodName}:${serializeLocation(right.location)}`));
+  classReferences.sort((left, right) => `${left.file}:${left.classPath ?? left.className}:${serializeLocation(left.location)}`.localeCompare(`${right.file}:${right.classPath ?? right.className}:${serializeLocation(right.location)}`));
+  methodCalls.sort((left, right) => `${left.file}:${left.classPath ?? ""}:${left.methodName}:${serializeLocation(left.location)}`.localeCompare(`${right.file}:${right.classPath ?? ""}:${right.methodName}:${serializeLocation(right.location)}`));
 
   return { docs, files, imports, taglibs, tags, scriptlets, classReferences, methodCalls };
 }
@@ -219,6 +303,7 @@ export async function writeJspIndex(outDir: string, index: JspIndex): Promise<vo
 function toJspFileMetadata(index: JspIndex): JspFileMetadata[] {
   return index.files.map((entry) => ({
     ...entry,
+    importEntries: index.imports.filter((item) => item.file === entry.path),
     taglibs: index.taglibs.filter((item) => item.file === entry.path),
     tags: index.tags.filter((item) => item.file === entry.path),
     scriptlets: index.scriptlets.filter((item) => item.file === entry.path),
@@ -277,9 +362,9 @@ function extractScriptletClassReferences(file: string, scriptlet: JspDocIndexEnt
   return results;
 }
 
-function extractScriptletMethodCalls(file: string, scriptlet: JspDocIndexEntry["scriptlets"][number]): JspMethodCallIndexEntry[] {
-  const results: JspMethodCallIndexEntry[] = [];
-  const regex = /(?:([A-Za-z_][A-Za-z0-9_$.]*)\s*\.)?([A-Za-z_][A-Za-z0-9_]*)\s*\(/g;
+function extractScriptletMethodCalls(file: string, scriptlet: JspDocIndexEntry["scriptlets"][number]): JspRawMethodCall[] {
+  const results: JspRawMethodCall[] = [];
+  const regex = /(?:([A-Za-z_][A-Za-z0-9_$.]*)\s*\.)?([A-Za-z_][A-Za-z0-9_]*)\s*\(([^()]*)\)/g;
   const skip = new Set(["if", "for", "while", "switch", "catch", "return", "new"]);
   let match: RegExpExecArray | null;
 
@@ -298,6 +383,7 @@ function extractScriptletMethodCalls(file: string, scriptlet: JspDocIndexEntry["
       file,
       methodName,
       qualifier,
+      argumentExpressions: splitArguments(match[3]),
       location: offsetToLocation(scriptlet, nameOffset, methodName.length),
       snippet: match[0].trim()
     });
@@ -309,6 +395,168 @@ function extractScriptletMethodCalls(file: string, scriptlet: JspDocIndexEntry["
 function looksLikeConstructor(code: string, index: number, methodName: string): boolean {
   const prefix = code.slice(Math.max(0, index - 5), index);
   return /\bnew\s*$/.test(prefix) && /^[A-Z]/.test(methodName);
+}
+
+function resolveMethodClassPath(
+  call: JspRawMethodCall,
+  classReferences: JspClassReferenceIndexEntry[],
+  lookup: JspImportLookup
+): string | undefined {
+  if (call.qualifier) {
+    const qualifierClassPath = resolveClassPath(call.qualifier, lookup);
+    if (qualifierClassPath) {
+      return qualifierClassPath;
+    }
+    if (call.qualifier.includes(".")) {
+      return call.qualifier;
+    }
+  }
+
+  const reference = classReferences
+    .filter((item) => item.kind === "scriptlet" && item.location?.line === call.location?.line)
+    .filter((item) => (item.location?.column ?? 0) <= (call.location?.column ?? Number.MAX_SAFE_INTEGER))
+    .sort((left, right) => (right.location?.column ?? 0) - (left.location?.column ?? 0))
+    .at(0);
+
+  return reference?.classPath;
+}
+
+function groupMethodsByClassAndName(methods: MethodIndexEntry[]): Map<string, MethodIndexEntry[]> {
+  const grouped = new Map<string, MethodIndexEntry[]>();
+
+  for (const method of methods) {
+    if (!method.classId) {
+      continue;
+    }
+    const key = `${method.classId}#${method.name}`;
+    grouped.set(key, [...(grouped.get(key) ?? []), method]);
+  }
+
+  return grouped;
+}
+
+function resolveMethodEntry(
+  methodsByClassAndName: Map<string, MethodIndexEntry[]>,
+  classPath: string | undefined,
+  methodName: string,
+  argumentCount: number
+): MethodIndexEntry | undefined {
+  if (!classPath) {
+    return undefined;
+  }
+  const candidates = methodsByClassAndName.get(`${classPath}#${methodName}`) ?? [];
+  if (candidates.length === 0) {
+    return undefined;
+  }
+  const arityMatches = candidates.filter((candidate) => (candidate.parameters?.length ?? 0) === argumentCount);
+  return arityMatches.length === 1 ? arityMatches[0] : undefined;
+}
+
+function buildMethodCallParameters(
+  parameterTypes?: string[],
+  argumentExpressions?: string[]
+): MethodCallParameterEntry[] | undefined {
+  const size = Math.max(parameterTypes?.length ?? 0, argumentExpressions?.length ?? 0);
+  if (size === 0) {
+    return undefined;
+  }
+
+  return Array.from({ length: size }, (_, index) => ({
+    index,
+    type: parameterTypes?.[index],
+    value: argumentExpressions?.[index]
+  }));
+}
+
+function createImportLookup(entries: JspImportIndexEntry[]): JspImportLookup {
+  const byExact = new Map<string, string>();
+  const bySimple = new Map<string, string>();
+  const wildcards: JspImportIndexEntry[] = [];
+
+  for (const entry of entries) {
+    byExact.set(entry.import, entry.id);
+    if (entry.import.endsWith(".*")) {
+      wildcards.push(entry);
+      continue;
+    }
+    if (entry.simpleName) {
+      bySimple.set(entry.simpleName, entry.id);
+    }
+  }
+
+  return { byExact, bySimple, wildcards };
+}
+
+function resolveImportId(
+  lookup: JspImportLookup,
+  classPath?: string,
+  symbol?: string
+): string | undefined {
+  if (classPath && lookup.byExact.has(classPath)) {
+    return lookup.byExact.get(classPath);
+  }
+
+  const simpleName = extractSimpleName(classPath ?? symbol);
+  if (simpleName && lookup.bySimple.has(simpleName)) {
+    return lookup.bySimple.get(simpleName);
+  }
+
+  if (classPath) {
+    for (const wildcard of lookup.wildcards) {
+      const prefix = wildcard.import.slice(0, -2);
+      if (classPath.startsWith(`${prefix}.`)) {
+        return wildcard.id;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function resolveClassPath(symbol: string | undefined, lookup: JspImportLookup): string | undefined {
+  if (!symbol) {
+    return undefined;
+  }
+  if (symbol.includes(".")) {
+    return symbol;
+  }
+
+  const importId = lookup.bySimple.get(symbol);
+  if (!importId) {
+    return undefined;
+  }
+
+  for (const [qualifiedImport, id] of lookup.byExact.entries()) {
+    if (id === importId && !qualifiedImport.endsWith(".*")) {
+      return qualifiedImport;
+    }
+  }
+
+  return undefined;
+}
+
+function buildImportId(file: string, value: string): string {
+  return `jsp-import:${file}:${value}`;
+}
+
+function extractSimpleName(value?: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const normalized = value.endsWith(".*") ? value.slice(0, -2) : value;
+  const segments = normalized.split(".");
+  return segments.at(-1);
+}
+
+function splitArguments(rawArguments: string): string[] {
+  const trimmed = rawArguments.trim();
+  if (!trimmed) {
+    return [];
+  }
+  return trimmed
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
 }
 
 function offsetToLocation(

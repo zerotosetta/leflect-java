@@ -403,7 +403,9 @@ async function runBuildIndex(args: string[]): Promise<void> {
   }));
 
   const javaIndex = buildJavaIndex({ files: javaFiles, summaries: javaSummaries });
-  const jspIndex = buildJspIndex(enrichedJspDocs);
+  const jspIndex = buildJspIndex(enrichedJspDocs, {
+    javaMethods: javaIndex.methods
+  });
   const taglibIndex = buildTaglibIndex(tldIndexes, enrichedJspDocs);
   await writeJavaIndex(indexDir, javaIndex);
   await writeJspIndex(indexDir, jspIndex);

@@ -105,6 +105,7 @@ public class JavaSummaryExtractor {
 
     List<String> calls = callable.findAll(MethodCallExpr.class).stream()
         .map(this::resolveMethodCall)
+        .map(resolution -> resolution.target)
         .distinct()
         .collect(Collectors.toList());
 
@@ -170,16 +171,21 @@ public class JavaSummaryExtractor {
         ))
         .orElse(null);
 
-    String resolvedTarget = resolveMethodCall(call);
-    String targetClassId = extractClassId(resolvedTarget);
-    String targetMethodId = resolvedTarget.contains("#") ? resolvedTarget : null;
+    MethodCallResolution resolution = resolveMethodCall(call);
+    String targetClassId = extractClassId(resolution.target);
+    String targetMethodId = resolution.target.contains("#") ? resolution.target : null;
 
     return new JavaMethodCallSite(
         callerMethodId,
         callerClassId,
-        resolvedTarget,
+        resolution.target,
         targetClassId,
         targetMethodId,
+        resolution.methodName,
+        resolution.classPath,
+        resolution.parameterTypes,
+        resolution.argumentExpressions,
+        resolution.responseType,
         call.toString(),
         toSourceLocation(call)
     );
@@ -201,18 +207,41 @@ public class JavaSummaryExtractor {
         : packageName + "." + typeName;
   }
 
-  private String resolveMethodCall(MethodCallExpr call) {
+  private MethodCallResolution resolveMethodCall(MethodCallExpr call) {
+    List<String> argumentExpressions = call.getArguments().stream()
+        .map(Node::toString)
+        .collect(Collectors.toList());
     try {
       ResolvedMethodDeclaration declaration = call.resolve();
       String qualified = declaration.getQualifiedSignature();
       int openParen = qualified.indexOf('(');
       int separator = openParen >= 0 ? qualified.lastIndexOf('.', openParen) : qualified.lastIndexOf('.');
-      if (separator < 0) {
-        return qualified;
+      String target = separator < 0
+          ? qualified
+          : qualified.substring(0, separator) + "#" + qualified.substring(separator + 1);
+      String classPath = separator < 0 ? null : qualified.substring(0, separator);
+      List<String> parameterTypes = new ArrayList<>();
+      for (int index = 0; index < declaration.getNumberOfParams(); index++) {
+        parameterTypes.add(declaration.getParam(index).describeType());
       }
-      return qualified.substring(0, separator) + "#" + qualified.substring(separator + 1);
+
+      return new MethodCallResolution(
+          target,
+          declaration.getName(),
+          classPath,
+          parameterTypes,
+          argumentExpressions,
+          declaration.getReturnType().describe()
+      );
     } catch (RuntimeException ex) {
-      return call.getNameAsString();
+      return new MethodCallResolution(
+          call.getNameAsString(),
+          call.getNameAsString(),
+          null,
+          List.of(),
+          argumentExpressions,
+          null
+      );
     }
   }
 
@@ -266,5 +295,30 @@ public class JavaSummaryExtractor {
         (reference.kind != null ? reference.kind : "") + ":" +
         (location != null ? location.line : "") + ":" +
         (location != null ? location.column : "");
+  }
+
+  private static final class MethodCallResolution {
+    private final String target;
+    private final String methodName;
+    private final String classPath;
+    private final List<String> parameterTypes;
+    private final List<String> argumentExpressions;
+    private final String responseType;
+
+    private MethodCallResolution(
+        String target,
+        String methodName,
+        String classPath,
+        List<String> parameterTypes,
+        List<String> argumentExpressions,
+        String responseType
+    ) {
+      this.target = target;
+      this.methodName = methodName;
+      this.classPath = classPath;
+      this.parameterTypes = parameterTypes;
+      this.argumentExpressions = argumentExpressions;
+      this.responseType = responseType;
+    }
   }
 }
