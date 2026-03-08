@@ -26,6 +26,7 @@ import {
   buildJavaIndex,
   buildJspIndex,
   buildReverseIndex,
+  readJavaSummaryIndex,
   writeJavaIndex,
   writeJspIndex,
   writeReverseIndex
@@ -361,7 +362,9 @@ async function runBuildGraph(args: string[]): Promise<void> {
     path.join(indexDir, "jsp-docs.json")
   );
 
-  const graphs = buildGraphs(calls, jspDocs, classes);
+  const graphs = buildGraphs(calls, jspDocs, classes, {
+    entryFiles: config.entryFiles
+  });
   await writeGraphFiles(config.analysisOut, graphs);
 
   const labels = buildLabelsIndex({
@@ -384,12 +387,13 @@ async function runBuildIndex(args: string[]): Promise<void> {
   const javaFiles = await readScannerManifest(path.join(config.analysisOut, "manifests", "java-files.json"));
   const taglibs = await readJsonArray<TldIndex>(path.join(indexDir, "taglibs.json"));
   const jspDocs = await readJspMetaEntries(path.join(config.analysisOut, "jsp-meta"));
+  const javaSummaries = await readJavaSummaryIndex(path.join(indexDir, "java-summary.jsonl"));
   const enrichedJspDocs = jspDocs.map((entry) => ({
     ...entry,
     resolvedTags: resolveTagHandlers(entry.tags, entry.taglibs, taglibs)
   }));
 
-  const javaIndex = buildJavaIndex({ files: javaFiles });
+  const javaIndex = buildJavaIndex({ files: javaFiles, summaries: javaSummaries });
   await writeJavaIndex(indexDir, javaIndex);
   await writeJspIndex(indexDir, buildJspIndex(enrichedJspDocs));
   await writeReverseIndex(

@@ -34,6 +34,10 @@ describe("loadConfig", () => {
         analysisOut: "out",
         ignoreFile: ".leflectignore",
         labelsOut: "labels.json",
+        entryFiles: {
+          java: ["Controller\\.java$"],
+          jsp: ["WEB-INF/jsp/.+\\.jsp$"]
+        },
         java: {
           workerJar: "java-worker/target/leflectjava-java-worker.jar",
           javaHome: "./.java",
@@ -57,6 +61,10 @@ describe("loadConfig", () => {
     expect(result.config.analysisOut).toBe(path.join(root, "out"));
     expect(result.config.ignoreFile).toBe(path.join(root, ".leflectignore"));
     expect(result.config.labelsOut).toBe(path.join(root, "labels.json"));
+    expect(result.config.entryFiles).toEqual({
+      java: ["Controller\\.java$"],
+      jsp: ["WEB-INF/jsp/.+\\.jsp$"]
+    });
     expect(result.config.java?.workerJar).toBe(
       path.join(root, "java-worker", "target", "leflectjava-java-worker.jar")
     );

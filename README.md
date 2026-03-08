@@ -64,6 +64,9 @@ By default, `parse-jsp` writes:
   from Maven dependency classpath auto-discovery
 - use `--jsp-ast-mode lightweight` or `jsp.astMode = "lightweight"` to skip Jasper AST generation
 
+If `entryFiles.java` and/or `entryFiles.jsp` are configured, `build-graph` also writes
+entry-rooted dependency subgraphs and per-file reference/dependant summaries.
+
 ## Analysis Output
 
 After `node bin/leflect analyze --root ./repo --out ./analysis`, the `analysis/`
@@ -108,7 +111,12 @@ analysis/
   - if you want to integrate LeflectJava with another tool, this is usually the best starting point
 - `analysis/graph/`
   - edge-oriented graph outputs such as Java call edges and JSP-to-Java links
-  - useful when you want impact analysis or graph ingestion
+  - `java-call.jsonl`: class-level Java call edges
+  - `jsp-java.jsonl`: JSP-to-Java/tag edges
+  - `file-dependency.jsonl`: file-level dependency edges derived from Java/JSP graph edges
+  - `file-dependencies.json`: per `.java`/`.jsp` file summary with `referenceCount`, `dependantCount`, `references`, and `referencedBy`
+  - `entry-dependencies.json`: entry-file matches from config and the reachable dependency subgraph for each entry
+  - useful when you want impact analysis, graph ingestion, or entry-rooted dependency tracing
 - `analysis/report/`
   - final human-facing summary outputs
   - includes `summary.json`, `unresolved.json`, and `impact.md`
