@@ -51,6 +51,8 @@ class JavaAstExporterTest {
     assertNotNull(summary.types.get(0).methods.get(0).location);
     assertEquals(1, summary.methodCalls.size());
     assertTrue(summary.methodCalls.get(0).target.contains("of"));
+    assertEquals("of", summary.methodCalls.get(0).targetMethodName);
+    assertEquals("\"a\"", summary.methodCalls.get(0).argumentExpressions.get(0));
     assertNotNull(summary.methodCalls.get(0).location);
     assertFalse(result.rawAstJson.isBlank());
 
@@ -149,6 +151,11 @@ class JavaAstExporterTest {
     );
     assertEquals(1, result.ast.methodCalls.size());
     assertEquals("support.ExternalUtil#work()", result.ast.methodCalls.get(0).target);
+    assertEquals("work", result.ast.methodCalls.get(0).targetMethodName);
+    assertEquals("support.ExternalUtil", result.ast.methodCalls.get(0).classPath);
+    assertEquals(0, result.ast.methodCalls.get(0).parameterTypes.size());
+    assertEquals(0, result.ast.methodCalls.get(0).argumentExpressions.size());
+    assertEquals("void", result.ast.methodCalls.get(0).responseType);
     assertNotNull(result.ast.methodCalls.get(0).location);
   }
 

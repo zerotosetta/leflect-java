@@ -48,8 +48,8 @@ describe("indexer", () => {
         scriptlets: [
           {
             kind: "scriptlet",
-            code: "new CustomerService().findCustomer();",
-            location: { line: 4, column: 4, endLine: 4, endColumn: 39 },
+            code: "new CustomerService().findCustomer(name);",
+            location: { line: 4, column: 4, endLine: 4, endColumn: 43 },
             codeOffset: 0
           }
         ],
@@ -62,7 +62,18 @@ describe("indexer", () => {
           }
         ]
       }
-    ]);
+    ], {
+      javaMethods: [
+        {
+          id: "com.example.CustomerService#findCustomer(java.lang.String)",
+          name: "findCustomer",
+          classId: "com.example.CustomerService",
+          file: "src/main/java/com/example/CustomerService.java",
+          returnType: "com.example.Customer",
+          parameters: ["java.lang.String"]
+        }
+      ]
+    });
 
     expect(index.files[0]).toMatchObject({
       path: "view/index.jsp",
@@ -73,13 +84,17 @@ describe("indexer", () => {
     });
     expect(index.imports).toEqual([
       {
+        id: "jsp-import:view/index.jsp:com.example.CustomerService",
         file: "view/index.jsp",
         import: "com.example.CustomerService",
+        simpleName: "CustomerService",
         location: { line: 1, column: 34, endLine: 1, endColumn: 60 }
       },
       {
+        id: "jsp-import:view/index.jsp:java.util.List",
         file: "view/index.jsp",
         import: "java.util.List",
+        simpleName: "List",
         location: { line: 1, column: 18, endLine: 1, endColumn: 31 }
       }
     ]);
@@ -88,6 +103,8 @@ describe("indexer", () => {
       {
         file: "view/index.jsp",
         className: "com.example.CustomerService",
+        classPath: "com.example.CustomerService",
+        importId: "jsp-import:view/index.jsp:com.example.CustomerService",
         kind: "import",
         location: { line: 1, column: 34, endLine: 1, endColumn: 60 },
         snippet: "com.example.CustomerService"
@@ -95,6 +112,8 @@ describe("indexer", () => {
       {
         file: "view/index.jsp",
         className: "com.example.HelloTag",
+        classPath: "com.example.HelloTag",
+        importId: undefined,
         kind: "tag-handler",
         location: { line: 3, column: 1, endLine: 3, endColumn: 8 },
         snippet: "<c:hello ",
@@ -104,6 +123,8 @@ describe("indexer", () => {
       {
         file: "view/index.jsp",
         className: "java.util.List",
+        classPath: "java.util.List",
+        importId: "jsp-import:view/index.jsp:java.util.List",
         kind: "import",
         location: { line: 1, column: 18, endLine: 1, endColumn: 31 },
         snippet: "java.util.List"
@@ -111,6 +132,8 @@ describe("indexer", () => {
       {
         file: "view/index.jsp",
         className: "CustomerService",
+        classPath: "com.example.CustomerService",
+        importId: "jsp-import:view/index.jsp:com.example.CustomerService",
         kind: "scriptlet",
         location: { line: 4, column: 8, endLine: 4, endColumn: 22 },
         snippet: "new CustomerService("
@@ -120,9 +143,20 @@ describe("indexer", () => {
       {
         file: "view/index.jsp",
         methodName: "findCustomer",
+        methodId: "com.example.CustomerService#findCustomer(java.lang.String)",
         qualifier: undefined,
+        classPath: "com.example.CustomerService",
+        importId: "jsp-import:view/index.jsp:com.example.CustomerService",
+        inputParameters: [
+          {
+            index: 0,
+            type: "java.lang.String",
+            value: "name"
+          }
+        ],
+        responseType: "com.example.Customer",
         location: { line: 4, column: 26, endLine: 4, endColumn: 37 },
-        snippet: "findCustomer("
+        snippet: "findCustomer(name)"
       }
     ]);
   });

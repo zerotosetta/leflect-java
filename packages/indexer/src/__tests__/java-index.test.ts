@@ -44,6 +44,11 @@ describe("buildJavaIndex", () => {
               target: "demo.Service#work()",
               targetClassId: "demo.Service",
               targetMethodId: "demo.Service#work()",
+              targetMethodName: "work",
+              classPath: "demo.Service",
+              parameterTypes: ["java.lang.String"],
+              argumentExpressions: ["name"],
+              responseType: "java.lang.String",
               location: {
                 line: 3,
                 column: 19,
@@ -140,7 +145,19 @@ describe("buildJavaIndex", () => {
         fromMethodId: "demo.App#run()",
         toMethodId: "demo.Service#work()",
         fromFile: "src/main/java/demo/App.java",
+        toFile: undefined,
         rawTarget: "demo.Service#work()",
+        methodName: "work",
+        classPath: "demo.Service",
+        importId: "java-import:src/main/java/demo/App.java:demo.Service",
+        inputParameters: [
+          {
+            index: 0,
+            type: "java.lang.String",
+            value: "name"
+          }
+        ],
+        responseType: "java.lang.String",
         location: {
           line: 3,
           column: 19,
@@ -157,7 +174,13 @@ describe("buildJavaIndex", () => {
         fromMethodId: "demo.App#run()",
         toMethodId: undefined,
         fromFile: "src/main/java/demo/App.java",
+        toFile: undefined,
         rawTarget: "helper",
+        methodName: "helper",
+        classPath: undefined,
+        importId: undefined,
+        inputParameters: undefined,
+        responseType: undefined,
         location: {
           line: 4,
           column: 5,
@@ -172,6 +195,8 @@ describe("buildJavaIndex", () => {
         file: "src/main/java/demo/App.java",
         className: "demo.Service",
         qualifiedName: "demo.Service",
+        classPath: "demo.Service",
+        importId: "java-import:src/main/java/demo/App.java:demo.Service",
         kind: "import",
         location: {
           line: 1,
@@ -185,6 +210,8 @@ describe("buildJavaIndex", () => {
         file: "src/main/java/demo/App.java",
         className: "Service",
         qualifiedName: "demo.Service",
+        classPath: "demo.Service",
+        importId: "java-import:src/main/java/demo/App.java:demo.Service",
         kind: "type",
         location: {
           line: 3,
@@ -197,8 +224,10 @@ describe("buildJavaIndex", () => {
     ]);
     expect(index.imports).toEqual([
       {
+        id: "java-import:src/main/java/demo/App.java:demo.Service",
         file: "src/main/java/demo/App.java",
         import: "demo.Service",
+        simpleName: "Service",
         location: {
           line: 1,
           column: 1,

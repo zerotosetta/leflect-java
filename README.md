@@ -117,6 +117,8 @@ analysis/
     - `jsp-files.json`, `jsp-imports.json`, `jsp-taglibs.json`, `jsp-tags.json`, `jsp-scriptlets.json`
     - `jsp-class-references.json`, `jsp-method-calls.json`
     - `jsp/**/*.json`: one metadata file per `.jsp` source
+  - import records include stable `id` values and simple-name metadata for cross-reference matching
+  - method call records include `classPath`, `importId`, `inputParameters`, `responseType`
   - Java/JSP reference and call records include `line`, `column`, `endLine`, `endColumn` when available
   - if you want to integrate LeflectJava with another tool, this is usually the best starting point
 - `analysis/graph/`
