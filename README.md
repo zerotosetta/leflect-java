@@ -55,6 +55,7 @@ When `java.workerJar` is configured, `parse-java` writes:
 - full JavaParser AST JSON to `analysis/java-ast/**/*.json`
 - summary IR for downstream indexing to `analysis/index/java-summary.jsonl`
 - JavaParser semantic resolution can use `java.classpath` and Maven classpath auto-discovery
+- worker launch can be pinned with `java.jreHome` or `java.javaHome`
 
 By default, `parse-jsp` writes:
 

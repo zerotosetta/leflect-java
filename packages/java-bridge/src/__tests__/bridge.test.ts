@@ -32,6 +32,17 @@ describe("buildJavaCommand", () => {
 
     expect(result.command).toBe(path.join("/opt/jdk", "bin", "java"));
   });
+
+  it("prefers jreHome over javaHome when both are provided", () => {
+    const result = buildJavaCommand({
+      jreHome: "/opt/jre",
+      javaHome: "/opt/jdk",
+      jarPath: "/tmp/worker.jar",
+      args: ["parse-java", "--manifest", "java-manifest.json"]
+    });
+
+    expect(result.command).toBe(path.join("/opt/jre", "bin", "java"));
+  });
 });
 
 describe("writeJspManifest", () => {
