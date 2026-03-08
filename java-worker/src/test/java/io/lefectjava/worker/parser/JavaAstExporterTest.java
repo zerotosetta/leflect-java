@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JavaAstExporterTest {
@@ -55,5 +56,30 @@ class JavaAstExporterTest {
         "items",
         root.get("types").get(0).get("members").get(0).get("name").get("identifier").asText()
     );
+    assertTrue(result.problems.isEmpty());
+  }
+
+  @Test
+  void exportCapturesDetailedParseProblems() throws Exception {
+    Path source = Files.createTempFile("leflect-java-broken", ".java");
+    Files.writeString(
+        source,
+        """
+            package demo;
+            class Broken {
+              void run( }
+            }
+            """
+    );
+
+    JavaAstExporter exporter = new JavaAstExporter();
+    JavaAstExporter.ExportResult result = exporter.export(source, "src/demo/Broken.java", "java");
+
+    assertFalse(result.problems.isEmpty());
+    assertEquals("java-parse", result.problems.get(0).stage);
+    assertEquals("java.parse.problem", result.problems.get(0).category);
+    assertNotNull(result.problems.get(0).location);
+    assertNotNull(result.problems.get(0).snippet);
+    assertNull(result.problems.get(0).generatedPath);
   }
 }

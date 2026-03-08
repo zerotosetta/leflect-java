@@ -109,12 +109,18 @@ analysis/
 - `analysis/report/`
   - final human-facing summary outputs
   - includes `summary.json`, `unresolved.json`, and `impact.md`
+  - `unresolved.json` now includes:
+    - `edges`: unresolved graph edges
+    - `diagnostics`: normalized problem records with `stage`, `severity`, `path`, `category`, `summary`, `message`, optional `hint`, `location`, `snippet`, and related metadata
+    - `byPath`: the same diagnostics grouped by source path so repository reviews can focus file-by-file
   - this is the best place to inspect what LeflectJava concluded about the repository
 - `analysis/cache/`
   - incremental execution state, file hashes, and per-stage cache metadata
   - useful for reruns, not for direct analysis consumption
 - `analysis/logs/`
   - parse error logs from Java/JSP worker stages
+  - `java-parse-errors.jsonl` and `jsp-parse-errors.jsonl` use the same diagnostic schema as `report/unresolved.json`
+  - when location is available, each record includes `line`, `column`, `endLine`, `endColumn`, and a source `snippet`
   - inspect this when AST output is missing or incomplete
 
 In practice:

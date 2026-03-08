@@ -191,6 +191,13 @@ If you only want report/index output:
 - `jsp.webappRoot` is wrong for the target project
 - Jasper compilation failed; check `analysis/logs/`
 
+`analysis/report/unresolved.json` is where you want detailed failure context
+
+- `diagnostics[]` gives a flat list of issues with `path`, `category`, `summary`, `message`, and optional `hint`
+- parse-stage diagnostics also include `location.line`, `location.column`, `location.endLine`, `location.endColumn`, and `snippet` when the worker can resolve them
+- `byPath[]` groups the same diagnostics by source file so you can review a problematic JSP or Java file in one place
+- `analysis/logs/java-parse-errors.jsonl` and `analysis/logs/jsp-parse-errors.jsonl` contain the raw per-stage records in JSONL form
+
 `labels.json` is not where expected
 
 - `labelsOut` was overridden by CLI `--labels-out`

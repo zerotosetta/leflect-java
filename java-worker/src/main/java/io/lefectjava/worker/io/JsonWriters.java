@@ -9,6 +9,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class JsonWriters {
+  private static final ObjectMapper JSONL_MAPPER = new ObjectMapper();
+
   private JsonWriters() {
   }
 
@@ -25,9 +27,12 @@ public class JsonWriters {
     mapper.writeValue(target.toFile(), payload);
   }
 
-  public static void appendJsonLine(ObjectMapper mapper, BufferedWriter writer, Object payload)
-      throws IOException {
-    writer.write(mapper.writeValueAsString(payload));
+  public static void appendJsonLine(BufferedWriter writer, Object payload) throws IOException {
+    writer.write(toJsonLine(payload));
     writer.newLine();
+  }
+
+  public static String toJsonLine(Object payload) throws IOException {
+    return JSONL_MAPPER.writeValueAsString(payload);
   }
 }
