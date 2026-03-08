@@ -145,6 +145,27 @@ function validateConfig(config: LeflectConfig): void {
   if (config.labelsOut && typeof config.labelsOut !== "string") {
     throw new Error("Config 'labelsOut' must be a string");
   }
+  if (config.entryFiles) {
+    if (typeof config.entryFiles !== "object") {
+      throw new Error("Config 'entryFiles' must be an object");
+    }
+    if (config.entryFiles.java) {
+      if (!Array.isArray(config.entryFiles.java)) {
+        throw new Error("Config 'entryFiles.java' must be an array of strings");
+      }
+      if (!config.entryFiles.java.every((entry) => typeof entry === "string")) {
+        throw new Error("Config 'entryFiles.java' must be an array of strings");
+      }
+    }
+    if (config.entryFiles.jsp) {
+      if (!Array.isArray(config.entryFiles.jsp)) {
+        throw new Error("Config 'entryFiles.jsp' must be an array of strings");
+      }
+      if (!config.entryFiles.jsp.every((entry) => typeof entry === "string")) {
+        throw new Error("Config 'entryFiles.jsp' must be an array of strings");
+      }
+    }
+  }
   if (config.java) {
     if (typeof config.java !== "object") {
       throw new Error("Config 'java' must be an object");

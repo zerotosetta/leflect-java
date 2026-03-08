@@ -5,6 +5,10 @@ export type LeflectConfig = {
   analysisOut: string;
   ignoreFile?: string;
   labelsOut?: string;
+  entryFiles?: {
+    java?: string[];
+    jsp?: string[];
+  };
   java?: {
     workerJar?: string;
     javaHome?: string;

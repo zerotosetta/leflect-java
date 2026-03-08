@@ -37,6 +37,33 @@ With this config:
 - `analysis/java-ast/` is not produced because no Java worker is configured
 - `analysis/jsp-ast/` is also not produced because `jsp.astMode` defaults to `jasper` but Jasper execution still requires `java.workerJar`
 
+## Entry File Dependency Config
+
+Use this when you want LeflectJava to treat selected `.java`/`.jsp` files as dependency
+entrypoints and emit entry-rooted graph slices.
+
+```json
+{
+  "analysisOut": "./analysis",
+  "entryFiles": {
+    "java": [
+      "Controller\\.java$",
+      "Action\\.java$"
+    ],
+    "jsp": [
+      "WEB-INF/jsp/.+\\.jsp$"
+    ]
+  }
+}
+```
+
+With this config:
+
+- patterns are regular expressions applied to source-relative file paths
+- `analysis/graph/entry-dependencies.json` contains the matched entry files and the reachable dependency graph for each entry
+- `analysis/graph/file-dependencies.json` contains per-file `references`, `referencedBy`, `referenceCount`, and `dependantCount`
+- unmatched patterns are also recorded so you can see when a config pattern selected nothing
+
 ## Full AST Config
 
 Use this when you want both `.java` and `.jsp` files to produce 1:1 AST JSON files.
@@ -138,6 +165,16 @@ This is the most explicit form and is useful when you want all output paths pinn
 - output path for `labels.json`
 - default: `<analysisOut>/index/labels.json`
 
+`entryFiles.java`
+
+- optional array of regular expressions matched against source-relative `.java` paths
+- use this to define Java entry files for entry-rooted dependency graph output
+
+`entryFiles.jsp`
+
+- optional array of regular expressions matched against source-relative `.jsp`/`.jspx` paths
+- use this to define JSP entry files for entry-rooted dependency graph output
+
 `java.workerJar`
 
 - path to the Java worker shaded JAR
@@ -214,6 +251,12 @@ If you want `analysis/jsp-ast/`:
 If you only want report/index output:
 
 - minimal config is enough
+
+If you want entry-rooted dependency graphs and per-file dependants:
+
+- set `entryFiles.java` and/or `entryFiles.jsp`
+- inspect `analysis/graph/entry-dependencies.json`
+- inspect `analysis/graph/file-dependencies.json`
 
 ## Common Problems
 
