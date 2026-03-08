@@ -8,6 +8,7 @@ public class JavaMethodSummary {
   public String returnType;
   public List<String> parameters;
   public List<String> calls;
+  public SourceLocation location;
 
   public JavaMethodSummary() {
   }
@@ -17,12 +18,14 @@ public class JavaMethodSummary {
       String name,
       String returnType,
       List<String> parameters,
-      List<String> calls
+      List<String> calls,
+      SourceLocation location
   ) {
     this.id = id;
     this.name = name;
     this.returnType = returnType;
     this.parameters = parameters;
     this.calls = calls;
+    this.location = location;
   }
 }

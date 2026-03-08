@@ -64,6 +64,26 @@ With this config:
 - `analysis/graph/file-dependencies.json` contains per-file `references`, `referencedBy`, `referenceCount`, and `dependantCount`
 - unmatched patterns are also recorded so you can see when a config pattern selected nothing
 
+## Index Output Detail
+
+`analysis/index/` now writes both aggregate files and per-source metadata files.
+
+Java:
+
+- `classes.json`, `methods.json`, `calls.json`
+- `java-files.json`, `java-imports.json`, `java-classes.json`, `java-methods.json`, `java-calls.json`
+- `java-class-references.json`, `java-method-calls.json`
+- `java/**/*.json` for one metadata file per `.java`
+
+JSP:
+
+- `jsp-docs.json`
+- `jsp-files.json`, `jsp-imports.json`, `jsp-taglibs.json`, `jsp-tags.json`, `jsp-scriptlets.json`
+- `jsp-class-references.json`, `jsp-method-calls.json`
+- `jsp/**/*.json` for one metadata file per `.jsp`
+
+Reference/call records include `line`, `column`, `endLine`, `endColumn` when the parser can determine them.
+
 ## Full AST Config
 
 Use this when you want both `.java` and `.jsp` files to produce 1:1 AST JSON files.
@@ -239,6 +259,7 @@ If you want `analysis/java-ast/`:
 
 - set `java.workerJar`
 - if you want semantic resolution against external libraries, provide `java.classpath` and/or ensure Maven auto-discovery can run
+- `methods.json`, `calls.json`, `java-class-references.json`, and `java-method-calls.json` become meaningfully populated only when `parse-java` runs
 
 If you want `analysis/jsp-ast/`:
 
@@ -265,6 +286,16 @@ If you want entry-rooted dependency graphs and per-file dependants:
 - `java.workerJar` is not set
 - `parse-java` did not run
 - Java worker failed; check `analysis/logs/`
+
+`methods.json` or `calls.json` is empty
+
+- `parse-java` did not run, so only file-level Java inventory was available
+- the analyzed Java files genuinely contain no method declarations or method calls
+
+`reverse-index.json` or `taglibs.json` is emptier than expected
+
+- source tree TLD files may be absent, but JSP directives should still populate URI/tag usage
+- if even JSP directive/tag usage is missing, check `analysis/jsp-meta/` first
 
 Java AST exists but semantic resolution is incomplete
 

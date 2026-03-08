@@ -10,17 +10,84 @@ describe("buildJavaIndex", () => {
         {
           path: "src/main/java/demo/App.java",
           packageName: "demo",
+          imports: ["demo.Service"],
+          classReferences: [
+            {
+              symbol: "demo.Service",
+              qualifiedName: "demo.Service",
+              kind: "import",
+              location: {
+                line: 1,
+                column: 1,
+                endLine: 1,
+                endColumn: 19
+              },
+              snippet: "import demo.Service;"
+            },
+            {
+              symbol: "Service",
+              qualifiedName: "demo.Service",
+              kind: "type",
+              location: {
+                line: 3,
+                column: 9,
+                endLine: 3,
+                endColumn: 15
+              },
+              snippet: "Service"
+            }
+          ],
+          methodCalls: [
+            {
+              callerMethodId: "demo.App#run()",
+              callerClassId: "demo.App",
+              target: "demo.Service#work()",
+              targetClassId: "demo.Service",
+              targetMethodId: "demo.Service#work()",
+              location: {
+                line: 3,
+                column: 19,
+                endLine: 3,
+                endColumn: 24
+              },
+              snippet: "work()"
+            },
+            {
+              callerMethodId: "demo.App#run()",
+              callerClassId: "demo.App",
+              target: "helper",
+              location: {
+                line: 4,
+                column: 5,
+                endLine: 4,
+                endColumn: 10
+              },
+              snippet: "helper()"
+            }
+          ],
           types: [
             {
               name: "App",
               fqn: "demo.App",
               extendsTypes: ["BaseApp"],
               implementsTypes: ["Runnable"],
+              location: {
+                line: 1,
+                column: 1,
+                endLine: 6,
+                endColumn: 1
+              },
               methods: [
                 {
                   id: "demo.App#run()",
                   name: "run",
-                  calls: ["demo.Service#work()", "helper"]
+                  calls: ["demo.Service#work()", "helper"],
+                  location: {
+                    line: 2,
+                    column: 3,
+                    endLine: 5,
+                    endColumn: 3
+                  }
                 }
               ]
             }
@@ -34,8 +101,17 @@ describe("buildJavaIndex", () => {
         id: "demo.App",
         name: "App",
         file: "src/main/java/demo/App.java",
+        packageName: "demo",
+        sourceKind: undefined,
         extendsTypes: ["BaseApp"],
-        implementsTypes: ["Runnable"]
+        implementsTypes: ["Runnable"],
+        kind: undefined,
+        location: {
+          line: 1,
+          column: 1,
+          endLine: 6,
+          endColumn: 1
+        }
       }
     ]);
     expect(index.methods).toEqual([
@@ -43,7 +119,16 @@ describe("buildJavaIndex", () => {
         id: "demo.App#run()",
         name: "run",
         classId: "demo.App",
-        file: "src/main/java/demo/App.java"
+        file: "src/main/java/demo/App.java",
+        returnType: undefined,
+        parameters: [],
+        callTargets: ["demo.Service#work()", "helper"],
+        location: {
+          line: 2,
+          column: 3,
+          endLine: 5,
+          endColumn: 3
+        }
       }
     ]);
     expect(index.calls).toEqual([
@@ -54,7 +139,15 @@ describe("buildJavaIndex", () => {
         toClassId: "demo.Service",
         fromMethodId: "demo.App#run()",
         toMethodId: "demo.Service#work()",
-        fromFile: "src/main/java/demo/App.java"
+        fromFile: "src/main/java/demo/App.java",
+        rawTarget: "demo.Service#work()",
+        location: {
+          line: 3,
+          column: 19,
+          endLine: 3,
+          endColumn: 24
+        },
+        snippet: "work()"
       },
       {
         from: "demo.App#run()",
@@ -63,7 +156,55 @@ describe("buildJavaIndex", () => {
         toClassId: undefined,
         fromMethodId: "demo.App#run()",
         toMethodId: undefined,
-        fromFile: "src/main/java/demo/App.java"
+        fromFile: "src/main/java/demo/App.java",
+        rawTarget: "helper",
+        location: {
+          line: 4,
+          column: 5,
+          endLine: 4,
+          endColumn: 10
+        },
+        snippet: "helper()"
+      }
+    ]);
+    expect(index.classReferences).toEqual([
+      {
+        file: "src/main/java/demo/App.java",
+        className: "demo.Service",
+        qualifiedName: "demo.Service",
+        kind: "import",
+        location: {
+          line: 1,
+          column: 1,
+          endLine: 1,
+          endColumn: 19
+        },
+        snippet: "import demo.Service;"
+      },
+      {
+        file: "src/main/java/demo/App.java",
+        className: "Service",
+        qualifiedName: "demo.Service",
+        kind: "type",
+        location: {
+          line: 3,
+          column: 9,
+          endLine: 3,
+          endColumn: 15
+        },
+        snippet: "Service"
+      }
+    ]);
+    expect(index.imports).toEqual([
+      {
+        file: "src/main/java/demo/App.java",
+        import: "demo.Service",
+        location: {
+          line: 1,
+          column: 1,
+          endLine: 1,
+          endColumn: 19
+        }
       }
     ]);
   });

@@ -42,6 +42,16 @@ class JavaAstExporterTest {
     assertEquals("demo", summary.packageName);
     assertEquals(1, summary.types.size());
     assertEquals("demo.SampleService", summary.types.get(0).fqn);
+    assertTrue(summary.classReferences.size() >= 1);
+    assertTrue(
+        summary.classReferences.stream()
+            .anyMatch(reference -> "java.util.List".equals(reference.qualifiedName))
+    );
+    assertNotNull(summary.types.get(0).location);
+    assertNotNull(summary.types.get(0).methods.get(0).location);
+    assertEquals(1, summary.methodCalls.size());
+    assertTrue(summary.methodCalls.get(0).target.contains("of"));
+    assertNotNull(summary.methodCalls.get(0).location);
     assertFalse(result.rawAstJson.isBlank());
 
     ObjectMapper mapper = new ObjectMapper();
@@ -137,6 +147,9 @@ class JavaAstExporterTest {
         "support.ExternalUtil#work()",
         result.ast.types.get(0).methods.get(0).calls.get(0)
     );
+    assertEquals(1, result.ast.methodCalls.size());
+    assertEquals("support.ExternalUtil#work()", result.ast.methodCalls.get(0).target);
+    assertNotNull(result.ast.methodCalls.get(0).location);
   }
 
   private static void compileJava(Path outputDir, Path source) throws Exception {
