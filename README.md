@@ -21,6 +21,20 @@ pnpm build
 node bin/leflect --help
 ```
 
+## Real Sample
+
+The repository includes a runnable legacy Java 8 example flow based on
+`spring-framework-petclinic` tag `v5.0.8`.
+
+```bash
+pnpm example:legacy-java8:fetch
+pnpm example:legacy-java8:run
+```
+
+- Fetch script: `examples/legacy-java8-petclinic/fetch.sh`
+- Run script: `examples/legacy-java8-petclinic/run.sh`
+- Sample notes: `examples/legacy-java8-petclinic/README.md`
+
 ## Core Commands
 
 ```bash

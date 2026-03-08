@@ -12,6 +12,8 @@
   "scripts": {
     "build": "tsc -b",
     "clean": "tsc -b --clean",
+    "example:legacy-java8:fetch": "bash examples/legacy-java8-petclinic/fetch.sh",
+    "example:legacy-java8:run": "bash examples/legacy-java8-petclinic/run.sh",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint .",
     "test": "vitest run",
