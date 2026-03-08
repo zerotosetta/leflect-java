@@ -10,6 +10,7 @@ public class InputManifest {
   public String root;
   public List<String> files;
   public String outputDir;
+  public List<String> classpathEntries;
   public String errorLog;
 
   public static InputManifest fromFile(Path path) throws IOException {

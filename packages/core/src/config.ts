@@ -61,11 +61,21 @@ function resolveConfigPaths(config: LeflectConfig, root: string): LeflectConfig 
   const resolvedAnalysisOut = resolvePath(root, config.analysisOut);
   const javaConfig = config.java;
   const resolvedJava =
-    javaConfig && (javaConfig.workerJar || javaConfig.javaHome)
+    javaConfig &&
+    (
+      javaConfig.workerJar ||
+      javaConfig.javaHome ||
+      javaConfig.classpath?.length ||
+      javaConfig.mavenCommand
+    )
       ? {
           ...javaConfig,
           workerJar: javaConfig.workerJar ? resolvePath(root, javaConfig.workerJar) : undefined,
-          javaHome: javaConfig.javaHome ? resolvePath(root, javaConfig.javaHome) : undefined
+          javaHome: javaConfig.javaHome ? resolvePath(root, javaConfig.javaHome) : undefined,
+          classpath: javaConfig.classpath?.map((entry) => resolvePath(root, entry)),
+          mavenCommand: javaConfig.mavenCommand
+            ? resolveCommand(root, javaConfig.mavenCommand)
+            : undefined
         }
       : javaConfig;
   const jspConfig = config.jsp;
@@ -144,6 +154,17 @@ function validateConfig(config: LeflectConfig): void {
     }
     if (config.java.javaHome && typeof config.java.javaHome !== "string") {
       throw new Error("Config 'java.javaHome' must be a string");
+    }
+    if (config.java.classpath) {
+      if (!Array.isArray(config.java.classpath)) {
+        throw new Error("Config 'java.classpath' must be an array of strings");
+      }
+      if (!config.java.classpath.every((entry) => typeof entry === "string")) {
+        throw new Error("Config 'java.classpath' must be an array of strings");
+      }
+    }
+    if (config.java.mavenCommand && typeof config.java.mavenCommand !== "string") {
+      throw new Error("Config 'java.mavenCommand' must be a string");
     }
   }
   if (config.jsp) {

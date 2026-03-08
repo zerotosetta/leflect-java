@@ -6,11 +6,10 @@ import { describe, expect, it } from "vitest";
 
 import { LeflectConfig } from "@lefectjava/schema";
 
+import { resolveMavenCommand, splitClasspath } from "../classpath";
 import {
   createJspDependencyCacheInput,
-  resolveJspClasspathEntries,
-  resolveMavenCommand,
-  splitClasspath
+  resolveJspClasspathEntries
 } from "../jsp-classpath";
 
 async function tempDir(prefix: string): Promise<string> {
@@ -80,6 +79,8 @@ describe("jsp classpath helpers", () => {
       mavenCommand: "/custom/mvn",
       classpath: [path.join(root, "lib", "tags.jar")]
     });
-    expect(cacheInput["pomSha1"]).toEqual(expect.any(String));
+    expect(cacheInput["markerFiles"]).toMatchObject({
+      "pom.xml": expect.any(String)
+    });
   });
 });

@@ -7,6 +7,7 @@ import com.github.javaparser.ast.body.EnumDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import io.lefectjava.worker.model.AstFileResult;
 import io.lefectjava.worker.model.JavaClassSummary;
 import io.lefectjava.worker.model.JavaMethodSummary;
@@ -85,7 +86,7 @@ public class JavaSummaryExtractor {
         : "void";
 
     List<String> calls = callable.findAll(MethodCallExpr.class).stream()
-        .map(MethodCallExpr::getNameAsString)
+        .map(this::resolveMethodCall)
         .distinct()
         .collect(Collectors.toList());
 
@@ -108,5 +109,20 @@ public class JavaSummaryExtractor {
         ? typeName
         : packageName + "." + typeName;
     return typeFqn + "#" + methodName + "(" + String.join(",", parameters) + ")";
+  }
+
+  private String resolveMethodCall(MethodCallExpr call) {
+    try {
+      ResolvedMethodDeclaration declaration = call.resolve();
+      String qualified = declaration.getQualifiedSignature();
+      int openParen = qualified.indexOf('(');
+      int separator = openParen >= 0 ? qualified.lastIndexOf('.', openParen) : qualified.lastIndexOf('.');
+      if (separator < 0) {
+        return qualified;
+      }
+      return qualified.substring(0, separator) + "#" + qualified.substring(separator + 1);
+    } catch (RuntimeException ex) {
+      return call.getNameAsString();
+    }
   }
 }

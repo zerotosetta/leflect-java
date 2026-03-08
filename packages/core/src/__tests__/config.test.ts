@@ -36,7 +36,9 @@ describe("loadConfig", () => {
         labelsOut: "labels.json",
         java: {
           workerJar: "java-worker/target/leflectjava-java-worker.jar",
-          javaHome: "./.java"
+          javaHome: "./.java",
+          classpath: ["lib/support.jar", "target/classes"],
+          mavenCommand: "./tools/maven/bin/mvn"
         },
         jsp: {
           astMode: "jasper",
@@ -59,6 +61,11 @@ describe("loadConfig", () => {
       path.join(root, "java-worker", "target", "leflectjava-java-worker.jar")
     );
     expect(result.config.java?.javaHome).toBe(path.join(root, ".java"));
+    expect(result.config.java?.classpath).toEqual([
+      path.join(root, "lib", "support.jar"),
+      path.join(root, "target", "classes")
+    ]);
+    expect(result.config.java?.mavenCommand).toBe(path.join(root, "tools", "maven", "bin", "mvn"));
     expect(result.config.jsp?.astMode).toBe("jasper");
     expect(result.config.jsp?.webappRoot).toBe(path.join(root, "src", "main", "webapp"));
     expect(result.config.jsp?.generatedJavaOut).toBe(
@@ -116,12 +123,15 @@ describe("loadConfig", () => {
       }
     });
 
-    const javaManifest = buildJavaInputManifest(config, ["src/A.java"]);
+    const javaManifest = buildJavaInputManifest(config, ["src/A.java"], [
+      path.join(root, "lib", "support.jar")
+    ]);
     const jspManifest = buildJspInputManifest(config, ["view/index.jsp"], [
       path.join(root, "lib", "taglibs.jar")
     ]);
 
     expect(javaManifest.outputDir).toBe(path.join(root, "analysis", "java-ast"));
+    expect(javaManifest.classpathEntries).toEqual([path.join(root, "lib", "support.jar")]);
     expect(jspManifest.webappRoot).toBe(root);
     expect(jspManifest.servletOutputDir).toBe(
       path.join(root, "analysis", "generated-jsp-java")

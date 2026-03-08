@@ -4,6 +4,10 @@ import io.lefectjava.worker.io.FileLayout;
 import io.lefectjava.worker.io.JsonWriters;
 import io.lefectjava.worker.manifest.InputManifest;
 import io.lefectjava.worker.parser.JavaAstExporter;
+import io.lefectjava.worker.parser.JavaParserAstSerializer;
+import io.lefectjava.worker.parser.JavaSummaryExtractor;
+import io.lefectjava.worker.parser.ParseProblemCollector;
+import io.lefectjava.worker.parser.ParserFactory;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -31,11 +35,21 @@ public class ParseJavaCommand {
       Files.createDirectories(indexDir);
       Path summaryPath = indexDir.resolve("java-summary.jsonl");
 
-      JavaAstExporter exporter = new JavaAstExporter();
+      List<String> files = safeList(manifest.files);
+      List<Path> sourceFiles = files.stream()
+          .map(file -> resolveSource(root, file))
+          .toList();
+      JavaAstExporter exporter = new JavaAstExporter(
+          ParserFactory.createJavaParser(root, sourceFiles, manifest.classpathEntries),
+          new JavaSummaryExtractor(),
+          new ParseProblemCollector(),
+          new JavaParserAstSerializer()
+      );
 
       try (BufferedWriter summaryWriter = Files.newBufferedWriter(summaryPath)) {
-        for (String file : safeList(manifest.files)) {
-          Path source = resolveSource(root, file);
+        for (int index = 0; index < files.size(); index += 1) {
+          String file = files.get(index);
+          Path source = sourceFiles.get(index);
           Path astPath = FileLayout.resolveAstPath(outputDir, root, source);
           String relativePath = root.relativize(source).toString().replace("\\", "/");
           JavaAstExporter.ExportResult result = exporter.export(source, relativePath, "java");
