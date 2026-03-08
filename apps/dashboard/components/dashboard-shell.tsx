@@ -12,7 +12,9 @@ import {
   GraphEdgeType
 } from "@leflect-java/dashboard-data";
 
+import { cx } from "@/lib/cx";
 import { GraphCanvas } from "@/components/graph-canvas";
+import * as styles from "./dashboard-shell.css";
 
 type DashboardShellProps = {
   bootstrap: DashboardBootstrap;
@@ -212,25 +214,28 @@ export function DashboardShell({ bootstrap }: DashboardShellProps) {
   const selectedGraphNode = selectedNodeId ? graph.nodes.find((entry) => entry.id === selectedNodeId) : undefined;
 
   return (
-    <main className="dashboard-root">
-      <section className="top-bar panel">
-        <div>
-          <p className="eyebrow">Project</p>
-          <h1>{bootstrap.projectName}</h1>
-          <p className="muted mono">{bootstrap.analysisOut}</p>
+    <main className={styles.root}>
+      <section className={styles.topBar}>
+        <div className={styles.topBarInfo}>
+          <p className={styles.eyebrow}>Project</p>
+          <h1 className={styles.topBarTitle}>{bootstrap.projectName}</h1>
+          <p className={cx(styles.mutedText, styles.monoText, styles.ellipsisText)} title={bootstrap.analysisOut}>
+            {bootstrap.analysisOut}
+          </p>
         </div>
-        <div className="top-actions">
-          <label className="field-stack">
-            <span>Entry Search</span>
+        <div className={styles.topActions}>
+          <label className={styles.fieldStack}>
+            <span className={styles.eyebrow}>Entry Search</span>
             <input
+              className={styles.textInput}
               value={entryQuery}
               onChange={(event) => setEntryQuery(event.target.value)}
               placeholder="jsp, controller, package"
             />
           </label>
-          <label className="field-stack compact">
-            <span>View Mode</span>
-            <div className="segmented">
+          <label className={cx(styles.fieldStack, styles.fieldCompact)}>
+            <span className={styles.eyebrow}>View Mode</span>
+            <div className={styles.segmented}>
               {([
                 ["flow", "Flow Graph"],
                 ["matrix", "Matrix"],
@@ -239,7 +244,7 @@ export function DashboardShell({ bootstrap }: DashboardShellProps) {
               ] as const).map(([mode, label]) => (
                 <button
                   key={mode}
-                  className={viewMode === mode ? "active" : undefined}
+                  className={cx(styles.segmentedButton, viewMode === mode && styles.segmentedButtonActive)}
                   onClick={() => setViewMode(mode)}
                 >
                   {label}
@@ -247,20 +252,20 @@ export function DashboardShell({ bootstrap }: DashboardShellProps) {
               ))}
             </div>
           </label>
-          <button className="primary" onClick={saveCurrentView}>Save View</button>
+          <button className={styles.primaryButton} onClick={saveCurrentView}>Save View</button>
         </div>
       </section>
 
-      <section className="active-policy-strip panel">
-        <div>
-          <p className="eyebrow">Active Policies</p>
-          <div className="badge-row">
+      <section className={styles.policyStrip}>
+        <div className={styles.topBarInfo}>
+          <p className={styles.eyebrow}>Active Policies</p>
+          <div className={styles.badgeRow}>
             {policies.filter((entry) => entry.enabled).map((entry) => (
-              <span key={entry.id} className="badge accent">{entry.name}</span>
+              <span key={entry.id} className={cx(styles.badge, styles.badgeAccent)}>{entry.name}</span>
             ))}
           </div>
         </div>
-        <div className="summary-grid">
+        <div className={styles.metricsRow}>
           <span>Entries {bootstrap.entries.length}</span>
           <span>Zones {graph.zones.length}</span>
           <span>Visible Nodes {graph.stats.visibleNodeCount}</span>
@@ -268,33 +273,33 @@ export function DashboardShell({ bootstrap }: DashboardShellProps) {
         </div>
       </section>
 
-      <section className="workspace-grid">
-        <aside className="left-sidebar panel">
-          <div className="sidebar-tabs segmented vertical">
-            <button className={activeTab === "entries" ? "active" : undefined} onClick={() => setActiveTab("entries")}>Entries</button>
-            <button className={activeTab === "policies" ? "active" : undefined} onClick={() => setActiveTab("policies")}>Policies</button>
-            <button className={activeTab === "zones" ? "active" : undefined} onClick={() => setActiveTab("zones")}>Zones</button>
-            <button className={activeTab === "filters" ? "active" : undefined} onClick={() => setActiveTab("filters")}>Filters</button>
+      <section className={styles.workspace}>
+        <aside className={styles.sidebar}>
+          <div className={cx(styles.segmented, styles.segmentedVertical)}>
+            <button className={cx(styles.segmentedButton, activeTab === "entries" && styles.segmentedButtonActive)} onClick={() => setActiveTab("entries")}>Entries</button>
+            <button className={cx(styles.segmentedButton, activeTab === "policies" && styles.segmentedButtonActive)} onClick={() => setActiveTab("policies")}>Policies</button>
+            <button className={cx(styles.segmentedButton, activeTab === "zones" && styles.segmentedButtonActive)} onClick={() => setActiveTab("zones")}>Zones</button>
+            <button className={cx(styles.segmentedButton, activeTab === "filters" && styles.segmentedButtonActive)} onClick={() => setActiveTab("filters")}>Filters</button>
           </div>
 
           {activeTab === "entries" ? (
-            <div className="sidebar-section">
+            <div className={styles.sidebarSection}>
               {groupedEntries.map(([group, entries]) => (
-                <div key={group} className="entry-group">
-                  <h3>{group}</h3>
-                  <ul>
+                <div key={group} className={styles.entryGroup}>
+                  <h3 className={styles.groupHeading}>{group}</h3>
+                  <ul className={styles.stackList}>
                     {entries.map((entry) => (
                       <li key={`${group}:${entry.id}`}>
                         <button
-                          className={selectedEntryId === entry.id ? "selected" : undefined}
+                          className={cx(styles.entryButton, selectedEntryId === entry.id && styles.entryButtonSelected)}
                           onClick={() => {
                             setSelectedEntryId(entry.id);
                             setSelectedNodeId(undefined);
                             setSelectedZoneId(undefined);
                           }}
                         >
-                          <strong>{entry.label}</strong>
-                          <span>{entry.path}</span>
+                          <strong title={entry.label}>{entry.label}</strong>
+                          <span title={entry.path}>{entry.path}</span>
                         </button>
                       </li>
                     ))}
@@ -305,15 +310,15 @@ export function DashboardShell({ bootstrap }: DashboardShellProps) {
           ) : null}
 
           {activeTab === "policies" ? (
-            <div className="sidebar-section policy-list">
+            <div className={cx(styles.sidebarSection, styles.policyList)}>
               {policies.map((policy) => (
-                <article key={policy.id} className="policy-card">
-                  <div className="policy-card-head">
-                    <div>
+                <article key={policy.id} className={styles.policyCard}>
+                  <div className={styles.policyHead}>
+                    <div className={styles.topBarInfo}>
                       <strong>{policy.name}</strong>
-                      <p className="muted">{policy.scope} · priority {policy.priority}</p>
+                      <p className={styles.scopeText}>{policy.scope} · priority {policy.priority}</p>
                     </div>
-                    <label className="toggle">
+                    <label className={styles.toggle}>
                       <input
                         type="checkbox"
                         checked={policy.enabled}
@@ -322,9 +327,9 @@ export function DashboardShell({ bootstrap }: DashboardShellProps) {
                       <span>{policy.enabled ? "ON" : "OFF"}</span>
                     </label>
                   </div>
-                  <ul className="rule-list">
+                  <ul className={styles.ruleList}>
                     {policy.rules.map((rule) => (
-                      <li key={rule.id}>
+                      <li key={rule.id} className={styles.ruleItem}>
                         <span>{rule.action.type}</span>
                         <strong>{rule.match?.zonePatterns?.join(", ") ?? "**"}</strong>
                       </li>
@@ -336,22 +341,23 @@ export function DashboardShell({ bootstrap }: DashboardShellProps) {
           ) : null}
 
           {activeTab === "zones" ? (
-            <div className="sidebar-section zone-list">
+            <div className={cx(styles.sidebarSection, styles.policyList)}>
               {graph.zones.map((zone) => (
-                <article key={zone.id} className="zone-card">
-                  <div>
-                    <strong>{zone.label}</strong>
-                    <p className="muted">{zone.classCount} classes · {zone.methodCount} methods</p>
+                <article key={zone.id} className={styles.zoneCard}>
+                  <div className={styles.topBarInfo}>
+                    <strong className={styles.ellipsisText} title={zone.label}>{zone.label}</strong>
+                    <p className={styles.scopeText}>{zone.classCount} classes · {zone.methodCount} methods</p>
                   </div>
-                  <div className="badge-row">
-                    <span className="badge">{zone.action}</span>
-                    <span className="badge">fanIn {zone.fanIn}</span>
+                  <div className={styles.badgeRow}>
+                    <span className={styles.badge}>{zone.action}</span>
+                    <span className={styles.badge}>fanIn {zone.fanIn}</span>
+                    <span className={styles.badge}>coverage {(zone.entryCoverage * 100).toFixed(0)}%</span>
                   </div>
-                  <div className="zone-actions">
+                  <div className={styles.zoneActions}>
                     {(["EXPAND", "COLLAPSE", "SUMMARIZE", "HIDE"] as const).map((action) => (
-                      <button key={action} onClick={() => applyZoneOverride(zone.id, action)}>{action}</button>
+                      <button key={action} className={styles.actionButton} onClick={() => applyZoneOverride(zone.id, action)}>{action}</button>
                     ))}
-                    <button onClick={() => clearZoneOverride(zone.id)}>Reset</button>
+                    <button className={styles.actionButton} onClick={() => clearZoneOverride(zone.id)}>Reset</button>
                   </div>
                 </article>
               ))}
@@ -359,17 +365,18 @@ export function DashboardShell({ bootstrap }: DashboardShellProps) {
           ) : null}
 
           {activeTab === "filters" ? (
-            <div className="sidebar-section filter-list">
-              <label className="field-stack">
-                <span>Graph Search</span>
+            <div className={cx(styles.sidebarSection, styles.filterSection)}>
+              <label className={styles.fieldStack}>
+                <span className={styles.eyebrow}>Graph Search</span>
                 <input
+                  className={styles.textInput}
                   value={filters.search}
                   onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
                   placeholder="class, jsp, zone"
                 />
               </label>
-              <label className="field-stack">
-                <span>Depth {filters.maxDepth}</span>
+              <label className={styles.fieldStack}>
+                <span className={styles.eyebrow}>Depth {filters.maxDepth}</span>
                 <input
                   type="range"
                   min={1}
@@ -379,19 +386,21 @@ export function DashboardShell({ bootstrap }: DashboardShellProps) {
                 />
               </label>
               <fieldset>
-                <legend>Edge Types</legend>
-                {EDGE_TYPES.map((edgeType) => (
-                  <label key={edgeType} className="check-row">
-                    <input
-                      type="checkbox"
-                      checked={filters.edgeTypes.includes(edgeType)}
-                      onChange={() => toggleEdgeType(edgeType)}
-                    />
-                    <span>{edgeType}</span>
-                  </label>
-                ))}
+                <legend className={styles.eyebrow}>Edge Types</legend>
+                <div className={styles.stackList}>
+                  {EDGE_TYPES.map((edgeType) => (
+                    <label key={edgeType} className={styles.checkRow}>
+                      <input
+                        type="checkbox"
+                        checked={filters.edgeTypes.includes(edgeType)}
+                        onChange={() => toggleEdgeType(edgeType)}
+                      />
+                      <span>{edgeType}</span>
+                    </label>
+                  ))}
+                </div>
               </fieldset>
-              <label className="check-row">
+              <label className={styles.checkRow}>
                 <input
                   type="checkbox"
                   checked={filters.sharedNodesOnly}
@@ -399,7 +408,7 @@ export function DashboardShell({ bootstrap }: DashboardShellProps) {
                 />
                 <span>Shared node only</span>
               </label>
-              <label className="check-row">
+              <label className={styles.checkRow}>
                 <input
                   type="checkbox"
                   checked={filters.entrySpecificOnly}
@@ -407,7 +416,7 @@ export function DashboardShell({ bootstrap }: DashboardShellProps) {
                 />
                 <span>Entry specific only</span>
               </label>
-              <label className="check-row">
+              <label className={styles.checkRow}>
                 <input
                   type="checkbox"
                   checked={filters.cycleOnly}
@@ -419,19 +428,21 @@ export function DashboardShell({ bootstrap }: DashboardShellProps) {
           ) : null}
         </aside>
 
-        <section className="graph-panel panel">
-          <header className="graph-panel-head">
-            <div>
-              <p className="eyebrow">Selected Entry</p>
-              <h2>{selectedEntry?.label ?? "No entry selected"}</h2>
-              <p className="muted mono">{selectedEntry?.path}</p>
+        <section className={styles.graphPanel}>
+          <header className={styles.graphPanelHead}>
+            <div className={styles.graphTitle}>
+              <p className={styles.eyebrow}>Selected Entry</p>
+              <h2 className={styles.graphTitleHeading}>{selectedEntry?.label ?? "No entry selected"}</h2>
+              <p className={cx(styles.mutedText, styles.monoText, styles.ellipsisText)} title={selectedEntry?.path}>
+                {selectedEntry?.path}
+              </p>
             </div>
-            <div className="badge-row">
-              <span className="badge">Depth {filters.maxDepth}</span>
-              <span className="badge">{loading ? "Refreshing" : graph.stats.cacheHit ? "Cache Hit" : "Live"}</span>
+            <div className={styles.badgeRow}>
+              <span className={styles.badge}>Depth {filters.maxDepth}</span>
+              <span className={styles.badge}>{loading ? "Refreshing" : graph.stats.cacheHit ? "Cache Hit" : "Live"}</span>
             </div>
           </header>
-          <div className="graph-stage">
+          <div className={styles.graphStage}>
             {viewMode === "flow" ? (
               <GraphCanvas
                 graph={graph}
@@ -454,9 +465,9 @@ export function DashboardShell({ bootstrap }: DashboardShellProps) {
           </div>
         </section>
 
-        <aside className="right-panel panel">
-          <div className="detail-block">
-            <p className="eyebrow">Selection</p>
+        <aside className={styles.rightPanel}>
+          <div className={styles.detailBlock}>
+            <p className={styles.eyebrow}>Selection</p>
             {zoneDetail ?? selectedGraphZone ? (
               <ZoneDetailView detail={zoneDetail ?? selectedGraphZone!} />
             ) : nodeDetail ?? selectedGraphNode ? (
@@ -465,11 +476,11 @@ export function DashboardShell({ bootstrap }: DashboardShellProps) {
               <EmptyDetail selectedEntry={selectedEntry} />
             )}
           </div>
-          <div className="detail-block">
-            <p className="eyebrow">Policy Trace</p>
-            <ul className="trace-list">
+          <div className={styles.detailBlock}>
+            <p className={styles.eyebrow}>Policy Trace</p>
+            <ul className={styles.detailList}>
               {(zoneDetail?.traces ?? selectedGraphZone?.traces ?? graph.policyTrace.slice(0, 8)).map((trace) => (
-                <li key={`${trace.policyId}:${trace.ruleId}`}>
+                <li key={`${trace.policyId}:${trace.ruleId}`} className={styles.detailListItem}>
                   <strong>{trace.policyName}</strong>
                   <span>{trace.ruleName}</span>
                   <em>{trace.action}</em>
@@ -477,11 +488,11 @@ export function DashboardShell({ bootstrap }: DashboardShellProps) {
               ))}
             </ul>
           </div>
-          {statusMessage ? <div className="status-banner">{statusMessage}</div> : null}
+          {statusMessage ? <div className={styles.statusBanner}>{statusMessage}</div> : null}
         </aside>
       </section>
 
-      <footer className="status-bar panel mono">
+      <footer className={styles.statusBar}>
         <span>Nodes {graph.stats.visibleNodeCount}</span>
         <span>Edges {graph.stats.visibleEdgeCount}</span>
         <span>Hidden {graph.stats.hiddenNodeCount}</span>
@@ -506,7 +517,7 @@ function groupEntries(entries: DashboardEntry[]): Array<[string, DashboardEntry[
 
 function MatrixView({ graph }: { graph: DashboardVisibleGraphResponse }) {
   return (
-    <div className="matrix-view">
+    <div className={styles.matrixView}>
       <table>
         <thead>
           <tr>
@@ -533,16 +544,16 @@ function MatrixView({ graph }: { graph: DashboardVisibleGraphResponse }) {
 
 function ImpactView({ graph }: { graph: DashboardVisibleGraphResponse }) {
   if (!graph.impact) {
-    return <div className="empty-state">Select an entry to calculate impact.</div>;
+    return <div className={styles.emptyState}>Select an entry to calculate impact.</div>;
   }
   return (
-    <div className="impact-grid">
-      <article className="impact-card">
+    <div className={styles.impactGrid}>
+      <article className={styles.impactCard}>
         <strong>Forward Impact</strong>
         <span>{graph.impact.forwardCount} nodes</span>
         <p>{graph.impact.forwardNodes.join(", ") || "-"}</p>
       </article>
-      <article className="impact-card">
+      <article className={styles.impactCard}>
         <strong>Reverse Impact</strong>
         <span>{graph.impact.reverseCount} nodes</span>
         <p>{graph.impact.reverseNodes.join(", ") || "-"}</p>
@@ -553,12 +564,12 @@ function ImpactView({ graph }: { graph: DashboardVisibleGraphResponse }) {
 
 function CycleView({ graph }: { graph: DashboardVisibleGraphResponse }) {
   if (graph.cycles.length === 0) {
-    return <div className="empty-state">No cycle detected in the visible graph.</div>;
+    return <div className={styles.emptyState}>No cycle detected in the visible graph.</div>;
   }
   return (
-    <div className="cycle-list">
+    <div className={styles.cycleList}>
       {graph.cycles.map((cycle) => (
-        <article key={cycle.id} className="cycle-card">
+        <article key={cycle.id} className={styles.cycleCard}>
           <strong>{cycle.size} nodes</strong>
           <p>{cycle.nodes.join(" → ")}</p>
         </article>
@@ -579,21 +590,21 @@ function NodeDetailView({
     return null;
   }
   return (
-    <div className="detail-stack">
-      <h3>{node.label}</h3>
-      <p className="muted mono">{node.path ?? node.id}</p>
-      <div className="badge-row">
-        <span className="badge">{node.nodeType}</span>
-        <span className="badge">in {node.incomingCount}</span>
-        <span className="badge">out {node.outgoingCount}</span>
+    <div className={styles.detailStack}>
+      <h3 className={styles.detailPanelTitle}>{node.label}</h3>
+      <p className={cx(styles.mutedText, styles.monoText, styles.wrapText)}>{node.path ?? node.id}</p>
+      <div className={styles.badgeRow}>
+        <span className={styles.badge}>{node.nodeType}</span>
+        <span className={styles.badge}>in {node.incomingCount}</span>
+        <span className={styles.badge}>out {node.outgoingCount}</span>
       </div>
       {detail ? (
         <>
-          <h4>Representative References</h4>
-          <ul className="reference-list">
+          <p className={styles.eyebrow}>Representative References</p>
+          <ul className={styles.detailList}>
             {detail.representativeReferences.length > 0 ? (
               detail.representativeReferences.map((reference, index) => (
-                <li key={`${reference.source}:${reference.target}:${index}`}>
+                <li key={`${reference.source}:${reference.target}:${index}`} className={styles.detailListItem}>
                   <strong>{reference.methodName ?? reference.classPath ?? reference.target}</strong>
                   <span>{reference.snippet ?? reference.target}</span>
                   <em>
@@ -602,7 +613,7 @@ function NodeDetailView({
                 </li>
               ))
             ) : (
-              <li>No callsite metadata for the current node.</li>
+              <li className={styles.detailListItem}>No callsite metadata for the current node.</li>
             )}
           </ul>
         </>
@@ -613,24 +624,24 @@ function NodeDetailView({
 
 function ZoneDetailView({ detail }: { detail: DashboardZoneSummary }) {
   return (
-    <div className="detail-stack">
-      <h3>{detail.label}</h3>
-      <div className="badge-row">
-        <span className="badge">{detail.action}</span>
-        <span className="badge">classes {detail.classCount}</span>
-        <span className="badge">methods {detail.methodCount}</span>
+    <div className={styles.detailStack}>
+      <h3 className={styles.detailPanelTitle}>{detail.label}</h3>
+      <div className={styles.badgeRow}>
+        <span className={styles.badge}>{detail.action}</span>
+        <span className={styles.badge}>classes {detail.classCount}</span>
+        <span className={styles.badge}>methods {detail.methodCount}</span>
       </div>
-      <p className="muted">entry coverage {(detail.entryCoverage * 100).toFixed(0)}%</p>
-      <h4>Top Classes</h4>
-      <ul className="compact-list">
-        {detail.topClasses.length > 0 ? detail.topClasses.map((entry) => <li key={entry}>{entry}</li>) : <li>No representative classes.</li>}
+      <p className={styles.mutedText}>entry coverage {(detail.entryCoverage * 100).toFixed(0)}%</p>
+      <p className={styles.eyebrow}>Top Classes</p>
+      <ul className={styles.detailList}>
+        {detail.topClasses.length > 0 ? detail.topClasses.map((entry) => <li key={entry} className={styles.detailListItem}>{entry}</li>) : <li className={styles.detailListItem}>No representative classes.</li>}
       </ul>
-      <h4>Representative Path</h4>
-      <p className="muted mono">{detail.representativePath.join(" → ") || "No path"}</p>
-      <h4>Edge Breakdown</h4>
-      <ul className="compact-list">
+      <p className={styles.eyebrow}>Representative Path</p>
+      <p className={cx(styles.mutedText, styles.monoText, styles.wrapText)}>{detail.representativePath.join(" → ") || "No path"}</p>
+      <p className={styles.eyebrow}>Edge Breakdown</p>
+      <ul className={styles.detailList}>
         {Object.entries(detail.edgeBreakdown).map(([edgeType, count]) => (
-          <li key={edgeType}>{edgeType}: {count}</li>
+          <li key={edgeType} className={styles.detailListItem}>{edgeType}: {count}</li>
         ))}
       </ul>
     </div>
@@ -639,10 +650,10 @@ function ZoneDetailView({ detail }: { detail: DashboardZoneSummary }) {
 
 function EmptyDetail({ selectedEntry }: { selectedEntry: DashboardEntry | undefined }) {
   return (
-    <div className="detail-stack">
-      <h3>{selectedEntry?.label ?? "No Selection"}</h3>
-      <p className="muted mono">{selectedEntry?.path ?? "Choose an entry or graph node."}</p>
-      <p className="muted">Use the graph canvas, entries list, or zone cards to inspect the current visible graph.</p>
+    <div className={styles.detailStack}>
+      <h3 className={styles.detailPanelTitle}>{selectedEntry?.label ?? "No Selection"}</h3>
+      <p className={cx(styles.mutedText, styles.monoText, styles.wrapText)}>{selectedEntry?.path ?? "Choose an entry or graph node."}</p>
+      <p className={styles.mutedText}>Use the graph canvas, entries list, or zone cards to inspect the current visible graph.</p>
     </div>
   );
 }

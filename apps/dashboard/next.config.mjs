@@ -1,4 +1,5 @@
 import path from "path";
+import { createVanillaExtractPlugin } from "@vanilla-extract/next-plugin";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -7,4 +8,4 @@ const nextConfig = {
   outputFileTracingRoot: path.resolve(process.cwd(), "../..")
 };
 
-export default nextConfig;
+export default createVanillaExtractPlugin()(nextConfig);

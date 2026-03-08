@@ -6,10 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@leflect-java/dashboard-data": "workspace:*",
+    "@vanilla-extract/css": "^1.18.0",
+    "@vanilla-extract/next-plugin": "^2.4.17",
     "graphology": "^0.26.0",
     "next": "^15.2.0",
     "react": "^19.0.0",

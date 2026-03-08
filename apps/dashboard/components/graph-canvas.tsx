@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Graph from "graphology";
 
 import { DashboardNodeSummary, DashboardVisibleEdge, DashboardVisibleGraphResponse } from "@leflect-java/dashboard-data";
+import * as styles from "./graph-canvas.css";
 
 type GraphCanvasProps = {
   graph: DashboardVisibleGraphResponse;
@@ -124,10 +125,10 @@ export function GraphCanvas({ graph, selectedNodeId, onSelectNode, onSelectZone,
   }, [graphModel, onExpandZone, onSelectNode, onSelectZone, selectedNodeId]);
 
   return (
-    <div className="graph-shell">
-      <div ref={containerRef} className="graph-canvas" />
+    <div className={styles.shell}>
+      <div ref={containerRef} className={styles.canvas} />
       {hoveredNode ? (
-        <div className="graph-tooltip">
+        <div className={styles.tooltip}>
           <strong>{hoveredNode.label}</strong>
           <span>{hoveredNode.detail}</span>
         </div>

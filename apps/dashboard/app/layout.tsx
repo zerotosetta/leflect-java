@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 
-import "./globals.css";
+import { bodyRoot } from "./theme.css";
 
 const heading = Space_Grotesk({
   subsets: ["latin"],
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${heading.variable} ${mono.variable}`}>{children}</body>
+      <body className={`${heading.variable} ${mono.variable} ${bodyRoot}`}>{children}</body>
     </html>
   );
 }
