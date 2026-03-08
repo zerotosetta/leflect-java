@@ -5,6 +5,11 @@ export type LeflectConfig = {
   analysisOut: string;
   ignoreFile?: string;
   labelsOut?: string;
+  classpathDiscovery?: {
+    enabled?: boolean;
+    maxRetries?: number;
+    searchRoots?: string[];
+  };
   entryFiles?: {
     java?: string[];
     jsp?: string[];
@@ -34,6 +39,9 @@ export type LeflectConfigInput = Partial<
 
 export const defaultConfig: Omit<LeflectConfig, "root"> = {
   analysisOut: "analysis",
+  classpathDiscovery: {
+    enabled: false
+  },
   java: {},
   jsp: {
     astMode: "jasper"

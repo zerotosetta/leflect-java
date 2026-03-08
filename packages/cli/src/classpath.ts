@@ -18,6 +18,11 @@ export type ClasspathResolutionOptions = {
   outputDirectories?: string[];
   markerFiles?: string[];
   strictMaven?: boolean;
+  autoDiscovery?: {
+    enabled?: boolean;
+    maxRetries?: number;
+    searchRoots?: string[];
+  };
 };
 
 export async function resolveDependencyClasspathEntries(
@@ -35,7 +40,7 @@ export async function resolveDependencyClasspathEntries(
       entries.add(entry);
     }
   } catch (error) {
-    if (options.strictMaven || configuredEntries.length === 0) {
+    if (options.strictMaven) {
       throw error;
     }
   }
@@ -61,6 +66,7 @@ export async function createDependencyCacheInput(
   return {
     mavenCommand: options.mavenCommand ?? null,
     classpath: options.configuredEntries ?? [],
+    autoDiscovery: options.autoDiscovery ?? null,
     markerFiles: Object.fromEntries(markerHashes)
   };
 }

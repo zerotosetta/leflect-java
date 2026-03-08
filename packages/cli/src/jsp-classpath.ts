@@ -1,5 +1,10 @@
 import { LeflectConfig } from "@lefectjava/schema";
 
+import {
+  discoverSystemClasspathEntries,
+  isSystemClasspathDiscoveryEnabled,
+  resolveSystemClasspathSearchRoots
+} from "./auto-classpath";
 import { createDependencyCacheInput, resolveDependencyClasspathEntries } from "./classpath";
 
 const OUTPUT_DIRECTORIES = [
@@ -7,13 +12,28 @@ const OUTPUT_DIRECTORIES = [
   "src/main/webapp/WEB-INF/classes"
 ];
 
-export async function resolveJspClasspathEntries(config: LeflectConfig): Promise<string[]> {
-  return resolveDependencyClasspathEntries({
+export async function resolveJspClasspathEntries(
+  config: LeflectConfig,
+  taglibUris: string[] = []
+): Promise<string[]> {
+  const entries = await resolveDependencyClasspathEntries({
     root: config.root,
     configuredEntries: config.jsp?.classpath,
     mavenCommand: config.jsp?.mavenCommand,
     outputDirectories: OUTPUT_DIRECTORIES
   });
+
+  if (!isSystemClasspathDiscoveryEnabled(config) || taglibUris.length === 0) {
+    return entries;
+  }
+
+  const discovered = await discoverSystemClasspathEntries({
+    existingEntries: entries,
+    searchRoots: resolveSystemClasspathSearchRoots(config),
+    taglibUriQueries: taglibUris
+  });
+
+  return [...new Set([...entries, ...discovered])];
 }
 
 export async function createJspDependencyCacheInput(
@@ -23,6 +43,7 @@ export async function createJspDependencyCacheInput(
     root: config.root,
     configuredEntries: config.jsp?.classpath,
     mavenCommand: config.jsp?.mavenCommand,
-    markerFiles: ["pom.xml"]
+    markerFiles: ["pom.xml"],
+    autoDiscovery: config.classpathDiscovery
   });
 }

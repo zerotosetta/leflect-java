@@ -62,6 +62,16 @@ import {
 } from "@lefectjava/reporter";
 import { scanWorkspace } from "@lefectjava/scanner";
 
+import {
+  discoverSystemClasspathEntries,
+  extractMissingClassQueries,
+  extractMissingClassQueriesFromText,
+  extractMissingTaglibUriQueries,
+  isSystemClasspathDiscoveryEnabled,
+  readParseProblems,
+  resolveSystemClasspathMaxRetries,
+  resolveSystemClasspathSearchRoots
+} from "./auto-classpath";
 import { runInitCommand } from "./init";
 import { createJavaDependencyCacheInput, resolveJavaClasspathEntries } from "./java-classpath";
 import { createJspDependencyCacheInput, resolveJspClasspathEntries } from "./jsp-classpath";
@@ -212,21 +222,45 @@ async function runParseJava(args: string[]): Promise<void> {
     return;
   }
 
-  const classpathEntries = await resolveJavaClasspathEntries(config);
-  const manifest = buildJavaInputManifest(config, stage.plan.selectedFiles, classpathEntries);
+  let classpathEntries = await resolveJavaClasspathEntries(config, stage.plan.selectedFiles);
+  let manifest = buildJavaInputManifest(config, stage.plan.selectedFiles, classpathEntries);
   const manifestPath = path.join(config.analysisOut, "manifests", "java-parse.json");
   await writeJavaManifest(manifestPath, manifest);
 
-  const result = await runJavaWorker({
-    jreHome: config.java?.jreHome,
-    javaHome: config.java?.javaHome,
-    jarPath: workerJar,
-    args: ["parse-java", "--manifest", manifestPath],
-    cwd: config.root
-  });
+  const maxRetries = isSystemClasspathDiscoveryEnabled(config)
+    ? resolveSystemClasspathMaxRetries(config)
+    : 0;
 
-  if (result.code !== 0) {
-    throw new Error(result.stderr || `Java worker failed with exit code ${result.code}`);
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    const result = await runJavaWorker({
+      jreHome: config.java?.jreHome,
+      javaHome: config.java?.javaHome,
+      jarPath: workerJar,
+      args: ["parse-java", "--manifest", manifestPath],
+      cwd: config.root
+    });
+
+    if (result.code === 0) {
+      break;
+    }
+
+    if (!isSystemClasspathDiscoveryEnabled(config) || attempt === maxRetries) {
+      throw new Error(result.stderr || `Java worker failed with exit code ${result.code}`);
+    }
+
+    const discovered = await discoverSystemClasspathEntries({
+      existingEntries: classpathEntries,
+      searchRoots: resolveSystemClasspathSearchRoots(config),
+      classQueries: extractMissingClassQueriesFromText(result.stderr || "")
+    });
+
+    if (discovered.length === 0) {
+      throw new Error(result.stderr || `Java worker failed with exit code ${result.code}`);
+    }
+
+    classpathEntries = [...new Set([...classpathEntries, ...discovered])];
+    manifest = buildJavaInputManifest(config, stage.plan.selectedFiles, classpathEntries);
+    await writeJavaManifest(manifestPath, manifest);
   }
 
   await persistStageState("java-parse", stage, files);
@@ -253,6 +287,7 @@ async function runParseJsp(args: string[]): Promise<void> {
   const astMode = config.jsp?.astMode ?? "jasper";
   const metaDir = path.join(config.analysisOut, "jsp-meta");
   const astOutDir = config.jsp?.astOut ?? path.join(config.analysisOut, "jsp-ast");
+  const taglibUris = new Set<string>();
   const dependencyCacheInput =
     astMode === "jasper" ? await createJspDependencyCacheInput(config) : undefined;
   const stage = await prepareStageContext(
@@ -283,6 +318,11 @@ async function runParseJsp(args: string[]): Promise<void> {
     const absolutePath = path.join(config.root, file);
     const content = await fs.readFile(absolutePath, "utf8");
     const parsedJsp = parseJsp(content);
+    for (const taglib of parsedJsp.taglibs) {
+      if (taglib.uri) {
+        taglibUris.add(taglib.uri);
+      }
+    }
     const withAst = attachJspAstReference(
       parsedJsp,
       astMode === "jasper"
@@ -304,21 +344,51 @@ async function runParseJsp(args: string[]): Promise<void> {
       );
     }
 
-    const classpathEntries = await resolveJspClasspathEntries(config);
-    const manifest = buildJspInputManifest(config, stage.plan.selectedFiles, classpathEntries);
+    let classpathEntries = await resolveJspClasspathEntries(config, [...taglibUris]);
+    let manifest = buildJspInputManifest(config, stage.plan.selectedFiles, classpathEntries);
     const manifestPath = path.join(config.analysisOut, "manifests", "jsp-parse.json");
     await writeJspManifest(manifestPath, manifest);
 
-    const result = await runJavaWorker({
-      jreHome: config.java?.jreHome,
-      javaHome: config.java?.javaHome,
-      jarPath: workerJar,
-      args: ["parse-jsp", "--manifest", manifestPath],
-      cwd: config.root
-    });
+    const maxRetries = isSystemClasspathDiscoveryEnabled(config)
+      ? resolveSystemClasspathMaxRetries(config)
+      : 0;
 
-    if (result.code !== 0) {
-      throw new Error(result.stderr || `Java worker failed with exit code ${result.code}`);
+    for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+      const result = await runJavaWorker({
+        jreHome: config.java?.jreHome,
+        javaHome: config.java?.javaHome,
+        jarPath: workerJar,
+        args: ["parse-jsp", "--manifest", manifestPath],
+        cwd: config.root
+      });
+
+      if (result.code !== 0) {
+        throw new Error(result.stderr || `Java worker failed with exit code ${result.code}`);
+      }
+
+      if (!isSystemClasspathDiscoveryEnabled(config) || attempt === maxRetries) {
+        break;
+      }
+
+      const problems = await readParseProblems(path.join(config.analysisOut, "logs", "jsp-parse-errors.jsonl"));
+      if (problems.length === 0) {
+        break;
+      }
+
+      const discovered = await discoverSystemClasspathEntries({
+        existingEntries: classpathEntries,
+        searchRoots: resolveSystemClasspathSearchRoots(config),
+        classQueries: extractMissingClassQueries(problems),
+        taglibUriQueries: extractMissingTaglibUriQueries(problems)
+      });
+
+      if (discovered.length === 0) {
+        break;
+      }
+
+      classpathEntries = [...new Set([...classpathEntries, ...discovered])];
+      manifest = buildJspInputManifest(config, stage.plan.selectedFiles, classpathEntries);
+      await writeJspManifest(manifestPath, manifest);
     }
   }
 
@@ -615,6 +685,9 @@ function printHelp(): void {
   console.log("  --config <path>      Config file path (default: <root>/leflect.config.json)");
   console.log("  --yes                Accept detected defaults for init");
   console.log("  --force              Overwrite an existing config during init");
+  console.log("  --auto-system-classpath  Enable system classpath discovery");
+  console.log("  --system-classpath-roots <p> Search roots for auto classpath discovery");
+  console.log("  --system-classpath-max-retries <n> Retry count for auto classpath augmentation");
   console.log("  --ignore-file <path> Ignore rules file (.gitignore syntax)");
   console.log("  --jsp-ast-mode <m>   JSP AST mode override: jasper | lightweight");
   console.log("  --worker-jar <path>  Worker JAR path to write during init");
@@ -650,6 +723,21 @@ async function loadCliConfig(
   const labelsOut =
     directOverrides.labelsOut ??
     (parsed["labels-out"] ? path.resolve(parsed["labels-out"]) : undefined);
+  const classpathDiscovery = buildOverrides({
+    enabled:
+      parsed["auto-system-classpath"] !== undefined
+        ? parsed["auto-system-classpath"] === "true"
+        : undefined,
+    maxRetries: parsed["system-classpath-max-retries"]
+      ? Number.parseInt(parsed["system-classpath-max-retries"], 10)
+      : undefined,
+    searchRoots: parsed["system-classpath-roots"]
+      ? parsed["system-classpath-roots"]
+          .split(path.delimiter)
+          .map((entry) => entry.trim())
+          .filter(Boolean)
+      : undefined
+  });
 
   const { config } = await loadConfig({
     root,
@@ -657,7 +745,8 @@ async function loadCliConfig(
     overrides: buildOverrides({
       analysisOut,
       ignoreFile,
-      labelsOut
+      labelsOut,
+      classpathDiscovery
     })
   });
 

@@ -83,6 +83,19 @@ If `java.workerJar` is not configured, the CLI also checks:
 - bundled NPX worker location `java/leflectjava-java-worker-0.1.0.jar`
 - workspace build location `java-worker/target/leflectjava-java-worker-0.1.0.jar`
 
+If `classpathDiscovery.enabled` is `true`, LeflectJava can also augment Java/JSP classpath during
+analysis by searching system JAR caches for:
+
+- missing Java classes reported by the worker
+- unresolved JSP taglib URIs
+
+Default search roots:
+
+- `~/.m2/repository`
+- `~/.gradle/caches/modules-2/files-2.1`
+- `~/.ivy2/cache`
+- `/usr/share/java`
+
 By default, `parse-jsp` writes:
 
 - full JavaParser AST JSON to `analysis/jsp-ast/**/*.json`
@@ -202,6 +215,7 @@ The wizard detects and can write:
 - `java.jreHome`, `java.javaHome`
 - Java/JSP Maven classpath discovery commands
 - Java/JSP extra classpath entries
+- automatic system classpath discovery settings
 - `entryFiles.java`, `entryFiles.jsp`
 
 Useful overrides:
@@ -215,6 +229,9 @@ Useful overrides:
 - `--java-maven-command`
 - `--jsp-maven-command`
 - `--jsp-webapp-root`
+- `--auto-system-classpath`
+- `--system-classpath-roots`
+- `--system-classpath-max-retries`
 - `--entry-java`
 - `--entry-jsp`
 

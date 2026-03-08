@@ -21,6 +21,7 @@
     "release:check": "pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
     "@types/node": "^20.11.30",
     "@typescript-eslint/eslint-plugin": "^7.8.0",
     "@typescript-eslint/parser": "^7.8.0",

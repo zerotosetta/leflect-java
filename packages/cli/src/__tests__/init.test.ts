@@ -30,6 +30,7 @@ describe("init command", () => {
     const defaults = await discoverInitDefaults(root);
 
     expect(defaults.workerJarAvailable).toBe(true);
+    expect(defaults.autoSystemClasspathEnabled).toBe(false);
     expect(defaults.jspAstMode).toBe("jasper");
     expect(defaults.webappRoot).toBe("src/main/webapp");
     expect(defaults.ignoreFile).toBe(".gitignore");
@@ -41,6 +42,9 @@ describe("init command", () => {
       analysisOut: "./analysis",
       ignoreFile: ".gitignore",
       labelsOut: "./analysis/index/labels.json",
+      autoSystemClasspath: true,
+      systemClasspathRoots: ["/repo/.m2/repository"],
+      systemClasspathMaxRetries: 4,
       useWorker: true,
       workerJar: "/repo/tools/worker.jar",
       jreHome: "/repo/runtime/jre",
@@ -61,6 +65,11 @@ describe("init command", () => {
       analysisOut: "./analysis",
       ignoreFile: "./.gitignore",
       labelsOut: "./analysis/index/labels.json",
+      classpathDiscovery: {
+        enabled: true,
+        searchRoots: ["./.m2/repository"],
+        maxRetries: 4
+      },
       entryFiles: {
         java: ["Controller\\.java$"],
         jsp: ["WEB-INF/jsp/.+\\.jsp$"]

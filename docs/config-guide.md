@@ -30,6 +30,8 @@ node bin/leflect init --root /path/to/repo --yes
   - `LEFLECT_JAVA_WORKER_JAR`
   - bundled NPX worker `java/leflectjava-java-worker-0.1.0.jar`
   - workspace build `java-worker/target/leflectjava-java-worker-0.1.0.jar`
+- `--auto-system-classpath`, `--system-classpath-roots`, and `--system-classpath-max-retries`
+  override `classpathDiscovery.*`
 
 ## Minimal Config
 
@@ -69,6 +71,7 @@ The wizard detects:
 
 The wizard can also write:
 
+- `classpathDiscovery.enabled`, `classpathDiscovery.searchRoots`, `classpathDiscovery.maxRetries`
 - `java.jreHome`, `java.javaHome`
 - `java.classpath`, `jsp.classpath`
 - `java.mavenCommand`, `jsp.mavenCommand`
@@ -76,6 +79,9 @@ The wizard can also write:
 
 Supported init overrides:
 
+- `--auto-system-classpath`
+- `--system-classpath-roots`
+- `--system-classpath-max-retries`
 - `--worker-jar`
 - `--jre-home`
 - `--java-home`
@@ -289,6 +295,50 @@ Use this when you want both `.java` and `.jsp` files to produce 1:1 AST JSON fil
 }
 ```
 
+## Auto System Classpath Discovery
+
+Use this when the project depends on jars already present on the machine, but you do not want to
+manually list every classpath entry up front.
+
+```json
+{
+  "analysisOut": "./analysis",
+  "classpathDiscovery": {
+    "enabled": true,
+    "maxRetries": 3
+  },
+  "jsp": {
+    "webappRoot": "src/main/webapp"
+  }
+}
+```
+
+With this config:
+
+- LeflectJava searches common system jar caches for missing Java classes and unresolved JSP taglib URIs
+- JSP parse can retry automatically when Jasper reports `NoClassDefFoundError`, `ClassNotFoundException`, or unresolved taglib URIs
+- Java parse can retry automatically when JavaParser SymbolSolver fails because support classes are missing
+- default search roots are:
+  - `~/.m2/repository`
+  - `~/.gradle/caches/modules-2/files-2.1`
+  - `~/.ivy2/cache`
+  - `/usr/share/java`
+
+If you want to pin the search roots:
+
+```json
+{
+  "classpathDiscovery": {
+    "enabled": true,
+    "searchRoots": [
+      "/Users/fortrit/.m2/repository",
+      "/opt/company-jars"
+    ],
+    "maxRetries": 4
+  }
+}
+```
+
 With this config:
 
 - `.java` files produce full AST JSON under `analysis/java-ast/**/*.json`
@@ -368,6 +418,25 @@ This is the most explicit form and is useful when you want all output paths pinn
 
 - output path for `labels.json`
 - default: `<analysisOut>/index/labels.json`
+
+`classpathDiscovery.enabled`
+
+- when `true`, LeflectJava searches system jar caches to augment classpath during analysis
+- default: `false`
+
+`classpathDiscovery.searchRoots`
+
+- optional array of directories or `.jar` files to search when auto classpath discovery is enabled
+- default roots:
+  - `~/.m2/repository`
+  - `~/.gradle/caches/modules-2/files-2.1`
+  - `~/.ivy2/cache`
+  - `/usr/share/java`
+
+`classpathDiscovery.maxRetries`
+
+- how many retry rounds LeflectJava performs after discovering additional jars from parse failures
+- default: `3`
 
 `entryFiles.java`
 
@@ -459,6 +528,7 @@ If you want `analysis/jsp-ast/`:
 - set `jsp.webappRoot` correctly for your project
 - if your JSPs depend on external taglibs, provide `jsp.classpath` and/or ensure Maven
   auto-discovery can run
+- or enable `classpathDiscovery.enabled` to let Jasper retry with jars discovered from system caches
 
 If you only want report/index output:
 
@@ -493,6 +563,7 @@ Java AST exists but semantic resolution is incomplete
 - `java.classpath` is incomplete
 - Maven auto-discovery could not run because no usable `mvn`/`mvnw` command was available
 - the project depends on legacy repositories that Maven cannot resolve in the current environment
+- enable `classpathDiscovery.enabled` if the missing jars already exist in system caches
 
 `jsp-ast/` is missing
 
@@ -501,6 +572,7 @@ Java AST exists but semantic resolution is incomplete
 - `jsp.webappRoot` is wrong for the target project
 - Jasper could not resolve dependency-provided taglibs because `jsp.classpath` is incomplete
 - Maven auto-discovery could not run because no usable `mvn`/`mvnw` command was available
+- enable `classpathDiscovery.enabled` if the missing jars already exist in `~/.m2`, Gradle cache, or another local jar directory
 - Jasper compilation failed; check `analysis/logs/`
 
 `analysis/report/unresolved.json` is where you want detailed failure context

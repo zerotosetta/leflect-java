@@ -10,6 +10,7 @@ export type InitDefaults = {
   analysisOut: string;
   ignoreFile?: string;
   labelsOut: string;
+  autoSystemClasspathEnabled: boolean;
   workerJarAvailable: boolean;
   jspAstMode: JspAstMode;
   webappRoot?: string;
@@ -21,6 +22,9 @@ export type InitAnswers = {
   analysisOut: string;
   ignoreFile?: string;
   labelsOut: string;
+  autoSystemClasspath: boolean;
+  systemClasspathRoots: string[];
+  systemClasspathMaxRetries?: number;
   useWorker: boolean;
   workerJar?: string;
   jreHome?: string;
@@ -87,6 +91,7 @@ export async function discoverInitDefaults(root: string): Promise<InitDefaults> 
     analysisOut: "./analysis",
     ignoreFile: (await fileExists(path.join(root, ".gitignore"))) ? ".gitignore" : undefined,
     labelsOut: "./analysis/index/labels.json",
+    autoSystemClasspathEnabled: false,
     workerJarAvailable,
     jspAstMode: workerJarAvailable ? "jasper" : "lightweight",
     webappRoot,
@@ -110,6 +115,11 @@ export function answersFromDefaults(
     analysisOut: parsed["out"] ?? defaults.analysisOut,
     ignoreFile: parsed["ignore-file"] ?? defaults.ignoreFile,
     labelsOut: parsed["labels-out"] ?? defaults.labelsOut,
+    autoSystemClasspath: parsed["auto-system-classpath"]
+      ? toBoolean(parsed["auto-system-classpath"])
+      : defaults.autoSystemClasspathEnabled,
+    systemClasspathRoots: splitListOption(parsed["system-classpath-roots"]),
+    systemClasspathMaxRetries: parseIntegerOption(parsed["system-classpath-max-retries"]),
     useWorker,
     workerJar,
     jreHome: parsed["jre-home"] ?? undefined,
@@ -136,6 +146,24 @@ export function createConfigFromAnswers(root: string, answers: InitAnswers): Lef
 
   if (answers.ignoreFile) {
     config.ignoreFile = normalizePathValue(root, answers.ignoreFile);
+  }
+
+  if (
+    answers.autoSystemClasspath ||
+    answers.systemClasspathRoots.length > 0 ||
+    answers.systemClasspathMaxRetries !== undefined
+  ) {
+    config.classpathDiscovery = {
+      enabled: answers.autoSystemClasspath
+    };
+    if (answers.systemClasspathRoots.length > 0) {
+      config.classpathDiscovery.searchRoots = answers.systemClasspathRoots.map((entry) =>
+        normalizePathValue(root, entry)
+      );
+    }
+    if (answers.systemClasspathMaxRetries !== undefined) {
+      config.classpathDiscovery.maxRetries = answers.systemClasspathMaxRetries;
+    }
   }
 
   if (answers.entryJava.length > 0 || answers.entryJsp.length > 0) {
@@ -207,6 +235,28 @@ async function collectInteractiveAnswers(
       "Labels output path",
       parsed["labels-out"] ?? deriveLabelsPath(analysisOut)
     );
+    const autoSystemClasspath = await prompts.confirm(
+      "Enable automatic system classpath discovery during analysis?",
+      parsed["auto-system-classpath"]
+        ? toBoolean(parsed["auto-system-classpath"])
+        : defaults.autoSystemClasspathEnabled
+    );
+    const systemClasspathRoots = autoSystemClasspath
+      ? parsePathList(
+          await prompts.optionalText(
+            "Optional system classpath search roots (OS path separator)",
+            parsed["system-classpath-roots"] ?? undefined
+          )
+        )
+      : [];
+    const systemClasspathMaxRetries = autoSystemClasspath
+      ? parseIntegerOption(
+          await prompts.optionalText(
+            "Auto classpath retry count",
+            parsed["system-classpath-max-retries"] ?? "3"
+          )
+        )
+      : undefined;
 
     const workerSuggested = parsed["use-worker"]
       ? toBoolean(parsed["use-worker"])
@@ -285,6 +335,9 @@ async function collectInteractiveAnswers(
       analysisOut,
       ignoreFile,
       labelsOut,
+      autoSystemClasspath,
+      systemClasspathRoots,
+      systemClasspathMaxRetries,
       useWorker,
       workerJar,
       jreHome,
@@ -414,6 +467,14 @@ function parsePathList(value?: string): string[] {
     .split(path.delimiter)
     .map((entry) => entry.trim())
     .filter(Boolean);
+}
+
+function parseIntegerOption(value?: string): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const parsed = Number.parseInt(value, 10);
+  return Number.isNaN(parsed) ? undefined : parsed;
 }
 
 function normalizeJspAstMode(value?: string): JspAstMode | undefined {

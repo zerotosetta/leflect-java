@@ -35,6 +35,11 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Loade
     ...defaultConfig,
     ...fileConfig,
     ...options.overrides,
+    classpathDiscovery: {
+      ...(defaultConfig.classpathDiscovery ?? {}),
+      ...(fileConfig.classpathDiscovery ?? {}),
+      ...(options.overrides?.classpathDiscovery ?? {})
+    },
     java: {
       ...(defaultConfig.java ?? {}),
       ...(fileConfig.java ?? {}),
@@ -59,6 +64,15 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Loade
 
 function resolveConfigPaths(config: LeflectConfig, root: string): LeflectConfig {
   const resolvedAnalysisOut = resolvePath(root, config.analysisOut);
+  const classpathDiscovery = config.classpathDiscovery;
+  const resolvedClasspathDiscovery =
+    classpathDiscovery &&
+    (classpathDiscovery.enabled !== undefined || classpathDiscovery.searchRoots?.length)
+      ? {
+          ...classpathDiscovery,
+          searchRoots: classpathDiscovery.searchRoots?.map((entry) => resolvePath(root, entry))
+        }
+      : classpathDiscovery;
   const javaConfig = config.java;
   const resolvedJava =
     javaConfig &&
@@ -112,6 +126,7 @@ function resolveConfigPaths(config: LeflectConfig, root: string): LeflectConfig 
     labelsOut: config.labelsOut
       ? resolvePath(root, config.labelsOut)
       : path.join(resolvedAnalysisOut, "index", "labels.json"),
+    classpathDiscovery: resolvedClasspathDiscovery,
     java: resolvedJava,
     jsp: resolvedJsp
   };
@@ -146,6 +161,32 @@ function validateConfig(config: LeflectConfig): void {
   }
   if (config.labelsOut && typeof config.labelsOut !== "string") {
     throw new Error("Config 'labelsOut' must be a string");
+  }
+  if (config.classpathDiscovery) {
+    if (typeof config.classpathDiscovery !== "object") {
+      throw new Error("Config 'classpathDiscovery' must be an object");
+    }
+    if (
+      config.classpathDiscovery.enabled !== undefined &&
+      typeof config.classpathDiscovery.enabled !== "boolean"
+    ) {
+      throw new Error("Config 'classpathDiscovery.enabled' must be a boolean");
+    }
+    if (
+      config.classpathDiscovery.maxRetries !== undefined &&
+      (!Number.isInteger(config.classpathDiscovery.maxRetries) ||
+        config.classpathDiscovery.maxRetries < 0)
+    ) {
+      throw new Error("Config 'classpathDiscovery.maxRetries' must be a non-negative integer");
+    }
+    if (config.classpathDiscovery.searchRoots) {
+      if (!Array.isArray(config.classpathDiscovery.searchRoots)) {
+        throw new Error("Config 'classpathDiscovery.searchRoots' must be an array of strings");
+      }
+      if (!config.classpathDiscovery.searchRoots.every((entry) => typeof entry === "string")) {
+        throw new Error("Config 'classpathDiscovery.searchRoots' must be an array of strings");
+      }
+    }
   }
   if (config.entryFiles) {
     if (typeof config.entryFiles !== "object") {

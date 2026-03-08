@@ -20,6 +20,7 @@ describe("loadConfig", () => {
     expect(result.config.root).toBe(root);
     expect(result.config.analysisOut).toBe(path.join(root, "analysis"));
     expect(result.config.labelsOut).toBe(path.join(root, "analysis", "index", "labels.json"));
+    expect(result.config.classpathDiscovery).toEqual({ enabled: false });
     expect(result.config.java).toBeDefined();
     expect(result.config.jsp?.astMode).toBe("jasper");
   });
@@ -34,6 +35,11 @@ describe("loadConfig", () => {
         analysisOut: "out",
         ignoreFile: ".leflectignore",
         labelsOut: "labels.json",
+        classpathDiscovery: {
+          enabled: true,
+          maxRetries: 2,
+          searchRoots: ["./.m2/repository", "/opt/jars"]
+        },
         entryFiles: {
           java: ["Controller\\.java$"],
           jsp: ["WEB-INF/jsp/.+\\.jsp$"]
@@ -62,6 +68,11 @@ describe("loadConfig", () => {
     expect(result.config.analysisOut).toBe(path.join(root, "out"));
     expect(result.config.ignoreFile).toBe(path.join(root, ".leflectignore"));
     expect(result.config.labelsOut).toBe(path.join(root, "labels.json"));
+    expect(result.config.classpathDiscovery).toEqual({
+      enabled: true,
+      maxRetries: 2,
+      searchRoots: [path.join(root, ".m2", "repository"), "/opt/jars"]
+    });
     expect(result.config.entryFiles).toEqual({
       java: ["Controller\\.java$"],
       jsp: ["WEB-INF/jsp/.+\\.jsp$"]
