@@ -1,5 +1,5 @@
 import { JspTag, TaglibDirective } from "./parse";
-import { TldIndex } from "@lefectjava/parser-tld";
+import { TldIndex } from "@leflect-java/parser-tld";
 
 export type ResolvedTag = {
   prefix: string;

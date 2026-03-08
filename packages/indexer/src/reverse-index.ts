@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 
-import { ResolvedTag } from "@lefectjava/parser-jsp";
+import { ResolvedTag } from "@leflect-java/parser-jsp";
 
 import { CallIndexEntry, ClassIndexEntry } from "./java-index";
 import { JspDocIndexEntry } from "./jsp-index";

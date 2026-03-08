@@ -2,7 +2,7 @@ import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
 
-import { CachedFileEntry, FileHashesCache, StageCacheState, StageName } from "@lefectjava/schema";
+import { CachedFileEntry, FileHashesCache, StageCacheState, StageName } from "@leflect-java/schema";
 
 const CACHE_SCHEMA_VERSION = "1.0";
 

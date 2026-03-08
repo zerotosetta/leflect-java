@@ -2,7 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 import readline from "node:readline/promises";
 
-import { JspAstMode, LeflectConfigInput } from "@lefectjava/schema";
+import { JspAstMode, LeflectConfigInput } from "@leflect-java/schema";
 
 import { resolveJavaWorkerJar } from "./worker-jar";
 

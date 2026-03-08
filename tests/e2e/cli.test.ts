@@ -2,8 +2,8 @@ import path from "path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { run } from "@lefectjava/cli";
-import { cleanupWorkspace, createFixtureWorkspace, exists } from "@lefectjava/testkit";
+import { run } from "@leflect-java/cli";
+import { cleanupWorkspace, createFixtureWorkspace, exists } from "@leflect-java/testkit";
 
 describe("cli e2e", () => {
   afterEach(() => {

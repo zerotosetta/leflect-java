@@ -28,8 +28,8 @@ node bin/leflect init --root /path/to/repo --yes
 - `--jsp-ast-mode` overrides only the JSP AST mode
 - if `java.workerJar` is omitted, the CLI still tries runtime auto-detection from:
   - `LEFLECT_JAVA_WORKER_JAR`
-  - bundled NPX worker `java/leflectjava-java-worker-0.1.0.jar`
-  - workspace build `java-worker/target/leflectjava-java-worker-0.1.0.jar`
+  - bundled NPX worker `java/leflectjava-java-worker-*.jar`
+  - workspace build `java-worker/target/leflectjava-java-worker-*.jar`
 - `--auto-system-classpath`, `--system-classpath-roots`, and `--system-classpath-max-retries`
   override `classpathDiscovery.*`
 
@@ -280,7 +280,7 @@ Use this when you want both `.java` and `.jsp` files to produce 1:1 AST JSON fil
   "analysisOut": "./analysis",
   "ignoreFile": ".gitignore",
   "java": {
-    "workerJar": "./java-worker/target/leflectjava-java-worker-0.1.0.jar",
+    "workerJar": "./java-worker/target/leflectjava-java-worker-*.jar",
     "classpath": [
       "./target/classes",
       "./lib/external-support.jar"
@@ -353,7 +353,7 @@ If Java is not on `PATH`, set either `java.jreHome` or `java.javaHome`:
 ```json
 {
   "java": {
-    "workerJar": "./java-worker/target/leflectjava-java-worker-0.1.0.jar",
+    "workerJar": "./java-worker/target/leflectjava-java-worker-*.jar",
     "jreHome": "/path/to/jre"
   }
 }
@@ -390,7 +390,7 @@ Typical setup for a legacy Java web application:
   "ignoreFile": ".gitignore",
   "labelsOut": "./analysis/index/labels.json",
   "java": {
-    "workerJar": "./java-worker/target/leflectjava-java-worker-0.1.0.jar"
+    "workerJar": "./java-worker/target/leflectjava-java-worker-*.jar"
   },
   "jsp": {
     "webappRoot": "src/main/webapp",
@@ -596,7 +596,7 @@ For most real Java/JSP repositories, start with:
   "analysisOut": "./analysis",
   "ignoreFile": ".gitignore",
   "java": {
-    "workerJar": "./java-worker/target/leflectjava-java-worker-0.1.0.jar"
+    "workerJar": "./java-worker/target/leflectjava-java-worker-*.jar"
   },
   "jsp": {
     "webappRoot": "src/main/webapp"

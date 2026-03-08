@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 
-import { ClassLabel, JspLabel, LabelsIndex, MethodLabel } from "@lefectjava/schema";
+import { ClassLabel, JspLabel, LabelsIndex, MethodLabel } from "@leflect-java/schema";
 
 export type LabelerClassRecord = {
   id: string;

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { attachJspAstReference, parseJsp } from "../parse";
 import { resolveTagHandlers } from "../resolve";
-import { TldIndex } from "@lefectjava/parser-tld";
+import { TldIndex } from "@leflect-java/parser-tld";
 
 describe("parseJsp", () => {
   it("extracts taglibs, tags, and scriptlets", () => {

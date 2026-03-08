@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 
-import { TldIndex } from "@lefectjava/parser-tld";
+import { TldIndex } from "@leflect-java/parser-tld";
 
 import { JspDocIndexEntry } from "./jsp-index";
 

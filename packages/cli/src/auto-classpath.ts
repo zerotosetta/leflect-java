@@ -3,7 +3,7 @@ import fs from "fs/promises";
 import os from "os";
 import path from "path";
 
-import { LeflectConfig } from "@lefectjava/schema";
+import { LeflectConfig } from "@leflect-java/schema";
 
 type ParseProblemRecord = {
   category?: string;

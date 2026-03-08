@@ -14,7 +14,7 @@ import {
   SummaryReport,
   TagUsagesQueryResult,
   UnresolvedReport
-} from "@lefectjava/schema";
+} from "@leflect-java/schema";
 
 const CLASS_LABELS: ClassLabel[] = [
   "SERVICE",

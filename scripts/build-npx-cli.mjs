@@ -3,6 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { build } from "esbuild";
 import { spawnSync } from "child_process";
+import { findJavaWorkerJar } from "./release-common.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -11,12 +12,12 @@ const cliPackagePath = path.join(repoRoot, "packages", "cli", "package.json");
 const rootReadmePath = path.join(repoRoot, "README.md");
 const cliDistEntry = path.join(repoRoot, "packages", "cli", "dist", "index.js");
 const cliTypesEntry = path.join(repoRoot, "packages", "cli", "dist", "index.d.ts");
-const workerJarPath = path.join(repoRoot, "java-worker", "target", "leflectjava-java-worker-0.1.0.jar");
 const artifactsDir = path.join(repoRoot, ".artifacts");
 const packageDir = path.join(artifactsDir, "npx-cli");
 const packDir = path.join(artifactsDir, "packages");
 
 await ensureBuilt(cliDistEntry);
+const workerJarPath = await findJavaWorkerJar();
 
 const cliPackage = JSON.parse(await fs.readFile(cliPackagePath, "utf8"));
 const publishedPackage = {
@@ -84,14 +85,14 @@ async function ensureBuilt(entryPath) {
 }
 
 async function copyOptionalWorkerJar() {
-  try {
-    await fs.access(workerJarPath);
-  } catch {
-    console.warn(`Warning: Java worker JAR not found at ${workerJarPath}. NPX package will run lightweight-only unless a worker JAR is provided externally.`);
+  if (!workerJarPath) {
+    console.warn("Warning: Java worker JAR not found in java-worker/target. NPX package will run lightweight-only unless a worker JAR is provided externally.");
     return;
   }
 
   const javaDir = path.join(packageDir, "java");
   await fs.mkdir(javaDir, { recursive: true });
-  await fs.copyFile(workerJarPath, path.join(javaDir, path.basename(workerJarPath)));
+  const workerJarName = path.basename(workerJarPath);
+  await fs.copyFile(workerJarPath, path.join(javaDir, workerJarName));
+  await fs.writeFile(path.join(javaDir, "worker-jar.json"), JSON.stringify({ fileName: workerJarName }, null, 2) + "\n", "utf8");
 }

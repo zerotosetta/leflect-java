@@ -1,5 +1,5 @@
 {
-  "name": "@lefectjava/cli",
+  "name": "@leflect-java/cli",
   "version": "0.1.0",
   "description": "LeflectJava CLI for Java/JSP static analysis",
   "private": false,
@@ -9,23 +9,28 @@
     "leflect": "dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "java",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -b",
     "clean": "tsc -b --clean"
   },
   "dependencies": {
-    "@lefectjava/core": "workspace:*",
-    "@lefectjava/graph": "workspace:*",
-    "@lefectjava/indexer": "workspace:*",
-    "@lefectjava/java-bridge": "workspace:*",
-    "@lefectjava/labeler": "workspace:*",
-    "@lefectjava/parser-jsp": "workspace:*",
-    "@lefectjava/parser-tld": "workspace:*",
-    "@lefectjava/reporter": "workspace:*",
-    "@lefectjava/scanner": "workspace:*",
-    "@lefectjava/schema": "workspace:*",
+    "@leflect-java/core": "workspace:*",
+    "@leflect-java/graph": "workspace:*",
+    "@leflect-java/indexer": "workspace:*",
+    "@leflect-java/java-bridge": "workspace:*",
+    "@leflect-java/labeler": "workspace:*",
+    "@leflect-java/parser-jsp": "workspace:*",
+    "@leflect-java/parser-tld": "workspace:*",
+    "@leflect-java/reporter": "workspace:*",
+    "@leflect-java/scanner": "workspace:*",
+    "@leflect-java/schema": "workspace:*",
     "adm-zip": "^0.5.16"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

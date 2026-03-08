@@ -19,7 +19,7 @@ const packages = [
 export default defineConfig({
   resolve: {
     alias: packages.map((name) => ({
-      find: `@lefectjava/${name}`,
+      find: `@leflect-java/${name}`,
       replacement: path.resolve(__dirname, "packages", name, "src")
     }))
   },

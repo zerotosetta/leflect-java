@@ -2,7 +2,7 @@ import { spawn } from "child_process";
 import fs from "fs/promises";
 import path from "path";
 
-import { JavaInputManifest, JspInputManifest } from "@lefectjava/schema";
+import { JavaInputManifest, JspInputManifest } from "@leflect-java/schema";
 
 export type JavaWorkerCommand = {
   javaPath?: string;

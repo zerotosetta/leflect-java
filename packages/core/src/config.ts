@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 
-import { defaultConfig, LeflectConfig, LeflectConfigInput } from "@lefectjava/schema";
+import { defaultConfig, LeflectConfig, LeflectConfigInput } from "@leflect-java/schema";
 
 export type LoadConfigOptions = {
   root?: string;

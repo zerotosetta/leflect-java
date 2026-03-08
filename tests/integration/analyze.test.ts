@@ -3,8 +3,8 @@ import { writeFile } from "fs/promises";
 
 import { describe, expect, it } from "vitest";
 
-import { run } from "@lefectjava/cli";
-import { cleanupWorkspace, createFixtureWorkspace, readJsonFile } from "@lefectjava/testkit";
+import { run } from "@leflect-java/cli";
+import { cleanupWorkspace, createFixtureWorkspace, readJsonFile } from "@leflect-java/testkit";
 
 describe("integration analyze", () => {
   it("runs the analysis pipeline over a fixture workspace", async () => {

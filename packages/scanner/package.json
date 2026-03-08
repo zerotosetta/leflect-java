@@ -1,18 +1,22 @@
 {
-  "name": "@lefectjava/scanner",
+  "name": "@leflect-java/scanner",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -b",
     "clean": "tsc -b --clean"
   },
   "dependencies": {
-    "@lefectjava/schema": "workspace:*",
+    "@leflect-java/schema": "workspace:*",
     "ignore": "^5.3.1"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

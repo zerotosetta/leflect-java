@@ -17,7 +17,7 @@ at tag `v5.0.8`.
 
 - shallow-clones the upstream sample into `.examples/spring-framework-petclinic-v5.0.8`
 - writes `leflect.config.json` into the cloned sample root
-- if the local worker JAR already exists at `java-worker/target/leflectjava-java-worker-0.1.0.jar`,
+- if a local worker JAR already exists at `java-worker/target/leflectjava-java-worker-*.jar`,
   it auto-enables full Java/JSP AST extraction
 - if common Spring/JSTL jars already exist in `~/.m2/repository`, it auto-writes them into
   `java.classpath` and `jsp.classpath`

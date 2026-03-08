@@ -4,7 +4,7 @@ import path from "path";
 import crypto from "crypto";
 import ignore from "ignore";
 
-import { CachedFileEntry, FileHashesCache } from "@lefectjava/schema";
+import { CachedFileEntry, FileHashesCache } from "@leflect-java/schema";
 
 export type FileRecord = {
   path: string;

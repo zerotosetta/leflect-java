@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 
-import { JspParseResult, SourceLocation } from "@lefectjava/parser-jsp";
+import { JspParseResult, SourceLocation } from "@leflect-java/parser-jsp";
 
 import { MethodCallParameterEntry, MethodIndexEntry } from "./java-index";
 

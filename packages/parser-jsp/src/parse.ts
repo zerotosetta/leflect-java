@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 
-import { JspAstMode } from "@lefectjava/schema";
+import { JspAstMode } from "@leflect-java/schema";
 
 export type JspDirective = {
   kind: "taglib" | "page" | "include";

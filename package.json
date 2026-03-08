@@ -1,5 +1,5 @@
 {
-  "name": "@lefectjava/workspace",
+  "name": "@leflect-java/workspace",
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@9.0.0",
@@ -18,7 +18,11 @@
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint .",
     "test": "vitest run",
-    "release:check": "pnpm typecheck && pnpm test && pnpm build"
+    "release:check": "pnpm typecheck && pnpm test && pnpm build",
+    "binary:build": "pnpm build && node scripts/build-binary-package.mjs",
+    "binary:test": "node scripts/test-binary-package.mjs",
+    "release:prepare": "node scripts/release.mjs prepare",
+    "release:publish": "node scripts/release.mjs publish"
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.7",
@@ -28,6 +32,7 @@
     "esbuild": "^0.25.1",
     "eslint": "^8.57.0",
     "typescript": "^5.4.5",
-    "vitest": "^1.5.0"
+    "vitest": "^1.5.0",
+    "pkg": "^5.8.1"
   }
 }

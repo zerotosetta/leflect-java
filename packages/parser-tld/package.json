@@ -1,11 +1,12 @@
 {
-  "name": "@lefectjava/parser-tld",
+  "name": "@leflect-java/parser-tld",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -b",
@@ -13,5 +14,8 @@
   },
   "dependencies": {
     "fast-xml-parser": "^4.4.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

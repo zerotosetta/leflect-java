@@ -10,7 +10,7 @@ import {
   GraphEdge,
   GraphEdgeType,
   GraphNodeType
-} from "@lefectjava/schema";
+} from "@leflect-java/schema";
 
 export type JavaCallRecord = {
   from?: string;

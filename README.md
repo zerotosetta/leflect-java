@@ -9,8 +9,8 @@ LeflectJava is a monorepo for Java/JSP static analysis focused on:
 
 ## Workspace
 
-- Root package: `@lefectjava/workspace`
-- CLI package: `@lefectjava/cli`
+- Root package: `@leflect-java/workspace`
+- CLI package: `@leflect-java/cli`
 - CLI bin: `bin/leflect`
 
 ## Quick Start
@@ -33,7 +33,7 @@ pnpm npx:build
 ```
 
 This writes a tarball under `.artifacts/packages/` and bundles the workspace packages into one
-CLI entry. If `java-worker/target/leflectjava-java-worker-0.1.0.jar` exists, it is copied into the
+CLI entry. If `java-worker/target/leflectjava-java-worker-*.jar` exists, it is copied into the
 NPX package and auto-detected at runtime, so `npx` execution can still run full Java/JSP AST stages.
 
 Example:
@@ -80,8 +80,9 @@ When `java.workerJar` is configured, `parse-java` writes:
 If `java.workerJar` is not configured, the CLI also checks:
 
 - `LEFLECT_JAVA_WORKER_JAR`
-- bundled NPX worker location `java/leflectjava-java-worker-0.1.0.jar`
-- workspace build location `java-worker/target/leflectjava-java-worker-0.1.0.jar`
+- bundled package worker manifest `java/worker-jar.json`
+- bundled package worker location `java/leflectjava-java-worker-*.jar`
+- workspace build location `java-worker/target/leflectjava-java-worker-*.jar`
 
 If `classpathDiscovery.enabled` is `true`, LeflectJava can also augment Java/JSP classpath during
 analysis by searching system JAR caches for:
@@ -217,6 +218,36 @@ The wizard detects and can write:
 - Java/JSP extra classpath entries
 - automatic system classpath discovery settings
 - `entryFiles.java`, `entryFiles.jsp`
+
+## Release
+
+Workspace packages publish under the `@leflect-java/*` scope.
+
+```bash
+pnpm release:prepare
+pnpm release:publish
+```
+
+- `pnpm release:prepare`
+  - runs `release:check`
+  - stages publishable packages under `.artifacts/release/stage`
+  - rewrites `workspace:*` dependencies to actual module versions
+  - packs each staged module into `.artifacts/release/packages`
+  - builds the standalone binary npm package
+- `pnpm release:publish`
+  - performs the same staging flow
+  - publishes staged packages to npm with `--access public`
+
+Standalone binary build:
+
+```bash
+pnpm binary:build
+pnpm binary:test
+```
+
+- output binary: `.artifacts/binary/dist/leflect`
+- output npm package: `.artifacts/binary/npm-package`
+- current package name format: `@leflect-java/cli-binary-<platform>-<arch>`
 
 Useful overrides:
 

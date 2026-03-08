@@ -14,14 +14,14 @@ import {
   readStageCacheState,
   removeRelativeJsonFiles,
   writeStageCacheState
-} from "@lefectjava/core";
+} from "@leflect-java/core";
 import {
   buildGraphs,
   GraphClassRecord,
   GraphJspRecord,
   JavaCallRecord,
   writeGraphFiles
-} from "@lefectjava/graph";
+} from "@leflect-java/graph";
 import {
   buildJavaIndex,
   buildJspIndex,
@@ -32,23 +32,23 @@ import {
   writeJspIndex,
   writeReverseIndex,
   writeTaglibIndex
-} from "@lefectjava/indexer";
-import { runJavaWorker, writeJavaManifest, writeJspManifest } from "@lefectjava/java-bridge";
+} from "@leflect-java/indexer";
+import { runJavaWorker, writeJavaManifest, writeJspManifest } from "@leflect-java/java-bridge";
 import {
   buildLabelsIndex,
   LabelerClassRecord,
   LabelerJspRecord,
   LabelerMethodRecord,
   writeLabelsIndex
-} from "@lefectjava/labeler";
+} from "@leflect-java/labeler";
 import {
   attachJspAstReference,
   JspParseResult,
   parseJsp,
   resolveTagHandlers,
   writeJspMeta
-} from "@lefectjava/parser-jsp";
-import { parseTld, TldIndex } from "@lefectjava/parser-tld";
+} from "@leflect-java/parser-jsp";
+import { parseTld, TldIndex } from "@leflect-java/parser-tld";
 import {
   buildReports,
   formatJavaUsagesResult,
@@ -59,8 +59,8 @@ import {
   queryTagUsages,
   readReporterInput,
   writeReports
-} from "@lefectjava/reporter";
-import { scanWorkspace } from "@lefectjava/scanner";
+} from "@leflect-java/reporter";
+import { scanWorkspace } from "@leflect-java/scanner";
 
 import {
   discoverSystemClasspathEntries,

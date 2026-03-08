@@ -1,4 +1,4 @@
-import { LeflectConfig } from "@lefectjava/schema";
+import { LeflectConfig } from "@leflect-java/schema";
 
 import {
   discoverSystemClasspathEntries,

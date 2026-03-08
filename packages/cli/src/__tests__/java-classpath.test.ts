@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, writeFile } from "fs/promises";
 
 import { describe, expect, it } from "vitest";
 
-import { LeflectConfig } from "@lefectjava/schema";
+import { LeflectConfig } from "@leflect-java/schema";
 
 import { createJavaDependencyCacheInput, resolveJavaClasspathEntries } from "../java-classpath";
 

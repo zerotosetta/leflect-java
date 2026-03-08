@@ -8,10 +8,10 @@ SAMPLE_URL=${PETCLINIC_GIT_URL:-https://github.com/spring-petclinic/spring-frame
 SAMPLE_TAG=${PETCLINIC_GIT_TAG:-v5.0.8}
 TARGET_DIR=${1:-"$REPO_ROOT/.examples/spring-framework-petclinic-$SAMPLE_TAG"}
 CONFIG_PATH="$TARGET_DIR/leflect.config.json"
-DEFAULT_WORKER_JAR="$REPO_ROOT/java-worker/target/leflectjava-java-worker-0.1.0.jar"
+DEFAULT_WORKER_JAR=$(find "$REPO_ROOT/java-worker/target" -maxdepth 1 -type f -name 'leflectjava-java-worker-*.jar' ! -name 'original-*' | sort -r | head -n 1)
 WORKER_JAR=${LEFLECT_JAVA_WORKER_JAR:-}
 
-if [ -z "$WORKER_JAR" ] && [ -f "$DEFAULT_WORKER_JAR" ]; then
+if [ -z "$WORKER_JAR" ] && [ -n "$DEFAULT_WORKER_JAR" ] && [ -f "$DEFAULT_WORKER_JAR" ]; then
   WORKER_JAR="$DEFAULT_WORKER_JAR"
 fi
 

@@ -1,6 +1,6 @@
 import path from "path";
 
-import { JavaInputManifest, JspInputManifest, LeflectConfig } from "@lefectjava/schema";
+import { JavaInputManifest, JspInputManifest, LeflectConfig } from "@leflect-java/schema";
 
 export function buildJavaInputManifest(
   config: LeflectConfig,
