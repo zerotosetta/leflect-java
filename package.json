@@ -14,6 +14,7 @@
     "clean": "tsc -b --clean",
     "example:legacy-java8:fetch": "bash examples/legacy-java8-petclinic/fetch.sh",
     "example:legacy-java8:run": "bash examples/legacy-java8-petclinic/run.sh",
+    "npx:build": "pnpm build && node scripts/build-npx-cli.mjs",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint .",
     "test": "vitest run",
@@ -23,6 +24,7 @@
     "@types/node": "^20.11.30",
     "@typescript-eslint/eslint-plugin": "^7.8.0",
     "@typescript-eslint/parser": "^7.8.0",
+    "esbuild": "^0.25.1",
     "eslint": "^8.57.0",
     "typescript": "^5.4.5",
     "vitest": "^1.5.0"

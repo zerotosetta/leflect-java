@@ -18,10 +18,29 @@ LeflectJava is a monorepo for Java/JSP static analysis focused on:
 ```bash
 pnpm install
 pnpm build
+node bin/leflect init --yes
 node bin/leflect --help
 ```
 
 - Config guide: `docs/config-guide.md`
+
+## NPX CLI
+
+You can build a single-file NPX-ready CLI package:
+
+```bash
+pnpm npx:build
+```
+
+This writes a tarball under `.artifacts/packages/` and bundles the workspace packages into one
+CLI entry. If `java-worker/target/leflectjava-java-worker-0.1.0.jar` exists, it is copied into the
+NPX package and auto-detected at runtime, so `npx` execution can still run full Java/JSP AST stages.
+
+Example:
+
+```bash
+npx --yes --package file:/absolute/path/to/.artifacts/packages/leflect-java-0.1.0.tgz leflect --help
+```
 
 ## Real Sample
 
@@ -40,6 +59,7 @@ pnpm example:legacy-java8:run
 ## Core Commands
 
 ```bash
+node bin/leflect init --root ./repo
 node bin/leflect scan --root ./repo --out ./analysis --incremental
 node bin/leflect parse-tld --root ./repo --out ./analysis --incremental
 node bin/leflect parse-jsp --root ./repo --out ./analysis --incremental
@@ -56,6 +76,12 @@ When `java.workerJar` is configured, `parse-java` writes:
 - summary IR for downstream indexing to `analysis/index/java-summary.jsonl`
 - JavaParser semantic resolution can use `java.classpath` and Maven classpath auto-discovery
 - worker launch can be pinned with `java.jreHome` or `java.javaHome`
+
+If `java.workerJar` is not configured, the CLI also checks:
+
+- `LEFLECT_JAVA_WORKER_JAR`
+- bundled NPX worker location `java/leflectjava-java-worker-0.1.0.jar`
+- workspace build location `java-worker/target/leflectjava-java-worker-0.1.0.jar`
 
 By default, `parse-jsp` writes:
 
@@ -152,6 +178,45 @@ In practice:
 - inspect `analysis/index/` to build tooling on top of LeflectJava
 - inspect `analysis/java-ast/` and `analysis/jsp-ast/` when you need full AST-level inspection
 - inspect `analysis/logs/` and `analysis/manifests/` when a stage behaves unexpectedly
+
+## Init Wizard
+
+`leflect init` writes `leflect.config.json` for the target source root.
+
+Interactive:
+
+```bash
+node bin/leflect init --root ./repo
+```
+
+Non-interactive defaults:
+
+```bash
+node bin/leflect init --root ./repo --yes
+```
+
+The wizard detects and can write:
+
+- `analysisOut`, `ignoreFile`, `labelsOut`
+- `jsp.webappRoot` and `jsp.astMode`
+- `java.jreHome`, `java.javaHome`
+- Java/JSP Maven classpath discovery commands
+- Java/JSP extra classpath entries
+- `entryFiles.java`, `entryFiles.jsp`
+
+Useful overrides:
+
+- `--force`
+- `--worker-jar`
+- `--jre-home`
+- `--java-home`
+- `--java-classpath`
+- `--jsp-classpath`
+- `--java-maven-command`
+- `--jsp-maven-command`
+- `--jsp-webapp-root`
+- `--entry-java`
+- `--entry-jsp`
 
 ## Validation
 

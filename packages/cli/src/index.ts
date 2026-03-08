@@ -62,8 +62,10 @@ import {
 } from "@lefectjava/reporter";
 import { scanWorkspace } from "@lefectjava/scanner";
 
+import { runInitCommand } from "./init";
 import { createJavaDependencyCacheInput, resolveJavaClasspathEntries } from "./java-classpath";
 import { createJspDependencyCacheInput, resolveJspClasspathEntries } from "./jsp-classpath";
+import { resolveJavaWorkerJar } from "./worker-jar";
 
 type OutputFormat = "json" | "text";
 type StageName = "java-parse" | "jsp-parse" | "tld-parse";
@@ -97,6 +99,9 @@ export async function run(argv: string[]): Promise<void> {
   }
 
   switch (command) {
+    case "init":
+      await runInit(rest);
+      return;
     case "scan":
       await runScan(rest);
       return;
@@ -150,14 +155,32 @@ async function runScan(args: string[]): Promise<void> {
   }
 }
 
+async function runInit(args: string[]): Promise<void> {
+  const parsed = parseArgs(args);
+  const root = parsed["root"] ? path.resolve(parsed["root"]) : process.cwd();
+  const configPath = parsed["config"]
+    ? path.resolve(parsed["config"])
+    : path.join(root, "leflect.config.json");
+
+  await runInitCommand({
+    root,
+    configPath,
+    force: parsed["force"] === "true",
+    yes: parsed["yes"] === "true",
+    parsed
+  });
+}
+
 async function runParseJava(args: string[]): Promise<void> {
   const parsed = parseArgs(args);
   const config = await loadCliConfig(parsed);
   const incremental = parsed["incremental"] === "true";
-  const workerJar = config.java?.workerJar;
+  const workerJar = await resolveJavaWorkerJar(config.java?.workerJar);
 
   if (!workerJar) {
-    throw new Error("Config 'java.workerJar' is required for parse-java");
+    throw new Error(
+      "Java worker JAR could not be resolved. Set 'java.workerJar' or LEFLECT_JAVA_WORKER_JAR."
+    );
   }
 
   const files = await readScannerManifest(path.join(config.analysisOut, "manifests", "java-files.json"));
@@ -274,9 +297,11 @@ async function runParseJsp(args: string[]): Promise<void> {
   }
 
   if (astMode === "jasper" && stage.plan.selectedFiles.length > 0) {
-    const workerJar = config.java?.workerJar;
+    const workerJar = await resolveJavaWorkerJar(config.java?.workerJar);
     if (!workerJar) {
-      throw new Error("Config 'java.workerJar' is required for parse-jsp with jasper mode");
+      throw new Error(
+        "Java worker JAR could not be resolved for parse-jsp. Set 'java.workerJar' or LEFLECT_JAVA_WORKER_JAR."
+      );
     }
 
     const classpathEntries = await resolveJspClasspathEntries(config);
@@ -431,15 +456,16 @@ async function runBuildIndex(args: string[]): Promise<void> {
 async function runAnalyze(args: string[]): Promise<void> {
   const parsed = parseArgs(args);
   const config = await loadCliConfig(parsed);
+  const workerJar = await resolveJavaWorkerJar(config.java?.workerJar);
 
   await runScan(args);
   await runParseTld(args);
   await runParseJsp(args);
 
-  if (config.java?.workerJar) {
+  if (workerJar) {
     await runParseJava(args);
   } else {
-    console.log("Java parse skipped. Config 'java.workerJar' is not set.");
+    console.log("Java parse skipped. Java worker JAR could not be resolved.");
   }
 
   await runBuildIndex(args);
@@ -564,6 +590,7 @@ function printHelp(): void {
   console.log("LeflectJava CLI (scaffold)");
   console.log("\nUsage:\n  leflect <command> [options]\n");
   console.log("Commands:");
+  console.log("  init                Create leflect.config.json with an interactive wizard");
   console.log("  scan                Scan repository and build file inventory");
   console.log("  parse-java          Convert Java source files to JavaParser AST JSON");
   console.log("  parse-jsp           Parse JSP metadata and Jasper->JavaParser AST by default");
@@ -586,8 +613,20 @@ function printHelp(): void {
   console.log("  --analysis <path>    Analysis directory (for build-graph/report/query)");
   console.log("  --out <path>         Analysis output directory");
   console.log("  --config <path>      Config file path (default: <root>/leflect.config.json)");
+  console.log("  --yes                Accept detected defaults for init");
+  console.log("  --force              Overwrite an existing config during init");
   console.log("  --ignore-file <path> Ignore rules file (.gitignore syntax)");
   console.log("  --jsp-ast-mode <m>   JSP AST mode override: jasper | lightweight");
+  console.log("  --worker-jar <path>  Worker JAR path to write during init");
+  console.log("  --jre-home <path>    JRE home to write during init");
+  console.log("  --java-home <path>   JAVA_HOME to write during init");
+  console.log("  --java-classpath <p> Extra Java classpath entries (path separator list)");
+  console.log("  --jsp-classpath <p>  Extra JSP classpath entries (path separator list)");
+  console.log("  --java-maven-command <cmd>  Maven command for Java classpath discovery");
+  console.log("  --jsp-maven-command <cmd>   Maven command for JSP classpath discovery");
+  console.log("  --jsp-webapp-root <path>    JSP webapp root to write during init");
+  console.log("  --entry-java <regexes>      Comma-separated Java entry file regexes");
+  console.log("  --entry-jsp <regexes>       Comma-separated JSP entry file regexes");
   console.log("  --labels-out <path>  Label output path (default: analysisOut/index/labels.json)");
   console.log("  --file <path>        Target JSP path for query jsp-impact");
   console.log("  --class <name>       Target Java/tag handler class for queries");

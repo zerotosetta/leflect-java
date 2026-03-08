@@ -12,6 +12,13 @@ You can also point the CLI to another file:
 node bin/leflect analyze --root /path/to/repo --config /path/to/leflect.config.json
 ```
 
+The config file can also be created with the wizard:
+
+```bash
+node bin/leflect init --root /path/to/repo
+node bin/leflect init --root /path/to/repo --yes
+```
+
 ## How Config Is Applied
 
 - `root` is the repository being analyzed
@@ -19,6 +26,10 @@ node bin/leflect analyze --root /path/to/repo --config /path/to/leflect.config.j
 - relative paths in the config file are resolved from `root`
 - CLI options such as `--out`, `--analysis`, `--ignore-file`, `--labels-out` override config values
 - `--jsp-ast-mode` overrides only the JSP AST mode
+- if `java.workerJar` is omitted, the CLI still tries runtime auto-detection from:
+  - `LEFLECT_JAVA_WORKER_JAR`
+  - bundled NPX worker `java/leflectjava-java-worker-0.1.0.jar`
+  - workspace build `java-worker/target/leflectjava-java-worker-0.1.0.jar`
 
 ## Minimal Config
 
@@ -34,8 +45,47 @@ This is enough to run scan, TLD parsing, JSP metadata, index, graph, and report 
 With this config:
 
 - `analysis/files/`, `analysis/manifests/`, `analysis/jsp-meta/`, `analysis/index/`, `analysis/graph/`, `analysis/report/` are produced
-- `analysis/java-ast/` is not produced because no Java worker is configured
-- `analysis/jsp-ast/` is also not produced because `jsp.astMode` defaults to `jasper` but Jasper execution still requires `java.workerJar`
+- `analysis/java-ast/` is not produced unless a Java worker JAR can be resolved
+- `analysis/jsp-ast/` is also not produced unless `jsp.astMode=jasper` and a Java worker JAR can be resolved
+
+## Init Wizard
+
+`leflect init` writes `leflect.config.json` with either interactive prompts or detected defaults.
+
+Useful commands:
+
+```bash
+node bin/leflect init --root /path/to/repo
+node bin/leflect init --root /path/to/repo --yes
+node bin/leflect init --root /path/to/repo --yes --force
+```
+
+The wizard detects:
+
+- `.gitignore`
+- common JSP web roots such as `src/main/webapp`
+- `mvnw` or `pom.xml` for Maven classpath discovery defaults
+- available Java worker JAR from config/env/bundled/workspace paths
+
+The wizard can also write:
+
+- `java.jreHome`, `java.javaHome`
+- `java.classpath`, `jsp.classpath`
+- `java.mavenCommand`, `jsp.mavenCommand`
+- `entryFiles.java`, `entryFiles.jsp`
+
+Supported init overrides:
+
+- `--worker-jar`
+- `--jre-home`
+- `--java-home`
+- `--java-classpath`
+- `--jsp-classpath`
+- `--java-maven-command`
+- `--jsp-maven-command`
+- `--jsp-webapp-root`
+- `--entry-java`
+- `--entry-jsp`
 
 ## Entry File Dependency Config
 
@@ -332,8 +382,8 @@ This is the most explicit form and is useful when you want all output paths pinn
 `java.workerJar`
 
 - path to the Java worker shaded JAR
-- required for `parse-java`
-- required for `parse-jsp` when `jsp.astMode = "jasper"`
+- if omitted, the CLI still tries env/bundled/workspace auto-detection
+- still the most explicit option when you want a stable pinned worker path in config
 
 `java.jreHome`
 
@@ -398,14 +448,14 @@ This is the most explicit form and is useful when you want all output paths pinn
 
 If you want `analysis/java-ast/`:
 
-- set `java.workerJar`
+- set `java.workerJar` or make sure auto-detection can find a worker JAR
 - if you want semantic resolution against external libraries, provide `java.classpath` and/or ensure Maven auto-discovery can run
 - `methods.json`, `calls.json`, `java-class-references.json`, and `java-method-calls.json` become meaningfully populated only when `parse-java` runs
 
 If you want `analysis/jsp-ast/`:
 
 - keep `jsp.astMode` as `jasper`
-- set `java.workerJar`
+- set `java.workerJar` or make sure auto-detection can find a worker JAR
 - set `jsp.webappRoot` correctly for your project
 - if your JSPs depend on external taglibs, provide `jsp.classpath` and/or ensure Maven
   auto-discovery can run
@@ -424,7 +474,7 @@ If you want entry-rooted dependency graphs and per-file dependants:
 
 `java-ast/` is missing
 
-- `java.workerJar` is not set
+- `java.workerJar` is not set and auto-detection also found no worker JAR
 - `parse-java` did not run
 - Java worker failed; check `analysis/logs/`
 
@@ -447,7 +497,7 @@ Java AST exists but semantic resolution is incomplete
 `jsp-ast/` is missing
 
 - `jsp.astMode` is set to `lightweight`
-- `java.workerJar` is not set
+- `java.workerJar` is not set and auto-detection also found no worker JAR
 - `jsp.webappRoot` is wrong for the target project
 - Jasper could not resolve dependency-provided taglibs because `jsp.classpath` is incomplete
 - Maven auto-discovery could not run because no usable `mvn`/`mvnw` command was available

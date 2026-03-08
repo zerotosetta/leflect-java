@@ -41,7 +41,12 @@ describe("cli e2e", () => {
       expect(await exists(path.join(workspace.analysisOut, "report", "summary.json"))).toBe(true);
       expect(logSpy).toHaveBeenCalled();
       expect(logs.some((line) => line.includes("Tag handler: FormTag"))).toBe(true);
-      expect(logs.some((line) => line.includes("Java parse skipped"))).toBe(true);
+      expect(
+        logs.some(
+          (line) =>
+            line.includes("Java parse skipped") || line.includes("Java AST parse complete")
+        )
+      ).toBe(true);
     } finally {
       await cleanupWorkspace(workspace);
     }
