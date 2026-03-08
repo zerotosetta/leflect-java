@@ -8,7 +8,61 @@ SAMPLE_URL=${PETCLINIC_GIT_URL:-https://github.com/spring-petclinic/spring-frame
 SAMPLE_TAG=${PETCLINIC_GIT_TAG:-v5.0.8}
 TARGET_DIR=${1:-"$REPO_ROOT/.examples/spring-framework-petclinic-$SAMPLE_TAG"}
 CONFIG_PATH="$TARGET_DIR/leflect.config.json"
-JSP_AST_MODE=${LEFLECT_JSP_AST_MODE:-$(if [ -n "${LEFLECT_JAVA_WORKER_JAR:-}" ]; then echo "jasper"; else echo "lightweight"; fi)}
+DEFAULT_WORKER_JAR="$REPO_ROOT/java-worker/target/leflectjava-java-worker-0.1.0.jar"
+WORKER_JAR=${LEFLECT_JAVA_WORKER_JAR:-}
+
+if [ -z "$WORKER_JAR" ] && [ -f "$DEFAULT_WORKER_JAR" ]; then
+  WORKER_JAR="$DEFAULT_WORKER_JAR"
+fi
+
+build_default_classpath() {
+  python3 - <<'PY'
+from pathlib import Path
+import json
+
+home = Path.home()
+repo = home / '.m2' / 'repository'
+
+
+def add(entries, *paths):
+    for path in paths:
+        if path.exists():
+            entries.append(str(path))
+
+
+entries = []
+add(
+    entries,
+    repo / 'org' / 'springframework' / 'spring-aop' / '5.0.8.RELEASE' / 'spring-aop-5.0.8.RELEASE.jar',
+    repo / 'org' / 'springframework' / 'spring-beans' / '5.0.8.RELEASE' / 'spring-beans-5.0.8.RELEASE.jar',
+    repo / 'org' / 'springframework' / 'spring-context' / '5.0.8.RELEASE' / 'spring-context-5.0.8.RELEASE.jar',
+    repo / 'org' / 'springframework' / 'spring-core' / '5.0.8.RELEASE' / 'spring-core-5.0.8.RELEASE.jar',
+    repo / 'org' / 'springframework' / 'spring-expression' / '5.0.8.RELEASE' / 'spring-expression-5.0.8.RELEASE.jar',
+    repo / 'org' / 'springframework' / 'spring-jcl' / '5.0.8.RELEASE' / 'spring-jcl-5.0.8.RELEASE.jar',
+    repo / 'org' / 'springframework' / 'spring-web' / '5.0.8.RELEASE' / 'spring-web-5.0.8.RELEASE.jar',
+    repo / 'org' / 'springframework' / 'spring-webmvc' / '5.0.8.RELEASE' / 'spring-webmvc-5.0.8.RELEASE.jar',
+    repo / 'javax' / 'servlet' / 'jsp' / 'jstl' / 'javax.servlet.jsp.jstl-api' / '1.2.2' / 'javax.servlet.jsp.jstl-api-1.2.2.jar',
+    repo / 'org' / 'apache' / 'taglibs' / 'taglibs-standard-impl' / '1.2.5' / 'taglibs-standard-impl-1.2.5.jar',
+    repo / 'org' / 'apache' / 'taglibs' / 'taglibs-standard-jstlel' / '1.2.5' / 'taglibs-standard-jstlel-1.2.5.jar',
+    repo / 'org' / 'apache' / 'taglibs' / 'taglibs-standard-spec' / '1.2.5' / 'taglibs-standard-spec-1.2.5.jar',
+)
+print(json.dumps(entries))
+PY
+}
+
+DEFAULT_CLASSPATH_JSON=$(build_default_classpath)
+DEFAULT_CLASSPATH_COUNT=$(python3 - <<'PY' "$DEFAULT_CLASSPATH_JSON"
+import json
+import sys
+print(len(json.loads(sys.argv[1])))
+PY
+)
+
+if [ -n "$WORKER_JAR" ]; then
+  JSP_AST_MODE=${LEFLECT_JSP_AST_MODE:-jasper}
+else
+  JSP_AST_MODE=${LEFLECT_JSP_AST_MODE:-lightweight}
+fi
 
 mkdir -p "$(dirname "$TARGET_DIR")"
 
@@ -20,49 +74,68 @@ else
   git clone --branch "$SAMPLE_TAG" --depth 1 "$SAMPLE_URL" "$TARGET_DIR"
 fi
 
-cat >"$CONFIG_PATH" <<EOF
-{
-  "analysisOut": "./analysis",
-  "ignoreFile": ".gitignore",
-  "labelsOut": "./analysis/index/labels.json",
-  "jsp": {
-    "astMode": "$JSP_AST_MODE",
-    "webappRoot": "src/main/webapp"$(if [ -n "${LEFLECT_JSP_MAVEN_COMMAND:-}" ]; then
-      printf ',\n    "mavenCommand": "%s"' "$LEFLECT_JSP_MAVEN_COMMAND"
-    fi)$(if [ -n "${LEFLECT_JSP_CLASSPATH:-}" ]; then
-      python3 - <<'PY'
+python3 - <<'PY' "$CONFIG_PATH" "$WORKER_JAR" "$JSP_AST_MODE" "$DEFAULT_CLASSPATH_JSON"
 import json
 import os
+import sys
+from pathlib import Path
 
-entries = [entry for entry in os.environ["LEFLECT_JSP_CLASSPATH"].split(os.pathsep) if entry]
-print(',\n    "classpath": ' + json.dumps(entries))
-PY
-    fi)
-  }$(if [ -n "${LEFLECT_JAVA_WORKER_JAR:-}" ]; then
-    printf ',\n  "java": {\n    "workerJar": "%s"%s%s%s\n  }' \
-      "$LEFLECT_JAVA_WORKER_JAR" \
-      "$(if [ -n "${LEFLECT_JAVA_HOME:-}" ]; then
-        printf ',\n    "javaHome": "%s"' "$LEFLECT_JAVA_HOME"
-      fi)" \
-      "$(if [ -n "${LEFLECT_JAVA_MAVEN_COMMAND:-}" ]; then
-        printf ',\n    "mavenCommand": "%s"' "$LEFLECT_JAVA_MAVEN_COMMAND"
-      fi)" \
-      "$(if [ -n "${LEFLECT_JAVA_CLASSPATH:-}" ]; then
-        python3 - <<'PY'
-import json
-import os
+config_path = Path(sys.argv[1])
+worker_jar = sys.argv[2]
+jsp_ast_mode = sys.argv[3]
+default_classpath = json.loads(sys.argv[4])
 
-entries = [entry for entry in os.environ["LEFLECT_JAVA_CLASSPATH"].split(os.pathsep) if entry]
-print(',\n    "classpath": ' + json.dumps(entries))
-PY
-      fi)"
-  fi)
+
+def split_env_list(name: str):
+    raw = os.environ.get(name, "")
+    if not raw:
+        return []
+    return [entry for entry in raw.split(os.pathsep) if entry]
+
+config = {
+    "analysisOut": "./analysis",
+    "ignoreFile": ".gitignore",
+    "labelsOut": "./analysis/index/labels.json",
+    "jsp": {
+        "astMode": jsp_ast_mode,
+        "webappRoot": "src/main/webapp",
+        "generatedJavaOut": "./analysis/generated-jsp-java",
+        "astOut": "./analysis/jsp-ast",
+    },
 }
-EOF
+
+jsp_classpath = split_env_list("LEFLECT_JSP_CLASSPATH") or default_classpath
+if jsp_classpath:
+    config["jsp"]["classpath"] = jsp_classpath
+
+jsp_maven = os.environ.get("LEFLECT_JSP_MAVEN_COMMAND")
+if jsp_maven:
+    config["jsp"]["mavenCommand"] = jsp_maven
+
+if worker_jar:
+    java_config = {
+        "workerJar": worker_jar,
+        "classpath": split_env_list("LEFLECT_JAVA_CLASSPATH") or default_classpath,
+    }
+    java_home = os.environ.get("LEFLECT_JAVA_HOME")
+    if java_home:
+        java_config["javaHome"] = java_home
+    jre_home = os.environ.get("LEFLECT_JRE_HOME")
+    if jre_home:
+        java_config["jreHome"] = jre_home
+    java_maven = os.environ.get("LEFLECT_JAVA_MAVEN_COMMAND")
+    if java_maven:
+        java_config["mavenCommand"] = java_maven
+    config["java"] = java_config
+
+config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
+PY
 
 echo "Sample ready: $TARGET_DIR"
 echo "Config ready: $CONFIG_PATH"
+echo "Java worker: ${WORKER_JAR:-disabled}"
 echo "JSP AST mode: $JSP_AST_MODE"
+echo "Default dependency jars detected: $DEFAULT_CLASSPATH_COUNT"
 echo "Validation hints:"
-grep -n "<packaging>\\|<java.version>" "$TARGET_DIR/pom.xml" || true
+grep -n "<packaging>\|<java.version>" "$TARGET_DIR/pom.xml" || true
 find "$TARGET_DIR/src/main/webapp/WEB-INF/jsp" -type f | sed "s|$TARGET_DIR/||" | sort | head -n 5

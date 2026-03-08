@@ -17,6 +17,12 @@ at tag `v5.0.8`.
 
 - shallow-clones the upstream sample into `.examples/spring-framework-petclinic-v5.0.8`
 - writes `leflect.config.json` into the cloned sample root
+- if the local worker JAR already exists at `java-worker/target/leflectjava-java-worker-0.1.0.jar`,
+  it auto-enables full Java/JSP AST extraction
+- if common Spring/JSTL jars already exist in `~/.m2/repository`, it auto-writes them into
+  `java.classpath` and `jsp.classpath`
+- the default classpath now includes the Spring MVC support jars needed for form-tag JSPs,
+  not just `spring-webmvc`
 - keeps analysis output inside the sample at `analysis/`
 
 `run.sh`
@@ -41,12 +47,13 @@ bash examples/legacy-java8-petclinic/run.sh /absolute/path/to/sample
 
 ## Notes
 
-- The sample does not ship `.tld` files in source control, so dependency-provided
-  Spring taglibs remain unresolved in the current lightweight run.
-- If you have a built Java worker JAR, export `LEFLECT_JAVA_WORKER_JAR` before
-  running `fetch.sh` or `run.sh`. The generated `leflect.config.json` will include
-  the Java worker settings and switch JSP AST mode to `jasper`, so `analyze` will
-  execute both `parse-java` and full JSP AST generation.
+- If the local worker JAR exists, `fetch.sh` now writes a full-analysis config by default.
+- The sample does not ship `.tld` files in source control, so full JSP AST generation still
+  depends on dependency-provided Spring/JSTL jars being visible. `fetch.sh` auto-detects the
+  common jars from `~/.m2/repository`, including the Spring support jars required by
+  `form:` tag handling, and you can still override them explicitly.
+- If you want to pin a different Java worker JAR, export `LEFLECT_JAVA_WORKER_JAR` before
+  running `fetch.sh` or `run.sh`.
 - If `mvn` is not on `PATH`, export `LEFLECT_JSP_MAVEN_COMMAND` with an absolute
   Maven executable path so LeflectJava can auto-resolve JSP dependency classpath
   for Jasper.
