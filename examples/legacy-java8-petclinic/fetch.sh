@@ -8,6 +8,7 @@ SAMPLE_URL=${PETCLINIC_GIT_URL:-https://github.com/spring-petclinic/spring-frame
 SAMPLE_TAG=${PETCLINIC_GIT_TAG:-v5.0.8}
 TARGET_DIR=${1:-"$REPO_ROOT/.examples/spring-framework-petclinic-$SAMPLE_TAG"}
 CONFIG_PATH="$TARGET_DIR/leflect.config.json"
+TEMPLATE_CONFIG_PATH="$SCRIPT_DIR/leflect.config.json"
 DEFAULT_WORKER_JAR=$(find "$REPO_ROOT/java-worker/target" -maxdepth 1 -type f -name 'leflectjava-java-worker-*.jar' ! -name 'original-*' | sort -r | head -n 1)
 WORKER_JAR=${LEFLECT_JAVA_WORKER_JAR:-}
 
@@ -74,16 +75,17 @@ else
   git clone --branch "$SAMPLE_TAG" --depth 1 "$SAMPLE_URL" "$TARGET_DIR"
 fi
 
-python3 - <<'PY' "$CONFIG_PATH" "$WORKER_JAR" "$JSP_AST_MODE" "$DEFAULT_CLASSPATH_JSON"
+python3 - <<'PY' "$CONFIG_PATH" "$TEMPLATE_CONFIG_PATH" "$WORKER_JAR" "$JSP_AST_MODE" "$DEFAULT_CLASSPATH_JSON"
 import json
 import os
 import sys
 from pathlib import Path
 
 config_path = Path(sys.argv[1])
-worker_jar = sys.argv[2]
-jsp_ast_mode = sys.argv[3]
-default_classpath = json.loads(sys.argv[4])
+template_path = Path(sys.argv[2])
+worker_jar = sys.argv[3]
+jsp_ast_mode = sys.argv[4]
+default_classpath = json.loads(sys.argv[5])
 
 
 def split_env_list(name: str):
@@ -92,31 +94,38 @@ def split_env_list(name: str):
         return []
     return [entry for entry in raw.split(os.pathsep) if entry]
 
-config = {
-    "analysisOut": "./analysis",
-    "ignoreFile": ".gitignore",
-    "labelsOut": "./analysis/index/labels.json",
-    "jsp": {
-        "astMode": jsp_ast_mode,
-        "webappRoot": "src/main/webapp",
-        "generatedJavaOut": "./analysis/generated-jsp-java",
-        "astOut": "./analysis/jsp-ast",
-    },
-}
+config = json.loads(template_path.read_text(encoding="utf-8"))
+config["analysisOut"] = "./analysis"
+config["ignoreFile"] = "./.gitignore"
+config["labelsOut"] = "./analysis/index/labels.json"
+
+classpath_discovery = config.setdefault("classpathDiscovery", {})
+classpath_discovery["enabled"] = True
+
+jsp_config = config.setdefault("jsp", {})
+jsp_config["astMode"] = jsp_ast_mode
+jsp_config["webappRoot"] = "./src/main/webapp"
+jsp_config["generatedJavaOut"] = "./analysis/generated-jsp-java"
+jsp_config["astOut"] = "./analysis/jsp-ast"
 
 jsp_classpath = split_env_list("LEFLECT_JSP_CLASSPATH") or default_classpath
 if jsp_classpath:
-    config["jsp"]["classpath"] = jsp_classpath
+    jsp_config["classpath"] = jsp_classpath
+else:
+    jsp_config.pop("classpath", None)
 
 jsp_maven = os.environ.get("LEFLECT_JSP_MAVEN_COMMAND")
 if jsp_maven:
-    config["jsp"]["mavenCommand"] = jsp_maven
+    jsp_config["mavenCommand"] = jsp_maven
 
+java_config = config.setdefault("java", {})
 if worker_jar:
-    java_config = {
-        "workerJar": worker_jar,
-        "classpath": split_env_list("LEFLECT_JAVA_CLASSPATH") or default_classpath,
-    }
+    java_config["workerJar"] = worker_jar
+    java_classpath = split_env_list("LEFLECT_JAVA_CLASSPATH") or default_classpath
+    if java_classpath:
+        java_config["classpath"] = java_classpath
+    else:
+        java_config.pop("classpath", None)
     java_home = os.environ.get("LEFLECT_JAVA_HOME")
     if java_home:
         java_config["javaHome"] = java_home
@@ -126,7 +135,9 @@ if worker_jar:
     java_maven = os.environ.get("LEFLECT_JAVA_MAVEN_COMMAND")
     if java_maven:
         java_config["mavenCommand"] = java_maven
-    config["java"] = java_config
+else:
+    java_config.pop("workerJar", None)
+    java_config.pop("classpath", None)
 
 config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
 PY

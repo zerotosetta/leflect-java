@@ -16,7 +16,8 @@ at tag `v5.0.8`.
 `fetch.sh`
 
 - shallow-clones the upstream sample into `.examples/spring-framework-petclinic-v5.0.8`
-- writes `leflect.config.json` into the cloned sample root
+- copies the predeclared template `examples/legacy-java8-petclinic/leflect.config.json`
+  into the cloned sample root and then applies environment/detection overrides
 - if a local worker JAR already exists at `java-worker/target/leflectjava-java-worker-*.jar`,
   it auto-enables full Java/JSP AST extraction
 - if common Spring/JSTL jars already exist in `~/.m2/repository`, it auto-writes them into
@@ -44,6 +45,16 @@ You can override the default clone location:
 ```bash
 bash examples/legacy-java8-petclinic/run.sh /absolute/path/to/sample
 ```
+
+Template config:
+
+```text
+examples/legacy-java8-petclinic/leflect.config.json
+```
+
+- default mode is full analysis (`jsp.astMode=jasper`, Maven/classpath discovery enabled)
+- `fetch.sh` keeps that baseline and only downgrades JSP AST mode to `lightweight`
+  when no Java worker JAR can be found
 
 ## Notes
 
