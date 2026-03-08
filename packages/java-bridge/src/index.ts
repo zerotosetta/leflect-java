@@ -6,6 +6,7 @@ import { JavaInputManifest, JspInputManifest } from "@lefectjava/schema";
 
 export type JavaWorkerCommand = {
   javaPath?: string;
+  jreHome?: string;
   javaHome?: string;
   jarPath: string;
   args: string[];
@@ -22,7 +23,7 @@ export function buildJavaCommand(command: JavaWorkerCommand): {
   command: string;
   args: string[];
 } {
-  const javaPath = resolveJavaPath(command.javaPath, command.javaHome);
+  const javaPath = resolveJavaPath(command.javaPath, command.jreHome, command.javaHome);
   const args = ["-jar", command.jarPath, ...command.args];
 
   return { command: javaPath, args };
@@ -76,9 +77,12 @@ async function writeManifest(
   await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2));
 }
 
-function resolveJavaPath(javaPath?: string, javaHome?: string): string {
+function resolveJavaPath(javaPath?: string, jreHome?: string, javaHome?: string): string {
   if (javaPath) {
     return javaPath;
+  }
+  if (jreHome) {
+    return path.join(jreHome, "bin", "java");
   }
   if (javaHome) {
     return path.join(javaHome, "bin", "java");

@@ -11,6 +11,7 @@ export type LeflectConfig = {
   };
   java?: {
     workerJar?: string;
+    jreHome?: string;
     javaHome?: string;
     classpath?: string[];
     mavenCommand?: string;

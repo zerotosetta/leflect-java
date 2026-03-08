@@ -64,6 +64,7 @@ function resolveConfigPaths(config: LeflectConfig, root: string): LeflectConfig 
     javaConfig &&
     (
       javaConfig.workerJar ||
+      javaConfig.jreHome ||
       javaConfig.javaHome ||
       javaConfig.classpath?.length ||
       javaConfig.mavenCommand
@@ -71,6 +72,7 @@ function resolveConfigPaths(config: LeflectConfig, root: string): LeflectConfig 
       ? {
           ...javaConfig,
           workerJar: javaConfig.workerJar ? resolvePath(root, javaConfig.workerJar) : undefined,
+          jreHome: javaConfig.jreHome ? resolvePath(root, javaConfig.jreHome) : undefined,
           javaHome: javaConfig.javaHome ? resolvePath(root, javaConfig.javaHome) : undefined,
           classpath: javaConfig.classpath?.map((entry) => resolvePath(root, entry)),
           mavenCommand: javaConfig.mavenCommand
@@ -172,6 +174,9 @@ function validateConfig(config: LeflectConfig): void {
     }
     if (config.java.workerJar && typeof config.java.workerJar !== "string") {
       throw new Error("Config 'java.workerJar' must be a string");
+    }
+    if (config.java.jreHome && typeof config.java.jreHome !== "string") {
+      throw new Error("Config 'java.jreHome' must be a string");
     }
     if (config.java.javaHome && typeof config.java.javaHome !== "string") {
       throw new Error("Config 'java.javaHome' must be a string");

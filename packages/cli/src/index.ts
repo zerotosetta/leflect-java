@@ -195,6 +195,7 @@ async function runParseJava(args: string[]): Promise<void> {
   await writeJavaManifest(manifestPath, manifest);
 
   const result = await runJavaWorker({
+    jreHome: config.java?.jreHome,
     javaHome: config.java?.javaHome,
     jarPath: workerJar,
     args: ["parse-java", "--manifest", manifestPath],
@@ -284,6 +285,7 @@ async function runParseJsp(args: string[]): Promise<void> {
     await writeJspManifest(manifestPath, manifest);
 
     const result = await runJavaWorker({
+      jreHome: config.java?.jreHome,
       javaHome: config.java?.javaHome,
       jarPath: workerJar,
       args: ["parse-jsp", "--manifest", manifestPath],

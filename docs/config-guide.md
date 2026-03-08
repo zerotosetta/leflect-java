@@ -248,16 +248,19 @@ With this config:
 - Jasper resolves taglib dependencies from `jsp.classpath` and, when `pom.xml` is present,
   also tries Maven dependency classpath auto-discovery
 
-If Java is not on `PATH`, set `java.javaHome`:
+If Java is not on `PATH`, set either `java.jreHome` or `java.javaHome`:
 
 ```json
 {
   "java": {
     "workerJar": "./java-worker/target/leflectjava-java-worker-0.1.0.jar",
-    "javaHome": "/path/to/jdk"
+    "jreHome": "/path/to/jre"
   }
 }
 ```
+
+`java.jreHome` is the explicit runtime setting. `java.javaHome` remains supported for existing
+configs and can still point to a JDK or JRE. If both are set, `java.jreHome` wins.
 
 ## Lightweight JSP Config
 
@@ -332,9 +335,16 @@ This is the most explicit form and is useful when you want all output paths pinn
 - required for `parse-java`
 - required for `parse-jsp` when `jsp.astMode = "jasper"`
 
+`java.jreHome`
+
+- optional JRE home used to launch the worker
+- preferred when you want to pin a runtime without pointing at a full JDK
+- if both `java.jreHome` and `java.javaHome` are set, `java.jreHome` takes precedence
+
 `java.javaHome`
 
 - optional JDK/JRE home used to launch the worker
+- kept for backward compatibility and shared JDK/JRE installs
 
 `java.classpath`
 

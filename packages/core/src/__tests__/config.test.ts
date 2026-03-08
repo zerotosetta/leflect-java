@@ -40,6 +40,7 @@ describe("loadConfig", () => {
         },
         java: {
           workerJar: "java-worker/target/leflectjava-java-worker.jar",
+          jreHome: "./.jre",
           javaHome: "./.java",
           classpath: ["lib/support.jar", "target/classes"],
           mavenCommand: "./tools/maven/bin/mvn"
@@ -68,6 +69,7 @@ describe("loadConfig", () => {
     expect(result.config.java?.workerJar).toBe(
       path.join(root, "java-worker", "target", "leflectjava-java-worker.jar")
     );
+    expect(result.config.java?.jreHome).toBe(path.join(root, ".jre"));
     expect(result.config.java?.javaHome).toBe(path.join(root, ".java"));
     expect(result.config.java?.classpath).toEqual([
       path.join(root, "lib", "support.jar"),
@@ -118,6 +120,21 @@ describe("loadConfig", () => {
 
     expect(result.config.analysisOut).toBe(path.join(root, "custom"));
     expect(result.config.labelsOut).toBe(path.join(root, "custom", "index", "labels.json"));
+  });
+
+  it("resolves jreHome from overrides", async () => {
+    const root = await tempDir("leflect-config-");
+
+    const result = await loadConfig({
+      root,
+      overrides: {
+        java: {
+          jreHome: "./runtime/jre"
+        }
+      }
+    });
+
+    expect(result.config.java?.jreHome).toBe(path.join(root, "runtime", "jre"));
   });
 
   it("builds java and jsp worker manifests from config", async () => {
