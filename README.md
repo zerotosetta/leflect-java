@@ -2,7 +2,7 @@
 
 LeflectJava is a monorepo for Java/JSP static analysis focused on:
 
-- Java file inventory and optional JavaParser AST export
+- Java file inventory and optional JavaParser full AST JSON export
 - JSP/TLD parsing and tag-handler resolution
 - index, graph, label, report, and query generation
 - incremental analysis via `analysis/cache/*`
@@ -47,6 +47,16 @@ node bin/leflect report summary --analysis ./analysis
 node bin/leflect query tag-usages --analysis ./analysis --class FormTag
 node bin/leflect analyze --root ./repo --out ./analysis --incremental
 ```
+
+When `java.workerJar` is configured, `parse-java` writes:
+
+- full JavaParser AST JSON to `analysis/java-ast/**/*.json`
+- summary IR for downstream indexing to `analysis/index/java-summary.jsonl`
+
+When `parse-jsp` runs with `--jsp-ast-mode jasper`, it writes:
+
+- full JavaParser AST JSON to `analysis/jsp-ast/**/*.json`
+- one AST JSON file per source `.jsp`, using the source-relative path
 
 ## Validation
 

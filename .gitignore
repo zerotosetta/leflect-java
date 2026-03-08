@@ -2,6 +2,7 @@ node_modules/
 dist/
 coverage/
 .examples/
+target/
 *.log
 .DS_Store
 *.tsbuildinfo
