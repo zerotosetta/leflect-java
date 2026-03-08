@@ -1,10 +1,12 @@
 package io.lefectjava.worker.cli;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.lefectjava.worker.io.FileLayout;
 import io.lefectjava.worker.io.JsonWriters;
 import io.lefectjava.worker.jsp.JasperJspCompiler;
+import io.lefectjava.worker.jsp.JasperJspCompiler.JspCompilationFailure;
 import io.lefectjava.worker.manifest.JspInputManifest;
+import io.lefectjava.worker.model.ParseProblemRecord;
+import io.lefectjava.worker.model.SourceLocation;
 import io.lefectjava.worker.parser.JavaAstExporter;
 
 import java.io.IOException;
@@ -13,9 +15,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
-import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class ParseJspCommand {
+  private static final Pattern ABSOLUTE_URI_PATTERN =
+      Pattern.compile("absolute uri: \\[(.+?)\\] cannot be resolved", Pattern.CASE_INSENSITIVE);
+
   public int run(WorkerOptions options) {
     try {
       JspInputManifest manifest = JspInputManifest.fromFile(Paths.get(options.getManifestPath()));
@@ -32,7 +38,6 @@ public class ParseJspCommand {
       }
       Files.writeString(errorLog, "");
 
-      ObjectMapper mapper = JsonWriters.createMapper();
       JasperJspCompiler compiler = new JasperJspCompiler();
       JavaAstExporter exporter = new JavaAstExporter();
 
@@ -63,18 +68,15 @@ public class ParseJspCommand {
           for (var problem : result.problems) {
             Files.writeString(
                 errorLog,
-                mapper.writeValueAsString(problem) + System.lineSeparator(),
+                JsonWriters.toJsonLine(problem) + System.lineSeparator(),
                 StandardOpenOption.APPEND
             );
           }
         } catch (Exception ex) {
+          ParseProblemRecord problem = createJspProblemRecord(source, relativeJspPath, relativeServletPath, ex);
           Files.writeString(
               errorLog,
-              mapper.writeValueAsString(Map.of(
-                  "path", relativeJspPath,
-                  "generatedServletPath", relativeServletPath == null ? "" : relativeServletPath,
-                  "message", ex.getMessage()
-              )) + System.lineSeparator(),
+              JsonWriters.toJsonLine(problem) + System.lineSeparator(),
               StandardOpenOption.APPEND
           );
         }
@@ -97,5 +99,97 @@ public class ParseJspCommand {
       source = root.resolve(source);
     }
     return source.normalize();
+  }
+
+  private static ParseProblemRecord createJspProblemRecord(
+      Path source,
+      String relativeJspPath,
+      String relativeServletPath,
+      Exception ex
+  ) throws IOException {
+    Throwable rootCause = findRootCause(ex);
+    String message = firstNonBlank(rootCause.getMessage(), ex.getMessage(), rootCause.toString());
+
+    ParseProblemRecord record = new ParseProblemRecord(
+        "jsp-parse",
+        "error",
+        relativeJspPath,
+        "jsp.compile.error",
+        "JSP compilation failed",
+        message
+    );
+    record.detail = buildDetail(ex);
+    record.generatedPath = relativeServletPath;
+    record.hint = "Inspect the JSP and ensure required taglib/TLD dependencies are available to Jasper.";
+    record.rawCause = rootCause.toString();
+
+    String diagnostics = ex instanceof JspCompilationFailure
+        ? ((JspCompilationFailure) ex).getDiagnostics()
+        : null;
+    if (diagnostics != null && !diagnostics.isBlank()) {
+      record.detail = diagnostics;
+    }
+
+    Matcher matcher = ABSOLUTE_URI_PATTERN.matcher(
+        "%s %s %s".formatted(message, record.detail, diagnostics == null ? "" : diagnostics)
+    );
+    if (matcher.find()) {
+      String relatedUri = matcher.group(1);
+      record.category = "jsp.taglib.uri.unresolved";
+      record.summary = "Taglib URI could not be resolved";
+      record.relatedUri = relatedUri;
+      record.hint =
+          "Add the dependency JAR/TLD for this URI or declare the mapping in web.xml before running Jasper AST generation.";
+      attachUriLocation(record, source, relatedUri);
+    }
+
+    return record;
+  }
+
+  private static void attachUriLocation(ParseProblemRecord record, Path source, String relatedUri)
+      throws IOException {
+    String[] lines = Files.readString(source).split("\\R", -1);
+    for (int index = 0; index < lines.length; index += 1) {
+      int columnIndex = lines[index].indexOf(relatedUri);
+      if (columnIndex >= 0) {
+        record.location = new SourceLocation(index + 1, columnIndex + 1, index + 1,
+            columnIndex + relatedUri.length());
+        record.snippet = lines[index].trim();
+        return;
+      }
+    }
+  }
+
+  private static Throwable findRootCause(Throwable error) {
+    Throwable current = error;
+    while (current.getCause() != null && current.getCause() != current) {
+      current = current.getCause();
+    }
+    return current;
+  }
+
+  private static String buildDetail(Throwable error) {
+    StringBuilder builder = new StringBuilder();
+    Throwable current = error;
+    while (current != null) {
+      if (builder.length() > 0) {
+        builder.append(" -> ");
+      }
+      builder.append(current.getClass().getSimpleName());
+      if (current.getMessage() != null && !current.getMessage().isBlank()) {
+        builder.append(": ").append(current.getMessage());
+      }
+      current = current.getCause();
+    }
+    return builder.toString();
+  }
+
+  private static String firstNonBlank(String... values) {
+    for (String value : values) {
+      if (value != null && !value.isBlank()) {
+        return value;
+      }
+    }
+    return "";
   }
 }

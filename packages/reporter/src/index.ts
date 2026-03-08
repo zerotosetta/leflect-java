@@ -3,6 +3,8 @@ import path from "path";
 
 import {
   ClassLabel,
+  DiagnosticPathGroup,
+  DiagnosticRecord,
   GraphEdge,
   JspImpactQueryResult,
   JspLabel,
@@ -69,6 +71,7 @@ export type ReporterInput = {
   reverseIndex: ReporterReverseIndex;
   javaCallEdges: GraphEdge[];
   jspJavaEdges: GraphEdge[];
+  diagnostics: DiagnosticRecord[];
   labels?: LabelsIndex;
 };
 
@@ -96,6 +99,10 @@ export async function readReporterInput(
     ),
     javaCallEdges: await readJsonlFile(path.join(graphDir, "java-call.jsonl")),
     jspJavaEdges: await readJsonlFile(path.join(graphDir, "jsp-java.jsonl")),
+    diagnostics: [
+      ...await readDiagnosticJsonlFile(path.join(analysisOut, "logs", "java-parse-errors.jsonl"), "java-parse"),
+      ...await readDiagnosticJsonlFile(path.join(analysisOut, "logs", "jsp-parse-errors.jsonl"), "jsp-parse")
+    ],
     labels: labelsOut
       ? await readOptionalJsonFile<LabelsIndex>(labelsOut)
       : await readOptionalJsonFile<LabelsIndex>(path.join(indexDir, "labels.json"))
@@ -154,10 +161,13 @@ export function buildSummaryReport(input: ReporterInput): SummaryReport {
 }
 
 export function buildUnresolvedReport(input: ReporterInput): UnresolvedReport {
+  const diagnostics = buildDetailedDiagnostics(input);
   return {
     schemaVersion: "1.0",
     generatedAt: new Date().toISOString(),
-    edges: collectUnresolvedEdges(input)
+    edges: collectUnresolvedEdges(input),
+    diagnostics,
+    byPath: groupDiagnosticsByPath(diagnostics)
   };
 }
 
@@ -361,6 +371,104 @@ function collectUnresolvedEdges(input: ReporterInput): GraphEdge[] {
   );
 }
 
+function buildDetailedDiagnostics(input: ReporterInput): DiagnosticRecord[] {
+  return [...input.diagnostics, ...collectUnresolvedEdges(input).map(toDiagnosticFromEdge)].sort(
+    (left, right) =>
+      left.path.localeCompare(right.path) ||
+      left.stage.localeCompare(right.stage) ||
+      left.category.localeCompare(right.category)
+  );
+}
+
+function groupDiagnosticsByPath(diagnostics: DiagnosticRecord[]): DiagnosticPathGroup[] {
+  const groups = new Map<string, DiagnosticRecord[]>();
+  for (const diagnostic of diagnostics) {
+    const key = normalizePath(diagnostic.path);
+    const entries = groups.get(key) ?? [];
+    entries.push(diagnostic);
+    groups.set(key, entries);
+  }
+
+  return [...groups.entries()]
+    .sort((left, right) => left[0].localeCompare(right[0]))
+    .map(([pathKey, entries]) => ({
+      path: pathKey,
+      diagnostics: entries
+    }));
+}
+
+function toDiagnosticFromEdge(edge: GraphEdge): DiagnosticRecord {
+  const parsed = parseUnresolvedTarget(edge.to);
+  const base: DiagnosticRecord = {
+    stage: "graph",
+    severity: "warning",
+    path: normalizePath(edge.from),
+    category: "graph.unresolved",
+    summary: "Unresolved graph edge",
+    message: `Unresolved edge from ${edge.from} to ${edge.to}`,
+    detail: `type=${edge.type}, confidence=${edge.confidence}`,
+    hint: "Inspect the source metadata and supporting indexes for missing type or taglib resolution."
+  };
+
+  if (!parsed) {
+    return base;
+  }
+
+  if (parsed.kind === "tag") {
+    return {
+      ...base,
+      category: "jsp.tag.unresolved",
+      summary: `Tag ${parsed.symbol} could not be resolved`,
+      message: `No handler class was resolved for tag ${parsed.symbol}.`,
+      symbol: parsed.symbol,
+      hint: "Provide the matching TLD or dependency JAR so the taglib can be resolved."
+    };
+  }
+
+  if (parsed.kind === "scriptlet") {
+    return {
+      ...base,
+      category: "jsp.scriptlet.target.unresolved",
+      summary: "Scriptlet target could not be resolved",
+      message: "A JSP scriptlet produced an unresolved Java target.",
+      hint: "Inspect the scriptlet code and Java index inputs for missing classes or ambiguous references."
+    };
+  }
+
+  if (parsed.kind === "java-call") {
+    return {
+      ...base,
+      category: "java.call.unresolved",
+      summary: "Java call graph target could not be resolved",
+      message: "A Java call edge remained unresolved in the graph.",
+      hint: "Inspect the parsed Java summary and call extraction for missing type information."
+    };
+  }
+
+  return base;
+}
+
+function parseUnresolvedTarget(
+  value: string
+): { kind: "tag" | "scriptlet" | "java-call"; symbol?: string } | undefined {
+  const normalized = normalizePath(value);
+
+  const tagMatch = normalized.match(/^unresolved:tag:([^:]+):([^:]+)(?::\d+)?$/);
+  if (tagMatch) {
+    return { kind: "tag", symbol: `${tagMatch[1]}:${tagMatch[2]}` };
+  }
+
+  if (normalized.startsWith("unresolved:scriptlet:")) {
+    return { kind: "scriptlet" };
+  }
+
+  if (normalized.startsWith("unresolved:java-call:")) {
+    return { kind: "java-call" };
+  }
+
+  return undefined;
+}
+
 function countLabels<TLabel extends string>(
   knownLabels: TLabel[],
   values: TLabel[][]
@@ -438,4 +546,114 @@ async function readJsonlFile(filePath: string): Promise<GraphEdge[]> {
     }
     throw error;
   }
+}
+
+async function readDiagnosticJsonlFile(
+  filePath: string,
+  stage: "java-parse" | "jsp-parse"
+): Promise<DiagnosticRecord[]> {
+  try {
+    const raw = await fs.readFile(filePath, "utf8");
+    return raw
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => normalizeDiagnosticRecord(JSON.parse(line) as Record<string, unknown>, stage));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
+}
+
+function normalizeDiagnosticRecord(
+  payload: Record<string, unknown>,
+  stage: "java-parse" | "jsp-parse"
+): DiagnosticRecord {
+  const location =
+    payload["location"] && typeof payload["location"] === "object"
+      ? normalizeLocation(payload["location"] as Record<string, unknown>)
+      : undefined;
+  const message = asString(payload["message"]) ?? "";
+  const category = asString(payload["category"]) ?? defaultCategory(stage, message);
+
+  return {
+    stage: asString(payload["stage"]) ?? stage,
+    severity: asSeverity(payload["severity"]) ?? "error",
+    path: normalizePath(asString(payload["path"]) ?? ""),
+    category,
+    summary: asString(payload["summary"]) ?? defaultSummary(stage, category, message),
+    message,
+    detail: asString(payload["detail"]),
+    hint: asString(payload["hint"]) ?? defaultHint(stage, category),
+    relatedUri: asString(payload["relatedUri"]),
+    symbol: asString(payload["symbol"]),
+    generatedPath: normalizeOptionalPath(asString(payload["generatedPath"]) ?? asString(payload["generatedServletPath"])),
+    snippet: asString(payload["snippet"]),
+    rawCause: asString(payload["rawCause"]),
+    location
+  };
+}
+
+function normalizeLocation(payload: Record<string, unknown>): DiagnosticRecord["location"] {
+  return {
+    line: asNumber(payload["line"]),
+    column: asNumber(payload["column"]),
+    endLine: asNumber(payload["endLine"]),
+    endColumn: asNumber(payload["endColumn"])
+  };
+}
+
+function defaultCategory(stage: "java-parse" | "jsp-parse", message: string): string {
+  if (
+    stage === "jsp-parse" &&
+    /absolute uri:\s*\[.+?\]\s*cannot be resolved/i.test(message)
+  ) {
+    return "jsp.taglib.uri.unresolved";
+  }
+  return stage === "java-parse" ? "java.parse.problem" : "jsp.compile.error";
+}
+
+function defaultSummary(
+  stage: "java-parse" | "jsp-parse",
+  category: string,
+  message: string
+): string {
+  if (category === "jsp.taglib.uri.unresolved") {
+    return "Taglib URI could not be resolved";
+  }
+  if (stage === "java-parse") {
+    return "Java parse problem";
+  }
+  return message ? "JSP compilation failed" : "JSP parse problem";
+}
+
+function defaultHint(stage: "java-parse" | "jsp-parse", category: string): string | undefined {
+  if (category === "jsp.taglib.uri.unresolved") {
+    return "Add the dependency JAR/TLD for this URI or declare the mapping in web.xml.";
+  }
+  if (stage === "java-parse") {
+    return "Inspect the Java source near the reported location.";
+  }
+  if (stage === "jsp-parse") {
+    return "Inspect the JSP and required taglib dependencies.";
+  }
+  return undefined;
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" ? value : undefined;
+}
+
+function asSeverity(value: unknown): "error" | "warning" | undefined {
+  return value === "error" || value === "warning" ? value : undefined;
+}
+
+function normalizeOptionalPath(value?: string): string | undefined {
+  return value ? normalizePath(value) : undefined;
 }

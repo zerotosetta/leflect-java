@@ -1,6 +1,5 @@
 package io.lefectjava.worker.cli;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.lefectjava.worker.io.FileLayout;
 import io.lefectjava.worker.io.JsonWriters;
 import io.lefectjava.worker.manifest.InputManifest;
@@ -32,7 +31,6 @@ public class ParseJavaCommand {
       Files.createDirectories(indexDir);
       Path summaryPath = indexDir.resolve("java-summary.jsonl");
 
-      ObjectMapper mapper = JsonWriters.createMapper();
       JavaAstExporter exporter = new JavaAstExporter();
 
       try (BufferedWriter summaryWriter = Files.newBufferedWriter(summaryPath)) {
@@ -49,12 +47,12 @@ public class ParseJavaCommand {
           for (var problem : result.problems) {
             Files.writeString(
                 errorLog,
-                mapper.writeValueAsString(problem) + System.lineSeparator(),
+                JsonWriters.toJsonLine(problem) + System.lineSeparator(),
                 java.nio.file.StandardOpenOption.APPEND
             );
           }
 
-          JsonWriters.appendJsonLine(mapper, summaryWriter, result.ast);
+          JsonWriters.appendJsonLine(summaryWriter, result.ast);
         }
       }
 

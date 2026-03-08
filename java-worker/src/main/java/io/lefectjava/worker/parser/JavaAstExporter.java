@@ -41,7 +41,7 @@ public class JavaAstExporter {
   public ExportResult export(Path source, String relativePath, String sourceKind) throws IOException {
     String content = Files.readString(source);
     ParseResult<CompilationUnit> result = parser.parse(content);
-    List<ParseProblemRecord> problems = problemCollector.collect(relativePath, result);
+    List<ParseProblemRecord> problems = problemCollector.collect(relativePath, content, result);
     CompilationUnit unit = result.getResult().orElseGet(CompilationUnit::new);
     AstFileResult ast = summaryExtractor.extract(relativePath, unit, sourceKind);
     String rawAstJson = astSerializer.serialize(unit);

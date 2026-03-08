@@ -28,6 +28,13 @@ describe("reporter", () => {
     expect(reports.summary.counts.jspJavaEdges).toBe(3);
     expect(reports.summary.labels.classes.SERVICE).toBe(1);
     expect(reports.unresolved.edges).toHaveLength(1);
+    expect(reports.unresolved.diagnostics).toHaveLength(3);
+    expect(
+      reports.unresolved.byPath.find(
+        (entry) => entry.path === "src/main/webapp/WEB-INF/jsp/owners/findOwners.jsp"
+      )
+    ).toBeDefined();
+    expect(reports.unresolved.diagnostics.some((entry) => entry.category === "jsp.taglib.uri.unresolved")).toBe(true);
     expect(reports.impactMarkdown).toContain("## JSP Impact");
 
     const summaryFile = await readFile(path.join(analysisOut, "report", "summary.json"), "utf8");
@@ -39,6 +46,7 @@ describe("reporter", () => {
 
     expect(summaryFile).toContain("\"jspImpacts\"");
     expect(unresolvedFile).toContain("\"confidence\": \"unresolved\"");
+    expect(unresolvedFile).toContain("\"category\": \"jsp.taglib.uri.unresolved\"");
     expect(impactFile).toContain("UserService");
   });
 
@@ -66,9 +74,11 @@ async function createAnalysisFixture(): Promise<string> {
   const analysisOut = path.join(root, "analysis");
   const indexDir = path.join(analysisOut, "index");
   const graphDir = path.join(analysisOut, "graph");
+  const logsDir = path.join(analysisOut, "logs");
 
   await mkdir(indexDir, { recursive: true });
   await mkdir(graphDir, { recursive: true });
+  await mkdir(logsDir, { recursive: true });
 
   await writeJson(path.join(indexDir, "classes.json"), [
     { id: "UserService", name: "UserService", file: "src/UserService.java" },
@@ -136,6 +146,45 @@ async function createAnalysisFixture(): Promise<string> {
       .map((entry) => JSON.stringify(entry))
       .join("\n")
       .concat("\n")
+  );
+  await writeFile(
+    path.join(logsDir, "jsp-parse-errors.jsonl"),
+    `${JSON.stringify({
+      stage: "jsp-parse",
+      severity: "error",
+      path: "src/main/webapp/WEB-INF/jsp/owners/findOwners.jsp",
+      category: "jsp.taglib.uri.unresolved",
+      summary: "Taglib URI could not be resolved",
+      message: "The absolute uri: [http://www.springframework.org/tags] cannot be resolved in either web.xml or the jar files deployed with this application",
+      hint: "Add the dependency JAR/TLD for this URI or declare the mapping in web.xml.",
+      relatedUri: "http://www.springframework.org/tags",
+      location: {
+        line: 1,
+        column: 15,
+        endLine: 1,
+        endColumn: 49
+      },
+      snippet: '<%@ taglib prefix=\"spring\" uri=\"http://www.springframework.org/tags\" %>'
+    })}\n`
+  );
+  await writeFile(
+    path.join(logsDir, "java-parse-errors.jsonl"),
+    `${JSON.stringify({
+      stage: "java-parse",
+      severity: "error",
+      path: "src/main/java/demo/Broken.java",
+      category: "java.parse.problem",
+      summary: "Java parse problem",
+      message: "Parse error. Found \"}\", expected one of  \";\" \"@\" ...",
+      hint: "Inspect the Java syntax near the reported location.",
+      location: {
+        line: 3,
+        column: 3,
+        endLine: 3,
+        endColumn: 3
+      },
+      snippet: "}"
+    })}\n`
   );
 
   return analysisOut;
