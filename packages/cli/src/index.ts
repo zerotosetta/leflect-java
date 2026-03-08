@@ -61,6 +61,7 @@ import { scanWorkspace } from "@lefectjava/scanner";
 
 type OutputFormat = "json" | "text";
 type StageName = "java-parse" | "jsp-parse" | "tld-parse";
+type CliConfig = Awaited<ReturnType<typeof loadCliConfig>>;
 type PreparedStageContext<TEntry = never> = {
   cacheKey: string;
   statePath: string;
@@ -206,21 +207,18 @@ async function runParseJsp(args: string[]): Promise<void> {
   const parsed = parseArgs(args);
   const baseConfig = await loadCliConfig(parsed);
   const incremental = parsed["incremental"] === "true";
-  const astModeOverride: "jasper" | "lightweight" =
-    parsed["jsp-ast-mode"] === "jasper" ? "jasper" : "lightweight";
+  const astModeOption = parsed["jsp-ast-mode"];
 
-  const config = parsed["jsp-ast-mode"]
-    ? {
-        ...baseConfig,
-        jsp: {
-          ...baseConfig.jsp,
-          astMode: astModeOverride
-        }
-      }
-    : baseConfig;
+  if (astModeOption && !isJspAstMode(astModeOption)) {
+    throw new Error("Option '--jsp-ast-mode' must be 'lightweight' or 'jasper'");
+  }
+
+  const astModeOverride = astModeOption && isJspAstMode(astModeOption) ? astModeOption : undefined;
+
+  const config = astModeOverride ? overrideJspAstMode(baseConfig, astModeOverride) : baseConfig;
 
   const files = await readScannerManifest(path.join(config.analysisOut, "manifests", "jsp-files.json"));
-  const astMode = config.jsp?.astMode ?? "lightweight";
+  const astMode = config.jsp?.astMode ?? "jasper";
   const metaDir = path.join(config.analysisOut, "jsp-meta");
   const astOutDir = config.jsp?.astOut ?? path.join(config.analysisOut, "jsp-ast");
   const stage = await prepareStageContext(
@@ -515,13 +513,30 @@ function parseArgs(args: string[]): Record<string, string> {
   return result;
 }
 
+function isJspAstMode(value: string): value is "jasper" | "lightweight" {
+  return value === "jasper" || value === "lightweight";
+}
+
+function overrideJspAstMode(
+  config: CliConfig,
+  astMode: "jasper" | "lightweight"
+): CliConfig {
+  return {
+    ...config,
+    jsp: {
+      ...(config.jsp ?? {}),
+      astMode
+    }
+  };
+}
+
 function printHelp(): void {
   console.log("LeflectJava CLI (scaffold)");
   console.log("\nUsage:\n  leflect <command> [options]\n");
   console.log("Commands:");
   console.log("  scan                Scan repository and build file inventory");
   console.log("  parse-java          Convert Java source files to JavaParser AST JSON");
-  console.log("  parse-jsp           Parse JSP metadata and optionally Jasper->JavaParser AST");
+  console.log("  parse-jsp           Parse JSP metadata and Jasper->JavaParser AST by default");
   console.log("  parse-tld           Parse TLD files and write taglibs.json");
   console.log("  build-index         Build analysis indexes from manifests and parsed outputs");
   console.log("  build-graph         Build graph outputs and labels.json from analysis indexes");
@@ -542,7 +557,7 @@ function printHelp(): void {
   console.log("  --out <path>         Analysis output directory");
   console.log("  --config <path>      Config file path (default: <root>/leflect.config.json)");
   console.log("  --ignore-file <path> Ignore rules file (.gitignore syntax)");
-  console.log("  --jsp-ast-mode <m>   JSP AST mode: lightweight | jasper");
+  console.log("  --jsp-ast-mode <m>   JSP AST mode override: jasper | lightweight");
   console.log("  --labels-out <path>  Label output path (default: analysisOut/index/labels.json)");
   console.log("  --file <path>        Target JSP path for query jsp-impact");
   console.log("  --class <name>       Target Java/tag handler class for queries");

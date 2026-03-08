@@ -53,10 +53,11 @@ When `java.workerJar` is configured, `parse-java` writes:
 - full JavaParser AST JSON to `analysis/java-ast/**/*.json`
 - summary IR for downstream indexing to `analysis/index/java-summary.jsonl`
 
-When `parse-jsp` runs with `--jsp-ast-mode jasper`, it writes:
+By default, `parse-jsp` writes:
 
 - full JavaParser AST JSON to `analysis/jsp-ast/**/*.json`
 - one AST JSON file per source `.jsp`, using the source-relative path
+- use `--jsp-ast-mode lightweight` or `jsp.astMode = "lightweight"` to skip Jasper AST generation
 
 ## Validation
 
