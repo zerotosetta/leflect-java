@@ -37,6 +37,7 @@ class ParseJavaCommandTest {
               "root": "%s",
               "files": ["src/demo/Broken.java"],
               "outputDir": "%s",
+              "classpathEntries": [],
               "errorLog": "%s"
             }
             """.formatted(

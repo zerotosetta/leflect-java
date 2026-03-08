@@ -8,6 +8,8 @@ export type LeflectConfig = {
   java?: {
     workerJar?: string;
     javaHome?: string;
+    classpath?: string[];
+    mavenCommand?: string;
   };
   jsp?: {
     astMode?: JspAstMode;

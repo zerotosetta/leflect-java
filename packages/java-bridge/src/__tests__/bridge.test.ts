@@ -4,7 +4,7 @@ import { mkdtemp, readFile } from "fs/promises";
 
 import { describe, expect, it } from "vitest";
 
-import { buildJavaCommand, writeJspManifest } from "../index";
+import { buildJavaCommand, writeJavaManifest, writeJspManifest } from "../index";
 
 describe("buildJavaCommand", () => {
   it("builds java -jar command", () => {
@@ -58,5 +58,30 @@ describe("writeJspManifest", () => {
     expect(payload.files).toEqual(["view/index.jsp"]);
     expect(payload.webappRoot).toBe(root);
     expect(payload.classpathEntries).toEqual([path.join(root, "lib", "tags.jar")]);
+  });
+});
+
+describe("writeJavaManifest", () => {
+  it("writes java worker manifest", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "leflect-java-manifest-"));
+    const manifestPath = path.join(root, "analysis", "manifests", "java-parse.json");
+
+    await writeJavaManifest(manifestPath, {
+      root,
+      files: ["src/main/java/demo/App.java"],
+      outputDir: path.join(root, "analysis", "java-ast"),
+      classpathEntries: [path.join(root, "lib", "support.jar")],
+      errorLog: path.join(root, "analysis", "logs", "java-parse-errors.jsonl")
+    });
+
+    const payload = JSON.parse(await readFile(manifestPath, "utf8")) as {
+      files: string[];
+      outputDir: string;
+      classpathEntries: string[];
+    };
+
+    expect(payload.files).toEqual(["src/main/java/demo/App.java"]);
+    expect(payload.outputDir).toBe(path.join(root, "analysis", "java-ast"));
+    expect(payload.classpathEntries).toEqual([path.join(root, "lib", "support.jar")]);
   });
 });

@@ -2,6 +2,7 @@ export type JavaInputManifest = {
   root: string;
   files: string[];
   outputDir: string;
+  classpathEntries: string[];
   errorLog: string;
 };
 

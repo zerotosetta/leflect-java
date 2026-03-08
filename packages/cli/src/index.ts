@@ -59,6 +59,7 @@ import {
 } from "@lefectjava/reporter";
 import { scanWorkspace } from "@lefectjava/scanner";
 
+import { createJavaDependencyCacheInput, resolveJavaClasspathEntries } from "./java-classpath";
 import { createJspDependencyCacheInput, resolveJspClasspathEntries } from "./jsp-classpath";
 
 type OutputFormat = "json" | "text";
@@ -164,7 +165,8 @@ async function runParseJava(args: string[]): Promise<void> {
     createCacheKey({
       version: PIPELINE_VERSION,
       stage: "java-parse",
-      java: config.java ?? {}
+      java: config.java ?? {},
+      dependencies: await createJavaDependencyCacheInput(config)
     }),
     incremental
   );
@@ -184,7 +186,8 @@ async function runParseJava(args: string[]): Promise<void> {
     return;
   }
 
-  const manifest = buildJavaInputManifest(config, stage.plan.selectedFiles);
+  const classpathEntries = await resolveJavaClasspathEntries(config);
+  const manifest = buildJavaInputManifest(config, stage.plan.selectedFiles, classpathEntries);
   const manifestPath = path.join(config.analysisOut, "manifests", "java-parse.json");
   await writeJavaManifest(manifestPath, manifest);
 

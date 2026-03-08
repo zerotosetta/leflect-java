@@ -39,10 +39,22 @@ print(',\n    "classpath": ' + json.dumps(entries))
 PY
     fi)
   }$(if [ -n "${LEFLECT_JAVA_WORKER_JAR:-}" ]; then
-    printf ',\n  "java": {\n    "workerJar": "%s"%s\n  }' \
+    printf ',\n  "java": {\n    "workerJar": "%s"%s%s%s\n  }' \
       "$LEFLECT_JAVA_WORKER_JAR" \
       "$(if [ -n "${LEFLECT_JAVA_HOME:-}" ]; then
         printf ',\n    "javaHome": "%s"' "$LEFLECT_JAVA_HOME"
+      fi)" \
+      "$(if [ -n "${LEFLECT_JAVA_MAVEN_COMMAND:-}" ]; then
+        printf ',\n    "mavenCommand": "%s"' "$LEFLECT_JAVA_MAVEN_COMMAND"
+      fi)" \
+      "$(if [ -n "${LEFLECT_JAVA_CLASSPATH:-}" ]; then
+        python3 - <<'PY'
+import json
+import os
+
+entries = [entry for entry in os.environ["LEFLECT_JAVA_CLASSPATH"].split(os.pathsep) if entry]
+print(',\n    "classpath": ' + json.dumps(entries))
+PY
       fi)"
   fi)
 }

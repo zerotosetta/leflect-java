@@ -4,12 +4,14 @@ import { JavaInputManifest, JspInputManifest, LeflectConfig } from "@lefectjava/
 
 export function buildJavaInputManifest(
   config: LeflectConfig,
-  files: string[]
+  files: string[],
+  classpathEntries: string[] = []
 ): JavaInputManifest {
   return {
     root: config.root,
     files,
     outputDir: path.join(config.analysisOut, "java-ast"),
+    classpathEntries,
     errorLog: path.join(config.analysisOut, "logs", "java-parse-errors.jsonl")
   };
 }

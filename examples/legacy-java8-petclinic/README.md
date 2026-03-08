@@ -50,8 +50,11 @@ bash examples/legacy-java8-petclinic/run.sh /absolute/path/to/sample
 - If `mvn` is not on `PATH`, export `LEFLECT_JSP_MAVEN_COMMAND` with an absolute
   Maven executable path so LeflectJava can auto-resolve JSP dependency classpath
   for Jasper.
+- If Java semantic resolution also needs Maven classpath discovery, export
+  `LEFLECT_JAVA_MAVEN_COMMAND` in the same way.
 - If the sample's own Maven dependency graph cannot be resolved cleanly, export
   `LEFLECT_JSP_CLASSPATH` as an OS path-separated list of JARs/directories and
   `fetch.sh` will write them into `jsp.classpath`.
+- You can do the same for Java analysis with `LEFLECT_JAVA_CLASSPATH`.
 - Without a Java worker JAR, the example pins `jsp.astMode` to `lightweight` so the
   sample remains runnable. You can override this with `LEFLECT_JSP_AST_MODE=jasper`.

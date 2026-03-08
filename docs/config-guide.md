@@ -46,7 +46,11 @@ Use this when you want both `.java` and `.jsp` files to produce 1:1 AST JSON fil
   "analysisOut": "./analysis",
   "ignoreFile": ".gitignore",
   "java": {
-    "workerJar": "./java-worker/target/leflectjava-java-worker-0.1.0.jar"
+    "workerJar": "./java-worker/target/leflectjava-java-worker-0.1.0.jar",
+    "classpath": [
+      "./target/classes",
+      "./lib/external-support.jar"
+    ]
   },
   "jsp": {
     "webappRoot": "src/main/webapp",
@@ -60,6 +64,7 @@ Use this when you want both `.java` and `.jsp` files to produce 1:1 AST JSON fil
 With this config:
 
 - `.java` files produce full AST JSON under `analysis/java-ast/**/*.json`
+- Java semantic resolution can use `java.classpath` and Maven auto-discovery
 - `.jsp` files produce full AST JSON under `analysis/jsp-ast/**/*.json`
 - JSP conversion also emits generated servlet source under `analysis/generated-jsp-java/`
 - Jasper resolves taglib dependencies from `jsp.classpath` and, when `pom.xml` is present,
@@ -143,6 +148,18 @@ This is the most explicit form and is useful when you want all output paths pinn
 
 - optional JDK/JRE home used to launch the worker
 
+`java.classpath`
+
+- optional array of JAR/directories used by JavaParser SymbolSolver
+- use this for external libraries or precompiled project classes when Java semantic resolution matters
+
+`java.mavenCommand`
+
+- optional Maven executable path or command name used for Java dependency classpath auto-discovery
+- default behavior:
+  - use `./mvnw` when present
+  - otherwise try `mvn`
+
 `jsp.astMode`
 
 - allowed values: `jasper`, `lightweight`
@@ -184,6 +201,7 @@ This is the most explicit form and is useful when you want all output paths pinn
 If you want `analysis/java-ast/`:
 
 - set `java.workerJar`
+- if you want semantic resolution against external libraries, provide `java.classpath` and/or ensure Maven auto-discovery can run
 
 If you want `analysis/jsp-ast/`:
 
@@ -204,6 +222,12 @@ If you only want report/index output:
 - `java.workerJar` is not set
 - `parse-java` did not run
 - Java worker failed; check `analysis/logs/`
+
+Java AST exists but semantic resolution is incomplete
+
+- `java.classpath` is incomplete
+- Maven auto-discovery could not run because no usable `mvn`/`mvnw` command was available
+- the project depends on legacy repositories that Maven cannot resolve in the current environment
 
 `jsp-ast/` is missing
 
