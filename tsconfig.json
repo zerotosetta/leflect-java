@@ -3,6 +3,7 @@
   "references": [
     { "path": "./packages/cli" },
     { "path": "./packages/core" },
+    { "path": "./packages/dashboard-data" },
     { "path": "./packages/scanner" },
     { "path": "./packages/parser-jsp" },
     { "path": "./packages/parser-tld" },

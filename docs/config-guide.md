@@ -77,6 +77,41 @@ The wizard can also write:
 - `java.mavenCommand`, `jsp.mavenCommand`
 - `entryFiles.java`, `entryFiles.jsp`
 
+## Dashboard Server
+
+`leflect dashboard-server` reads an existing config file and serves the Next.js dashboard
+from the analysis output already on disk.
+
+```bash
+node bin/leflect dashboard-server \
+  --root /path/to/repo \
+  --config /path/to/repo/leflect.config.json \
+  --mode production \
+  --port 3210
+```
+
+Important behavior:
+
+- it does not call `scan`, `parse-*`, `build-index`, or `build-graph`
+- it uses `analysisOut` resolved from the config plus CLI overrides
+- if required files are missing, the command fails and tells you to run `leflect analyze`
+
+Required analysis artifacts:
+
+- `analysis/report/summary.json`
+- `analysis/report/unresolved.json`
+- `analysis/index/classes.json`
+- `analysis/index/jsp-docs.json`
+- `analysis/graph/file-dependencies.json`
+- `analysis/graph/file-dependency.jsonl`
+
+Useful dashboard-server options:
+
+- `--host`
+- `--port`
+- `--mode development|production`
+- `--dashboard-app <path>`
+
 Supported init overrides:
 
 - `--auto-system-classpath`

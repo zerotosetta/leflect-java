@@ -7,15 +7,19 @@
     "leflect": "bin/leflect"
   },
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b && pnpm dashboard:build",
     "clean": "tsc -b --clean",
+    "dashboard:build": "pnpm --dir apps/dashboard build",
+    "dashboard:dev": "pnpm --dir apps/dashboard dev",
+    "dashboard:typecheck": "pnpm --dir apps/dashboard typecheck",
     "example:legacy-java8:fetch": "bash examples/legacy-java8-petclinic/fetch.sh",
     "example:legacy-java8:run": "bash examples/legacy-java8-petclinic/run.sh",
     "npx:build": "pnpm build && node scripts/build-npx-cli.mjs",
-    "typecheck": "tsc -b --pretty false",
+    "typecheck": "tsc -b --pretty false && pnpm dashboard:typecheck",
     "lint": "eslint .",
     "test": "vitest run",
     "release:check": "pnpm typecheck && pnpm test && pnpm build",

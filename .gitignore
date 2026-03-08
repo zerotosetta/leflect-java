@@ -4,6 +4,7 @@ coverage/
 .examples/
 .artifacts/
 target/
+.next/
 *.log
 .DS_Store
 *.tsbuildinfo

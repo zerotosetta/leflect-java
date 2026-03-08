@@ -68,6 +68,7 @@ node bin/leflect build-graph --analysis ./analysis
 node bin/leflect report summary --analysis ./analysis
 node bin/leflect query tag-usages --analysis ./analysis --class FormTag
 node bin/leflect analyze --root ./repo --out ./analysis --incremental
+node bin/leflect dashboard-server --root ./repo --config ./repo/leflect.config.json --mode production --port 3210
 ```
 
 When `java.workerJar` is configured, `parse-java` writes:
@@ -107,6 +108,40 @@ By default, `parse-jsp` writes:
 
 If `entryFiles.java` and/or `entryFiles.jsp` are configured, `build-graph` also writes
 entry-rooted dependency subgraphs and per-file reference/dependant summaries.
+
+## Dashboard
+
+The repository now includes a Next.js dashboard under `apps/dashboard`.
+
+`leflect dashboard-server` does not run analysis. It reads the `leflect.config.json`
+you point to, resolves `analysisOut`, and serves the dashboard from the existing
+analysis artifacts already written under that directory.
+
+```bash
+node bin/leflect dashboard-server \
+  --root ./repo \
+  --config ./repo/leflect.config.json \
+  --mode production \
+  --port 3210
+```
+
+What it uses:
+
+- `analysis/report/summary.json`
+- `analysis/report/unresolved.json`
+- `analysis/index/*.json`
+- `analysis/graph/file-dependencies.json`
+- `analysis/graph/file-dependency.jsonl`
+- `analysis/graph/entry-dependencies.json`
+
+The dashboard currently provides:
+
+- entry browser for JSP / Controller / Action / Service candidates
+- policy tab with multi-policy enable/disable
+- zone tab with expand / collapse / summarize / hide overrides
+- sigma.js flow graph
+- matrix / impact / cycle views
+- node / zone detail panel backed by API routes
 
 ## Analysis Output
 

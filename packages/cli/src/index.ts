@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from "fs/promises";
 import path from "path";
+import { spawn } from "child_process";
 
 import {
   buildJspInputManifest,
@@ -138,6 +139,9 @@ export async function run(argv: string[]): Promise<void> {
       return;
     case "query":
       await runQuery(rest);
+      return;
+    case "dashboard-server":
+      await runDashboardServer(rest);
       return;
     default:
       console.error(`Unknown command: ${command}`);
@@ -614,6 +618,47 @@ async function runQuery(args: string[]): Promise<void> {
   }
 }
 
+async function runDashboardServer(args: string[]): Promise<void> {
+  const parsed = parseArgs(args);
+  const configPath = parsed["config"]
+    ? path.resolve(parsed["config"])
+    : path.join(parsed["root"] ? path.resolve(parsed["root"]) : process.cwd(), "leflect.config.json");
+  const config = await loadCliConfig(parsed, {
+    analysisOut: parsed["analysis"] ? path.resolve(parsed["analysis"]) : undefined
+  });
+  const appDir = await resolveDashboardAppDir(parsed["dashboard-app"]);
+  if (!appDir) {
+    throw new Error(
+      "Dashboard app could not be resolved. Run inside the LeflectJava workspace or set LEFLECT_DASHBOARD_APP_DIR."
+    );
+  }
+
+  await ensureDashboardArtifacts(config.analysisOut);
+
+  const host = parsed["host"] ?? process.env.LEFLECT_DASHBOARD_HOST ?? "127.0.0.1";
+  const port = parsed["port"]
+    ? Number.parseInt(parsed["port"], 10)
+    : Number.parseInt(process.env.LEFLECT_DASHBOARD_PORT ?? "3000", 10);
+  if (!Number.isInteger(port) || port <= 0) {
+    throw new Error("Option '--port' must be a positive integer");
+  }
+
+  const mode =
+    parsed["mode"] === "production" || parsed["prod"] === "true" ? "production" : "development";
+  const nextBin = resolveNextCliEntrypoint(appDir);
+
+  if (mode === "production" && !(await pathExists(path.join(appDir, ".next", "BUILD_ID")))) {
+    await runNextCommand(nextBin, ["build", appDir], appDir, config, configPath);
+  }
+
+  console.log(`Dashboard server using analysis output: ${config.analysisOut}`);
+  console.log(`Dashboard app: ${appDir}`);
+  console.log(`Open http://${host}:${port}`);
+
+  const nextArgs = [mode === "production" ? "start" : "dev", appDir, "-p", String(port), "-H", host];
+  await runNextCommand(nextBin, nextArgs, appDir, config, configPath);
+}
+
 function parseArgs(args: string[]): Record<string, string> {
   const result: Record<string, string> = {};
 
@@ -670,6 +715,7 @@ function printHelp(): void {
   console.log("  analyze             Run the end-to-end analysis pipeline");
   console.log("  report <subcommand> Generate report artifacts and print one result");
   console.log("  query <subcommand>  Query analysis outputs");
+  console.log("  dashboard-server    Start the Next.js dashboard against existing analysis outputs");
   console.log("\nReport Subcommands:");
   console.log("  summary             Write report files and print summary.json");
   console.log("  unresolved          Write report files and print unresolved.json");
@@ -701,6 +747,10 @@ function printHelp(): void {
   console.log("  --entry-java <regexes>      Comma-separated Java entry file regexes");
   console.log("  --entry-jsp <regexes>       Comma-separated JSP entry file regexes");
   console.log("  --labels-out <path>  Label output path (default: analysisOut/index/labels.json)");
+  console.log("  --host <value>       Host for dashboard-server (default: 127.0.0.1)");
+  console.log("  --port <value>       Port for dashboard-server (default: 3000)");
+  console.log("  --mode <value>       dashboard-server mode: development | production");
+  console.log("  --dashboard-app <path> Dashboard app directory override");
   console.log("  --file <path>        Target JSP path for query jsp-impact");
   console.log("  --class <name>       Target Java/tag handler class for queries");
   console.log("  --format <type>      Query output format: text | json");
@@ -751,6 +801,85 @@ async function loadCliConfig(
   });
 
   return config;
+}
+
+async function ensureDashboardArtifacts(analysisOut: string): Promise<void> {
+  const requiredFiles = [
+    path.join(analysisOut, "report", "summary.json"),
+    path.join(analysisOut, "graph", "file-dependencies.json"),
+    path.join(analysisOut, "index", "classes.json"),
+    path.join(analysisOut, "index", "jsp-docs.json")
+  ];
+  for (const filePath of requiredFiles) {
+    if (!(await pathExists(filePath))) {
+      throw new Error(
+        `Dashboard requires existing analysis artifacts. Missing: ${filePath}. Run 'leflect analyze' first.`
+      );
+    }
+  }
+}
+
+async function resolveDashboardAppDir(overridePath?: string): Promise<string | undefined> {
+  const candidates = [
+    overridePath ? path.resolve(overridePath) : undefined,
+    process.env.LEFLECT_DASHBOARD_APP_DIR ? path.resolve(process.env.LEFLECT_DASHBOARD_APP_DIR) : undefined,
+    path.resolve(__dirname, "..", "..", "..", "apps", "dashboard"),
+    path.resolve(process.cwd(), "apps", "dashboard"),
+    path.resolve(process.cwd(), "..", "apps", "dashboard")
+  ].filter((entry): entry is string => Boolean(entry));
+
+  for (const candidate of candidates) {
+    if (await pathExists(path.join(candidate, "package.json"))) {
+      return candidate;
+    }
+  }
+
+  return undefined;
+}
+
+function resolveNextCliEntrypoint(appDir: string): string {
+  const packageJsonPath = require.resolve("next/package.json", { paths: [appDir] });
+  return path.join(path.dirname(packageJsonPath), "dist", "bin", "next");
+}
+
+async function runNextCommand(
+  nextBin: string,
+  args: string[],
+  appDir: string,
+  config: CliConfig,
+  configPath: string
+): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(process.execPath, [nextBin, ...args], {
+      cwd: appDir,
+      stdio: "inherit",
+      env: {
+        ...process.env,
+        LEFLECT_DASHBOARD_ROOT: config.root,
+        LEFLECT_DASHBOARD_ANALYSIS_OUT: config.analysisOut,
+        LEFLECT_DASHBOARD_CONFIG_PATH: configPath,
+        LEFLECT_DASHBOARD_PROJECT: path.basename(config.root)
+      }
+    });
+
+    child.on("error", reject);
+    child.on("exit", (code) => {
+      if (code && code !== 0) {
+        reject(new Error(`Dashboard server exited with code ${code}`));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+async function pathExists(targetPath: string): Promise<boolean> {
+  try {
+    await fs.access(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function prepareStageContext<TEntry = never>(
