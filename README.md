@@ -108,6 +108,15 @@ analysis/
 - `analysis/index/`
   - primary machine-readable analysis outputs
   - includes `classes.json`, `methods.json`, `calls.json`, `jsp-docs.json`, `reverse-index.json`, `taglibs.json`, `labels.json`
+  - Java-specific metadata:
+    - `java-files.json`, `java-imports.json`, `java-classes.json`, `java-methods.json`, `java-calls.json`
+    - `java-class-references.json`, `java-method-calls.json`
+    - `java/**/*.json`: one metadata file per `.java` source
+  - JSP-specific metadata:
+    - `jsp-files.json`, `jsp-imports.json`, `jsp-taglibs.json`, `jsp-tags.json`, `jsp-scriptlets.json`
+    - `jsp-class-references.json`, `jsp-method-calls.json`
+    - `jsp/**/*.json`: one metadata file per `.jsp` source
+  - Java/JSP reference and call records include `line`, `column`, `endLine`, `endColumn` when available
   - if you want to integrate LeflectJava with another tool, this is usually the best starting point
 - `analysis/graph/`
   - edge-oriented graph outputs such as Java call edges and JSP-to-Java links

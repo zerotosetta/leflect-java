@@ -9,6 +9,7 @@ public class JavaClassSummary {
   public List<String> extendsTypes;
   public List<String> implementsTypes;
   public List<JavaMethodSummary> methods;
+  public SourceLocation location;
 
   public JavaClassSummary() {
   }
@@ -19,7 +20,8 @@ public class JavaClassSummary {
       String kind,
       List<String> extendsTypes,
       List<String> implementsTypes,
-      List<JavaMethodSummary> methods
+      List<JavaMethodSummary> methods,
+      SourceLocation location
   ) {
     this.name = name;
     this.fqn = fqn;
@@ -27,5 +29,6 @@ public class JavaClassSummary {
     this.extendsTypes = extendsTypes;
     this.implementsTypes = implementsTypes;
     this.methods = methods;
+    this.location = location;
   }
 }

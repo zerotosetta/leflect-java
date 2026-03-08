@@ -26,10 +26,12 @@ import {
   buildJavaIndex,
   buildJspIndex,
   buildReverseIndex,
+  buildTaglibIndex,
   readJavaSummaryIndex,
   writeJavaIndex,
   writeJspIndex,
-  writeReverseIndex
+  writeReverseIndex,
+  writeTaglibIndex
 } from "@lefectjava/indexer";
 import { runJavaWorker, writeJavaManifest, writeJspManifest } from "@lefectjava/java-bridge";
 import {
@@ -339,7 +341,7 @@ async function runParseTld(args: string[]): Promise<void> {
     .map((file) => entries[file])
     .filter((entry): entry is TldIndex => entry !== undefined);
 
-  await writeTaglibIndex(config.analysisOut, taglibs);
+  await writeRawTaglibIndex(config.analysisOut, taglibs);
   await persistStageState("tld-parse", stage, files, entries);
   console.log(
     `TLD parse complete. Processed: ${stage.plan.selectedFiles.length}, Removed: ${stage.plan.removedFiles.length}`
@@ -385,27 +387,38 @@ async function runBuildIndex(args: string[]): Promise<void> {
 
   const indexDir = path.join(config.analysisOut, "index");
   const javaFiles = await readScannerManifest(path.join(config.analysisOut, "manifests", "java-files.json"));
-  const taglibs = await readJsonArray<TldIndex>(path.join(indexDir, "taglibs.json"));
+  const tldFiles = await readScannerManifest(path.join(config.analysisOut, "manifests", "tld-files.json"));
+  const rawTaglibs = await readJsonArray<TldIndex>(path.join(indexDir, "taglibs.json"));
   const jspDocs = await readJspMetaEntries(path.join(config.analysisOut, "jsp-meta"));
   const javaSummaries = await readJavaSummaryIndex(path.join(indexDir, "java-summary.jsonl"));
+  const tldIndexes = rawTaglibs.map((entry, index) => ({
+    ...entry,
+    sourcePath: tldFiles[index]
+  }));
   const enrichedJspDocs = jspDocs.map((entry) => ({
     ...entry,
-    resolvedTags: resolveTagHandlers(entry.tags, entry.taglibs, taglibs)
+    resolvedTags: resolveTagHandlers(entry.tags, entry.taglibs, rawTaglibs)
   }));
 
   const javaIndex = buildJavaIndex({ files: javaFiles, summaries: javaSummaries });
+  const jspIndex = buildJspIndex(enrichedJspDocs);
+  const taglibIndex = buildTaglibIndex(tldIndexes, enrichedJspDocs);
   await writeJavaIndex(indexDir, javaIndex);
-  await writeJspIndex(indexDir, buildJspIndex(enrichedJspDocs));
+  await writeJspIndex(indexDir, jspIndex);
+  await writeTaglibIndex(indexDir, taglibIndex);
   await writeReverseIndex(
     indexDir,
-    buildReverseIndex(
-      enrichedJspDocs.flatMap((entry) =>
+    buildReverseIndex({
+      resolvedTags: enrichedJspDocs.flatMap((entry) =>
         (entry.resolvedTags ?? []).map((tag) => ({
           ...tag,
           jspPath: entry.path
         }))
-      )
-    )
+      ),
+      jspDocs: enrichedJspDocs,
+      classes: javaIndex.classes,
+      calls: javaIndex.calls
+    })
   );
 
   console.log(`Index build complete. Output: ${indexDir}`);
@@ -693,7 +706,7 @@ async function readJsonArray<T>(filePath: string): Promise<T[]> {
   }
 }
 
-async function writeTaglibIndex(analysisOut: string, taglibs: TldIndex[]): Promise<void> {
+async function writeRawTaglibIndex(analysisOut: string, taglibs: TldIndex[]): Promise<void> {
   const indexDir = path.join(analysisOut, "index");
   await fs.mkdir(indexDir, { recursive: true });
   await fs.writeFile(path.join(indexDir, "taglibs.json"), JSON.stringify(taglibs, null, 2));

@@ -8,6 +8,8 @@ public class AstFileResult {
   public String packageName;
   public List<String> imports;
   public List<JavaClassSummary> types;
+  public List<JavaClassReference> classReferences;
+  public List<JavaMethodCallSite> methodCalls;
 
   public AstFileResult() {
   }
@@ -17,12 +19,16 @@ public class AstFileResult {
       String sourceKind,
       String packageName,
       List<String> imports,
-      List<JavaClassSummary> types
+      List<JavaClassSummary> types,
+      List<JavaClassReference> classReferences,
+      List<JavaMethodCallSite> methodCalls
   ) {
     this.path = path;
     this.sourceKind = sourceKind;
     this.packageName = packageName;
     this.imports = imports;
     this.types = types;
+    this.classReferences = classReferences;
+    this.methodCalls = methodCalls;
   }
 }
