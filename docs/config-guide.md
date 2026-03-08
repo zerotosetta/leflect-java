@@ -49,7 +49,10 @@ Use this when you want both `.java` and `.jsp` files to produce 1:1 AST JSON fil
     "workerJar": "./java-worker/target/leflectjava-java-worker-0.1.0.jar"
   },
   "jsp": {
-    "webappRoot": "src/main/webapp"
+    "webappRoot": "src/main/webapp",
+    "classpath": [
+      "./lib/custom-taglibs.jar"
+    ]
   }
 }
 ```
@@ -59,6 +62,8 @@ With this config:
 - `.java` files produce full AST JSON under `analysis/java-ast/**/*.json`
 - `.jsp` files produce full AST JSON under `analysis/jsp-ast/**/*.json`
 - JSP conversion also emits generated servlet source under `analysis/generated-jsp-java/`
+- Jasper resolves taglib dependencies from `jsp.classpath` and, when `pom.xml` is present,
+  also tries Maven dependency classpath auto-discovery
 
 If Java is not on `PATH`, set `java.javaHome`:
 
@@ -160,6 +165,20 @@ This is the most explicit form and is useful when you want all output paths pinn
 - optional output directory for JSP AST JSON
 - default: `<analysisOut>/jsp-ast`
 
+`jsp.classpath`
+
+- optional array of JAR/directories to append to Jasper classpath
+- use this when taglibs or generated classes are outside the webapp source tree
+
+`jsp.mavenCommand`
+
+- optional Maven executable path or command name used for JSP dependency classpath auto-discovery
+- default behavior:
+  - use `./mvnw` when present
+  - otherwise try `mvn`
+- some legacy projects fail Maven classpath resolution because their dependency graph still points
+  at blocked HTTP repositories; in that case, use `jsp.classpath` explicitly
+
 ## Output Expectations
 
 If you want `analysis/java-ast/`:
@@ -171,6 +190,8 @@ If you want `analysis/jsp-ast/`:
 - keep `jsp.astMode` as `jasper`
 - set `java.workerJar`
 - set `jsp.webappRoot` correctly for your project
+- if your JSPs depend on external taglibs, provide `jsp.classpath` and/or ensure Maven
+  auto-discovery can run
 
 If you only want report/index output:
 
@@ -189,6 +210,8 @@ If you only want report/index output:
 - `jsp.astMode` is set to `lightweight`
 - `java.workerJar` is not set
 - `jsp.webappRoot` is wrong for the target project
+- Jasper could not resolve dependency-provided taglibs because `jsp.classpath` is incomplete
+- Maven auto-discovery could not run because no usable `mvn`/`mvnw` command was available
 - Jasper compilation failed; check `analysis/logs/`
 
 `analysis/report/unresolved.json` is where you want detailed failure context

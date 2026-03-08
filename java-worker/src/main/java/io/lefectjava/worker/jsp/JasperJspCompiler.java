@@ -5,6 +5,7 @@ import org.apache.jasper.JspC;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
@@ -16,7 +17,12 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class JasperJspCompiler {
-  public Path compile(Path webappRoot, Path jspSource, Path servletOutputRoot) throws Exception {
+  public Path compile(
+      Path webappRoot,
+      Path jspSource,
+      Path servletOutputRoot,
+      List<String> classpathEntries
+  ) throws Exception {
     Path absoluteJsp = jspSource.isAbsolute() ? jspSource : webappRoot.resolve(jspSource);
     Path relativeJsp = webappRoot.relativize(absoluteJsp);
     Path outputDir = servletOutputRoot.resolve(sanitize(relativeJsp.toString()));
@@ -27,6 +33,9 @@ public class JasperJspCompiler {
     jspc.setOutputDir(outputDir.toString());
     jspc.setCompile(false);
     jspc.setJspFiles(relativeJsp.toString().replace("\\", "/"));
+    if (classpathEntries != null && !classpathEntries.isEmpty()) {
+      jspc.setClassPath(String.join(File.pathSeparator, classpathEntries));
+    }
     StringBuilder diagnosticLog = new StringBuilder();
     Handler handler = createDiagnosticHandler(diagnosticLog);
     Logger logger = Logger.getLogger("org.apache.jasper");

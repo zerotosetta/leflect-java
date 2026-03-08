@@ -14,6 +14,8 @@ export type LeflectConfig = {
     webappRoot?: string;
     generatedJavaOut?: string;
     astOut?: string;
+    classpath?: string[];
+    mavenCommand?: string;
   };
 };
 

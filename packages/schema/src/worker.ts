@@ -11,5 +11,6 @@ export type JspInputManifest = {
   webappRoot: string;
   servletOutputDir: string;
   astOutputDir: string;
+  classpathEntries: string[];
   errorLog: string;
 };

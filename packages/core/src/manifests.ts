@@ -16,7 +16,8 @@ export function buildJavaInputManifest(
 
 export function buildJspInputManifest(
   config: LeflectConfig,
-  files: string[]
+  files: string[],
+  classpathEntries: string[] = []
 ): JspInputManifest {
   return {
     root: config.root,
@@ -25,6 +26,7 @@ export function buildJspInputManifest(
     servletOutputDir:
       config.jsp?.generatedJavaOut ?? path.join(config.analysisOut, "generated-jsp-java"),
     astOutputDir: config.jsp?.astOut ?? path.join(config.analysisOut, "jsp-ast"),
+    classpathEntries,
     errorLog: path.join(config.analysisOut, "logs", "jsp-parse-errors.jsonl")
   };
 }

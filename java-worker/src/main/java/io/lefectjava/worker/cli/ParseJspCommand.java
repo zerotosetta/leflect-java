@@ -47,7 +47,12 @@ public class ParseJspCommand {
         String relativeServletPath = null;
 
         try {
-          Path generatedServlet = compiler.compile(webappRoot, source, servletOutputDir);
+          Path generatedServlet = compiler.compile(
+              webappRoot,
+              source,
+              servletOutputDir,
+              manifest.classpathEntries
+          );
           relativeServletPath = servletOutputDir
               .relativize(generatedServlet)
               .toString()

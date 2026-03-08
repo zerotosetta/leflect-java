@@ -70,14 +70,25 @@ function resolveConfigPaths(config: LeflectConfig, root: string): LeflectConfig 
       : javaConfig;
   const jspConfig = config.jsp;
   const resolvedJsp =
-    jspConfig && (jspConfig.webappRoot || jspConfig.generatedJavaOut || jspConfig.astOut)
+    jspConfig &&
+    (
+      jspConfig.webappRoot ||
+      jspConfig.generatedJavaOut ||
+      jspConfig.astOut ||
+      jspConfig.classpath?.length ||
+      jspConfig.mavenCommand
+    )
       ? {
           ...jspConfig,
           webappRoot: jspConfig.webappRoot ? resolvePath(root, jspConfig.webappRoot) : undefined,
           generatedJavaOut: jspConfig.generatedJavaOut
             ? resolvePath(root, jspConfig.generatedJavaOut)
             : undefined,
-          astOut: jspConfig.astOut ? resolvePath(root, jspConfig.astOut) : undefined
+          astOut: jspConfig.astOut ? resolvePath(root, jspConfig.astOut) : undefined,
+          classpath: jspConfig.classpath?.map((entry) => resolvePath(root, entry)),
+          mavenCommand: jspConfig.mavenCommand
+            ? resolveCommand(root, jspConfig.mavenCommand)
+            : undefined
         }
       : jspConfig;
 
@@ -99,6 +110,16 @@ function resolvePath(root: string, target: string): string {
     return target;
   }
   return path.resolve(root, target);
+}
+
+function resolveCommand(root: string, target: string): string {
+  if (path.isAbsolute(target)) {
+    return target;
+  }
+  if (target.startsWith(".") || target.includes("/") || target.includes("\\")) {
+    return path.resolve(root, target);
+  }
+  return target;
 }
 
 function validateConfig(config: LeflectConfig): void {
@@ -144,6 +165,17 @@ function validateConfig(config: LeflectConfig): void {
     }
     if (config.jsp.astOut && typeof config.jsp.astOut !== "string") {
       throw new Error("Config 'jsp.astOut' must be a string");
+    }
+    if (config.jsp.classpath) {
+      if (!Array.isArray(config.jsp.classpath)) {
+        throw new Error("Config 'jsp.classpath' must be an array of strings");
+      }
+      if (!config.jsp.classpath.every((entry) => typeof entry === "string")) {
+        throw new Error("Config 'jsp.classpath' must be an array of strings");
+      }
+    }
+    if (config.jsp.mavenCommand && typeof config.jsp.mavenCommand !== "string") {
+      throw new Error("Config 'jsp.mavenCommand' must be a string");
     }
   }
 }

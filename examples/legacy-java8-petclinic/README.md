@@ -47,5 +47,11 @@ bash examples/legacy-java8-petclinic/run.sh /absolute/path/to/sample
   running `fetch.sh` or `run.sh`. The generated `leflect.config.json` will include
   the Java worker settings and switch JSP AST mode to `jasper`, so `analyze` will
   execute both `parse-java` and full JSP AST generation.
+- If `mvn` is not on `PATH`, export `LEFLECT_JSP_MAVEN_COMMAND` with an absolute
+  Maven executable path so LeflectJava can auto-resolve JSP dependency classpath
+  for Jasper.
+- If the sample's own Maven dependency graph cannot be resolved cleanly, export
+  `LEFLECT_JSP_CLASSPATH` as an OS path-separated list of JARs/directories and
+  `fetch.sh` will write them into `jsp.classpath`.
 - Without a Java worker JAR, the example pins `jsp.astMode` to `lightweight` so the
   sample remains runnable. You can override this with `LEFLECT_JSP_AST_MODE=jasper`.

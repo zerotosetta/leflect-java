@@ -45,15 +45,18 @@ describe("writeJspManifest", () => {
       webappRoot: root,
       servletOutputDir: path.join(root, "analysis", "generated-jsp-java"),
       astOutputDir: path.join(root, "analysis", "jsp-ast"),
+      classpathEntries: [path.join(root, "lib", "tags.jar")],
       errorLog: path.join(root, "analysis", "logs", "jsp-parse-errors.jsonl")
     });
 
     const payload = JSON.parse(await readFile(manifestPath, "utf8")) as {
       files: string[];
       webappRoot: string;
+      classpathEntries: string[];
     };
 
     expect(payload.files).toEqual(["view/index.jsp"]);
     expect(payload.webappRoot).toBe(root);
+    expect(payload.classpathEntries).toEqual([path.join(root, "lib", "tags.jar")]);
   });
 });
