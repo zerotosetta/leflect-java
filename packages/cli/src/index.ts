@@ -59,6 +59,8 @@ import {
 } from "@lefectjava/reporter";
 import { scanWorkspace } from "@lefectjava/scanner";
 
+import { createJspDependencyCacheInput, resolveJspClasspathEntries } from "./jsp-classpath";
+
 type OutputFormat = "json" | "text";
 type StageName = "java-parse" | "jsp-parse" | "tld-parse";
 type CliConfig = Awaited<ReturnType<typeof loadCliConfig>>;
@@ -221,6 +223,8 @@ async function runParseJsp(args: string[]): Promise<void> {
   const astMode = config.jsp?.astMode ?? "jasper";
   const metaDir = path.join(config.analysisOut, "jsp-meta");
   const astOutDir = config.jsp?.astOut ?? path.join(config.analysisOut, "jsp-ast");
+  const dependencyCacheInput =
+    astMode === "jasper" ? await createJspDependencyCacheInput(config) : undefined;
   const stage = await prepareStageContext(
     "jsp-parse",
     config.analysisOut,
@@ -229,7 +233,8 @@ async function runParseJsp(args: string[]): Promise<void> {
       version: PIPELINE_VERSION,
       stage: "jsp-parse",
       java: config.java ?? {},
-      jsp: config.jsp ?? {}
+      jsp: config.jsp ?? {},
+      dependencies: dependencyCacheInput
     }),
     incremental
   );
@@ -267,7 +272,8 @@ async function runParseJsp(args: string[]): Promise<void> {
       throw new Error("Config 'java.workerJar' is required for parse-jsp with jasper mode");
     }
 
-    const manifest = buildJspInputManifest(config, stage.plan.selectedFiles);
+    const classpathEntries = await resolveJspClasspathEntries(config);
+    const manifest = buildJspInputManifest(config, stage.plan.selectedFiles, classpathEntries);
     const manifestPath = path.join(config.analysisOut, "manifests", "jsp-parse.json");
     await writeJspManifest(manifestPath, manifest);
 

@@ -59,6 +59,8 @@ By default, `parse-jsp` writes:
 
 - full JavaParser AST JSON to `analysis/jsp-ast/**/*.json`
 - one AST JSON file per source `.jsp`, using the source-relative path
+- Jasper resolves taglib dependencies from `jsp.classpath` and, when `pom.xml` is present,
+  from Maven dependency classpath auto-discovery
 - use `--jsp-ast-mode lightweight` or `jsp.astMode = "lightweight"` to skip Jasper AST generation
 
 ## Analysis Output

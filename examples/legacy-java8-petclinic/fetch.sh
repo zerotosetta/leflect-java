@@ -27,7 +27,17 @@ cat >"$CONFIG_PATH" <<EOF
   "labelsOut": "./analysis/index/labels.json",
   "jsp": {
     "astMode": "$JSP_AST_MODE",
-    "webappRoot": "src/main/webapp"
+    "webappRoot": "src/main/webapp"$(if [ -n "${LEFLECT_JSP_MAVEN_COMMAND:-}" ]; then
+      printf ',\n    "mavenCommand": "%s"' "$LEFLECT_JSP_MAVEN_COMMAND"
+    fi)$(if [ -n "${LEFLECT_JSP_CLASSPATH:-}" ]; then
+      python3 - <<'PY'
+import json
+import os
+
+entries = [entry for entry in os.environ["LEFLECT_JSP_CLASSPATH"].split(os.pathsep) if entry]
+print(',\n    "classpath": ' + json.dumps(entries))
+PY
+    fi)
   }$(if [ -n "${LEFLECT_JAVA_WORKER_JAR:-}" ]; then
     printf ',\n  "java": {\n    "workerJar": "%s"%s\n  }' \
       "$LEFLECT_JAVA_WORKER_JAR" \

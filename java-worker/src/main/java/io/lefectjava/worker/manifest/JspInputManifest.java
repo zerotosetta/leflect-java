@@ -12,6 +12,7 @@ public class JspInputManifest {
   public String webappRoot;
   public String servletOutputDir;
   public String astOutputDir;
+  public List<String> classpathEntries;
   public String errorLog;
 
   public static JspInputManifest fromFile(Path path) throws IOException {

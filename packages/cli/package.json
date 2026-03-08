@@ -24,6 +24,7 @@
     "@lefectjava/parser-jsp": "workspace:*",
     "@lefectjava/parser-tld": "workspace:*",
     "@lefectjava/reporter": "workspace:*",
-    "@lefectjava/scanner": "workspace:*"
+    "@lefectjava/scanner": "workspace:*",
+    "@lefectjava/schema": "workspace:*"
   }
 }

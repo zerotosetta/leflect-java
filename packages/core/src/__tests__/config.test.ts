@@ -42,7 +42,9 @@ describe("loadConfig", () => {
           astMode: "jasper",
           webappRoot: "src/main/webapp",
           generatedJavaOut: "analysis/generated-jsp-java",
-          astOut: "analysis/jsp-ast"
+          astOut: "analysis/jsp-ast",
+          classpath: ["lib/taglibs.jar", "target/classes"],
+          mavenCommand: "./tools/maven/bin/mvn"
         }
       })
     );
@@ -63,6 +65,11 @@ describe("loadConfig", () => {
       path.join(root, "analysis", "generated-jsp-java")
     );
     expect(result.config.jsp?.astOut).toBe(path.join(root, "analysis", "jsp-ast"));
+    expect(result.config.jsp?.classpath).toEqual([
+      path.join(root, "lib", "taglibs.jar"),
+      path.join(root, "target", "classes")
+    ]);
+    expect(result.config.jsp?.mavenCommand).toBe(path.join(root, "tools", "maven", "bin", "mvn"));
   });
 
   it("preserves nested jsp defaults when config file overrides only one field", async () => {
@@ -110,7 +117,9 @@ describe("loadConfig", () => {
     });
 
     const javaManifest = buildJavaInputManifest(config, ["src/A.java"]);
-    const jspManifest = buildJspInputManifest(config, ["view/index.jsp"]);
+    const jspManifest = buildJspInputManifest(config, ["view/index.jsp"], [
+      path.join(root, "lib", "taglibs.jar")
+    ]);
 
     expect(javaManifest.outputDir).toBe(path.join(root, "analysis", "java-ast"));
     expect(jspManifest.webappRoot).toBe(root);
@@ -118,5 +127,6 @@ describe("loadConfig", () => {
       path.join(root, "analysis", "generated-jsp-java")
     );
     expect(jspManifest.astOutputDir).toBe(path.join(root, "analysis", "jsp-ast"));
+    expect(jspManifest.classpathEntries).toEqual([path.join(root, "lib", "taglibs.jar")]);
   });
 });
