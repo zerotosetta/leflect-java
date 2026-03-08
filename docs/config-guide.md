@@ -64,6 +64,137 @@ With this config:
 - `analysis/graph/file-dependencies.json` contains per-file `references`, `referencedBy`, `referenceCount`, and `dependantCount`
 - unmatched patterns are also recorded so you can see when a config pattern selected nothing
 
+### How Matching Works
+
+- matching target is the source-relative path stored by LeflectJava
+- path separator is normalized to `/`
+- matching uses JavaScript regular expressions
+- patterns are not glob syntax
+- if you want an exact file match, anchor with `^` and `$`
+
+Examples of actual match targets:
+
+- `src/main/java/com/example/web/OrderController.java`
+- `src/main/java/com/example/batch/NightlyJob.java`
+- `src/main/webapp/WEB-INF/jsp/order/detail.jsp`
+- `web/customerEdit.jsp`
+
+### Pattern Examples
+
+Match all controllers:
+
+```json
+{
+  "entryFiles": {
+    "java": [
+      "Controller\\.java$"
+    ]
+  }
+}
+```
+
+Match only files under a specific package path:
+
+```json
+{
+  "entryFiles": {
+    "java": [
+      "^src/main/java/com/example/web/.+\\.java$"
+    ]
+  }
+}
+```
+
+Match one exact JSP:
+
+```json
+{
+  "entryFiles": {
+    "jsp": [
+      "^src/main/webapp/WEB-INF/jsp/order/detail\\.jsp$"
+    ]
+  }
+}
+```
+
+Match all JSP views under `WEB-INF/jsp`:
+
+```json
+{
+  "entryFiles": {
+    "jsp": [
+      "^src/main/webapp/WEB-INF/jsp/.+\\.jsp$"
+    ]
+  }
+}
+```
+
+Mix Java and JSP entrypoints:
+
+```json
+{
+  "entryFiles": {
+    "java": [
+      "Controller\\.java$",
+      "Action\\.java$"
+    ],
+    "jsp": [
+      "^src/main/webapp/WEB-INF/jsp/.+\\.jsp$",
+      "^web/.+\\.jsp$"
+    ]
+  }
+}
+```
+
+### Common Mistakes
+
+- `*.jsp` 같은 glob 패턴을 쓰면 안 된다
+  - `.+\\.jsp$` 또는 `^src/main/webapp/.+\\.jsp$`처럼 정규식을 써야 한다
+- `.`을 그대로 쓰면 “아무 문자 1개”로 해석된다
+  - 파일 확장자는 `\\.java`, `\\.jsp`처럼 escape 해야 한다
+- path anchor를 안 쓰면 예상보다 많이 매칭될 수 있다
+  - 예: `Service`는 경로 어디든 포함되면 다 매칭된다
+- Windows 경로처럼 `\\` 구분자를 기대하면 안 된다
+  - LeflectJava 내부 경로는 항상 `/`로 정규화된다
+
+### Recommended Patterns
+
+Legacy web MVC 프로젝트에서 시작점 후보를 빠르게 잡고 싶다면:
+
+```json
+{
+  "entryFiles": {
+    "java": [
+      "Controller\\.java$",
+      "Action\\.java$",
+      "Servlet\\.java$"
+    ],
+    "jsp": [
+      "^src/main/webapp/WEB-INF/jsp/.+\\.jsp$",
+      "^web/.+\\.jsp$"
+    ]
+  }
+}
+```
+
+### What To Check After Running
+
+Entry 설정 후 `analyze` 또는 `build-graph`를 실행하면 아래 파일을 먼저 보면 된다.
+
+- `analysis/graph/entry-dependencies.json`
+  - `matchedEntries`: 실제로 어떤 파일이 entry로 선택되었는지
+  - `unmatchedPatterns`: 아무 파일도 잡지 못한 패턴
+  - `entries[*].reachableFiles`: 각 entry에서 도달 가능한 파일 목록
+  - `entries[*].edges`: 각 entry의 dependency subgraph
+- `analysis/graph/file-dependencies.json`
+  - 각 `.java`/`.jsp` 파일의 `references`, `referencedBy`, `referenceCount`, `dependantCount`
+
+만약 기대한 entry가 안 잡히면:
+
+- `analysis/files/files.jsonl`에서 실제 source-relative path를 확인
+- 그 경로 기준으로 정규식을 다시 맞추기
+- `entry-dependencies.json`의 `unmatchedPatterns`를 확인
+
 ## Index Output Detail
 
 `analysis/index/` now writes both aggregate files and per-source metadata files.
