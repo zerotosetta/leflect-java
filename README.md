@@ -21,6 +21,8 @@ pnpm build
 node bin/leflect --help
 ```
 
+- Config guide: `docs/config-guide.md`
+
 ## Real Sample
 
 The repository includes a runnable legacy Java 8 example flow based on
