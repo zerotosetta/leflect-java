@@ -5,6 +5,7 @@ import { build } from "esbuild";
 import {
   artifactsRoot,
   cliDistEntry,
+  createBinaryPackageName,
   findJavaWorkerJar,
   readJson,
   repoRoot,
@@ -43,7 +44,7 @@ const binaryDir = path.join(outputRoot, "dist");
 const packageDir = path.join(outputRoot, "npm-package");
 const binaryFileName = platform === "win32" ? "leflect.exe" : "leflect";
 const binaryOutputPath = path.join(binaryDir, binaryFileName);
-const binaryPackageName = `@leflect-java/cli-binary-${platform}-${arch}`;
+const binaryPackageName = createBinaryPackageName(platform, arch);
 
 await fs.access(cliDistEntry).catch(() => {
   throw new Error(`CLI build not found at ${cliDistEntry}. Run 'pnpm build' first.`);

@@ -226,6 +226,8 @@ Workspace packages publish under the `@leflect-java/*` scope.
 ```bash
 pnpm release:prepare
 pnpm release:publish
+pnpm release:prepare:next
+pnpm release:publish:next
 ```
 
 - `pnpm release:prepare`
@@ -233,21 +235,33 @@ pnpm release:publish
   - stages publishable packages under `.artifacts/release/stage`
   - rewrites `workspace:*` dependencies to actual module versions
   - packs each staged module into `.artifacts/release/packages`
-  - builds the standalone binary npm package
+  - builds standalone binary npm packages for the default target matrix
 - `pnpm release:publish`
   - performs the same staging flow
   - publishes staged packages to npm with `--access public`
+- `pnpm release:publish:next`
+  - publishes new versions with dist-tag `next`
+  - if the version already exists, applies `npm dist-tag add <pkg>@<version> next` instead of trying to republish
 
 Standalone binary build:
 
 ```bash
 pnpm binary:build
 pnpm binary:test
+pnpm binary:build:all
+pnpm binary:test:all
 ```
 
 - output binary: `.artifacts/binary/dist/leflect`
 - output npm package: `.artifacts/binary/npm-package`
 - current package name format: `@leflect-java/cli-binary-<platform>-<arch>`
+- default binary matrix:
+  - `darwin-arm64`
+  - `darwin-x64`
+  - `linux-x64`
+  - `linux-arm64`
+  - `win32-x64`
+- matrix output root: `.artifacts/binary-matrix/`
 
 Useful overrides:
 

@@ -188,6 +188,59 @@ export function resolvePkgPlatform(platform) {
   }
 }
 
+export function normalizeBinaryPlatform(platform) {
+  switch (platform) {
+    case "win":
+      return "win32";
+    case "macos":
+      return "darwin";
+    default:
+      return platform;
+  }
+}
+
+export function defaultBinaryTargets() {
+  return [
+    { platform: "darwin", arch: "arm64" },
+    { platform: "darwin", arch: "x64" },
+    { platform: "linux", arch: "x64" },
+    { platform: "linux", arch: "arm64" },
+    { platform: "win32", arch: "x64" }
+  ];
+}
+
+export function parseBinaryTargets(rawValue) {
+  if (!rawValue) {
+    return undefined;
+  }
+
+  return String(rawValue)
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map(parseBinaryTarget);
+}
+
+export function parseBinaryTarget(rawValue) {
+  const normalized = String(rawValue).trim();
+  const separatorIndex = normalized.lastIndexOf("-");
+  if (separatorIndex <= 0) {
+    throw new Error(`Invalid binary target '${rawValue}'. Use <platform>-<arch>, e.g. linux-x64.`);
+  }
+
+  const platform = normalizeBinaryPlatform(normalized.slice(0, separatorIndex));
+  const arch = normalized.slice(separatorIndex + 1);
+  return { platform, arch };
+}
+
+export function serializeBinaryTarget(platform, arch) {
+  return `${platform}-${arch}`;
+}
+
+export function createBinaryPackageName(platform, arch) {
+  return `@leflect-java/cli-binary-${platform}-${arch}`;
+}
+
 export function topologicallySortPackages(packages) {
   const packageMap = new Map(packages.map((pkg) => [pkg.name, pkg]));
   const visited = new Set();

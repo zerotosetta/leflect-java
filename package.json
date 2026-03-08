@@ -22,7 +22,11 @@
     "binary:build": "pnpm build && node scripts/build-binary-package.mjs",
     "binary:test": "node scripts/test-binary-package.mjs",
     "release:prepare": "node scripts/release.mjs prepare",
-    "release:publish": "node scripts/release.mjs publish"
+    "release:publish": "node scripts/release.mjs publish",
+    "binary:build:all": "pnpm build && node scripts/build-binary-packages.mjs",
+    "binary:test:all": "node scripts/test-binary-packages.mjs",
+    "release:prepare:next": "node scripts/release.mjs prepare --tag next",
+    "release:publish:next": "node scripts/release.mjs publish --tag next"
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.7",

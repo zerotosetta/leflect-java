@@ -4,8 +4,10 @@ import { spawnSync } from "child_process";
 import {
   artifactsRoot,
   copyDir,
+  defaultBinaryTargets,
   discoverWorkspacePackages,
   findJavaWorkerJar,
+  parseBinaryTargets,
   readJson,
   repoRoot,
   resetDir,
@@ -26,9 +28,9 @@ const releaseRoot = path.resolve(String(args.get("output-root") || path.join(art
 const stageRoot = path.join(releaseRoot, "stage");
 const packRoot = path.join(releaseRoot, "packages");
 const includeBinary = !args.has("no-binary");
+const binaryTargets = includeBinary ? parseBinaryTargets(args.get("binary-targets")) ?? defaultBinaryTargets() : [];
 const tag = String(args.get("tag") || "latest");
 const skipChecks = args.has("skip-checks");
-const skipExisting = !args.has("publish-existing");
 const dryRun = args.has("dry-run") || !shouldPublish;
 
 if (!skipChecks) {
@@ -62,18 +64,19 @@ for (const pkg of workspacePackages) {
 }
 
 if (includeBinary) {
-  const binarySummary = buildBinaryPackage(releaseVersion, releaseRoot);
-  const tarball = packPackage(binarySummary.packageDir, packRoot);
-  preparedPackages.push({
-    name: binarySummary.packageName,
-    version: binarySummary.version,
-    stageDir: binarySummary.packageDir,
-    tarball,
-    binary: true,
-    platform: binarySummary.platform,
-    arch: binarySummary.arch,
-    executable: binarySummary.binaryOutputPath
-  });
+  for (const binarySummary of buildBinaryPackages(releaseVersion, releaseRoot, binaryTargets)) {
+    const tarball = packPackage(binarySummary.packageDir, packRoot);
+    preparedPackages.push({
+      name: binarySummary.packageName,
+      version: binarySummary.version,
+      stageDir: binarySummary.packageDir,
+      tarball,
+      binary: true,
+      platform: binarySummary.platform,
+      arch: binarySummary.arch,
+      executable: binarySummary.binaryOutputPath
+    });
+  }
 }
 
 const releaseManifest = {
@@ -89,7 +92,13 @@ for (const pkg of preparedPackages) {
     continue;
   }
 
-  if (skipExisting && isAlreadyPublished(pkg.name, pkg.version)) {
+  const alreadyPublished = isAlreadyPublished(pkg.name, pkg.version);
+  if (alreadyPublished && tag !== "latest") {
+    addDistTag(pkg.name, pkg.version, tag, args);
+    continue;
+  }
+
+  if (alreadyPublished) {
     console.log(`Skipping already published package ${pkg.name}@${pkg.version}`);
     continue;
   }
@@ -145,10 +154,19 @@ async function stageWorkspacePackage(pkg, stageDir, versionMap, workerJarPath) {
   await writeJson(path.join(stageDir, "package.json"), manifest);
 }
 
-function buildBinaryPackage(version, releaseRootDir) {
+function buildBinaryPackages(version, releaseRootDir, targets) {
   const result = runOrThrow(
     "node",
-    [path.join(repoRoot, "scripts", "build-binary-package.mjs"), "--version", version, "--output-root", path.join(releaseRootDir, "binary"), "--json"],
+    [
+      path.join(repoRoot, "scripts", "build-binary-packages.mjs"),
+      "--version",
+      version,
+      "--output-root",
+      path.join(releaseRootDir, "binary"),
+      "--targets",
+      targets.map((target) => `${target.platform}-${target.arch}`).join(","),
+      "--json"
+    ],
     { cwd: repoRoot, captureStdout: true }
   );
   return JSON.parse(result.stdout.trim());
@@ -164,11 +182,27 @@ function packPackage(stageDir, packDir) {
 }
 
 function isAlreadyPublished(name, version) {
+  const accessResult = spawnSync("npm", ["access", "get", "status", name], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+  if (accessResult.status === 0) {
+    return true;
+  }
+
   const result = spawnSync("npm", ["view", `${name}@${version}`, "version", "--json"], {
     cwd: repoRoot,
     encoding: "utf8"
   });
   return result.status === 0;
+}
+
+function addDistTag(name, version, tagName, args) {
+  const distTagArgs = ["dist-tag", "add", `${name}@${version}`, tagName];
+  if (args.has("otp")) {
+    distTagArgs.push("--otp", String(args.get("otp")));
+  }
+  runOrThrow("npm", distTagArgs, { cwd: repoRoot, stdio: "inherit" });
 }
 
 function runOrThrow(command, args, options) {
