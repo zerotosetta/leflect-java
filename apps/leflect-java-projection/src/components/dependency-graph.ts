@@ -23,7 +23,7 @@ const MARGINS = { top: 28, right: 180, bottom: 28, left: 120 };
 const NODE_DX = 22;
 const NODE_DY = 220;
 const MINIMAP_PADDING = 28;
-const FIT_PADDING = 36;
+const DEFAULT_SCALE = 1;
 const MIN_SCALE = 0.18;
 const MAX_SCALE = 2.4;
 
@@ -242,7 +242,7 @@ class ProjectionDependencyGraph extends LitElement {
       .text((datum) => datum.data.edgeType ?? (datum.data.isFocus ? "focus" : datum.data.nodeType));
 
     this.drawMinimap(root);
-    this.initialTransform = this.fitTransform();
+    this.initialTransform = this.defaultTransform();
     this.currentTransform = this.initialTransform;
     this.svgSelection.call(this.zoomBehavior.transform, this.initialTransform);
     this.updateSelectionStyles();
@@ -459,7 +459,7 @@ class ProjectionDependencyGraph extends LitElement {
     this.svgSelection.call(this.zoomBehavior.transform, this.initialTransform);
   };
 
-  private fitTransform(): d3.ZoomTransform {
+  private defaultTransform(): d3.ZoomTransform {
     const svgElement = this.svgSelection?.node();
     const bounds = this.graphBounds;
     if (!svgElement || !bounds) {
@@ -468,19 +468,12 @@ class ProjectionDependencyGraph extends LitElement {
 
     const viewportWidth = svgElement.getBoundingClientRect().width;
     const viewportHeight = svgElement.getBoundingClientRect().height;
-    const contentWidth = Math.max(1, bounds.maxX - bounds.minX);
-    const contentHeight = Math.max(1, bounds.maxY - bounds.minY);
-    const fitScale = clamp(
-      Math.min((viewportWidth - FIT_PADDING * 2) / contentWidth, (viewportHeight - FIT_PADDING * 2) / contentHeight),
-      MIN_SCALE,
-      MAX_SCALE
-    );
-    const offsetX = (viewportWidth - contentWidth * fitScale) / 2;
-    const offsetY = (viewportHeight - contentHeight * fitScale) / 2;
+    const centerX = (bounds.minX + bounds.maxX) / 2;
+    const centerY = (bounds.minY + bounds.maxY) / 2;
 
     return d3.zoomIdentity
-      .translate(offsetX - bounds.minX * fitScale - MARGINS.left, offsetY - bounds.minY * fitScale - this.treeOffsetY)
-      .scale(fitScale);
+      .translate(viewportWidth / 2 - centerX * DEFAULT_SCALE - MARGINS.left, viewportHeight / 2 - centerY * DEFAULT_SCALE - this.treeOffsetY)
+      .scale(DEFAULT_SCALE);
   }
 
   private linkColor(edgeType: string): string {
