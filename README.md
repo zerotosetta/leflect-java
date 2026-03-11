@@ -183,15 +183,14 @@ analysis/
   - includes taglibs, custom tags, scriptlets, and optional AST references
 - `analysis/index/`
   - primary machine-readable analysis outputs
-  - includes `classes.json`, `methods.json`, `calls.json`, `jsp-docs.json`, `reverse-index.json`, `taglibs.json`, `labels.json`
+  - designed for large codebases: source metadata is sharded per `.java` / `.jsp` file instead of one giant aggregate file
+  - top-level manifests include `java-files.json`, `jsp-files.json`, `reverse-index.json`, `taglibs.json`, `labels.json`
   - Java-specific metadata:
-    - `java-files.json`, `java-imports.json`, `java-classes.json`, `java-methods.json`, `java-calls.json`
-    - `java-class-references.json`, `java-method-calls.json`
-    - `java/**/*.json`: one metadata file per `.java` source
+    - `java-files.json`: per-source manifest with `metadataPath`, class/method/call counts
+    - `java/**/*.json`: one metadata file per `.java` source, containing imports, classes, methods, calls, class references
   - JSP-specific metadata:
-    - `jsp-files.json`, `jsp-imports.json`, `jsp-taglibs.json`, `jsp-tags.json`, `jsp-scriptlets.json`
-    - `jsp-class-references.json`, `jsp-method-calls.json`
-    - `jsp/**/*.json`: one metadata file per `.jsp` source
+    - `jsp-files.json`: per-source manifest with `metadataPath` and per-file counts
+    - `jsp/**/*.json`: one metadata file per `.jsp` source, containing imports, taglibs, tags, scriptlets, references, method calls
   - import records include stable `id` values and simple-name metadata for cross-reference matching
   - method call records include `classPath`, `importId`, `inputParameters`, `responseType`
   - Java/JSP reference and call records include `line`, `column`, `endLine`, `endColumn` when available

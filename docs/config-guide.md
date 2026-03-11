@@ -100,8 +100,10 @@ Required analysis artifacts:
 
 - `analysis/report/summary.json`
 - `analysis/report/unresolved.json`
-- `analysis/index/classes.json`
-- `analysis/index/jsp-docs.json`
+- `analysis/index/java-files.json`
+- `analysis/index/jsp-files.json`
+- `analysis/index/java/**/*.json`
+- `analysis/index/jsp/**/*.json`
 - `analysis/graph/file-dependencies.json`
 - `analysis/graph/file-dependency.jsonl`
 
@@ -288,21 +290,19 @@ Entry 설정 후 `analyze` 또는 `build-graph`를 실행하면 아래 파일을
 
 ## Index Output Detail
 
-`analysis/index/` now writes both aggregate files and per-source metadata files.
+`analysis/index/` now writes source-sharded metadata files by default.
 
 Java:
 
-- `classes.json`, `methods.json`, `calls.json`
-- `java-files.json`, `java-imports.json`, `java-classes.json`, `java-methods.json`, `java-calls.json`
-- `java-class-references.json`, `java-method-calls.json`
+- `java-files.json`
 - `java/**/*.json` for one metadata file per `.java`
+- each `.java` metadata file contains imports, classes, methods, calls, and class references for that source only
 
 JSP:
 
-- `jsp-docs.json`
-- `jsp-files.json`, `jsp-imports.json`, `jsp-taglibs.json`, `jsp-tags.json`, `jsp-scriptlets.json`
-- `jsp-class-references.json`, `jsp-method-calls.json`
+- `jsp-files.json`
 - `jsp/**/*.json` for one metadata file per `.jsp`
+- each `.jsp` metadata file contains imports, taglibs, tags, scriptlets, class references, and method calls for that source only
 
 Reference/call records include `line`, `column`, `endLine`, `endColumn` when the parser can determine them.
 
@@ -554,7 +554,7 @@ If you want `analysis/java-ast/`:
 
 - set `java.workerJar` or make sure auto-detection can find a worker JAR
 - if you want semantic resolution against external libraries, provide `java.classpath` and/or ensure Maven auto-discovery can run
-- `methods.json`, `calls.json`, `java-class-references.json`, and `java-method-calls.json` become meaningfully populated only when `parse-java` runs
+- per-file Java index metadata under `analysis/index/java/**/*.json` becomes meaningfully populated only when `parse-java` runs
 
 If you want `analysis/jsp-ast/`:
 
@@ -583,7 +583,7 @@ If you want entry-rooted dependency graphs and per-file dependants:
 - `parse-java` did not run
 - Java worker failed; check `analysis/logs/`
 
-`methods.json` or `calls.json` is empty
+per-file Java metadata under `analysis/index/java/**/*.json` is empty
 
 - `parse-java` did not run, so only file-level Java inventory was available
 - the analyzed Java files genuinely contain no method declarations or method calls

@@ -79,17 +79,93 @@ async function createAnalysisFixture(): Promise<string> {
   await mkdir(indexDir, { recursive: true });
   await mkdir(graphDir, { recursive: true });
   await mkdir(logsDir, { recursive: true });
+  await mkdir(path.join(indexDir, "java", "src"), { recursive: true });
+  await mkdir(path.join(indexDir, "java", "src", "tag"), { recursive: true });
+  await mkdir(path.join(indexDir, "jsp", "web"), { recursive: true });
 
-  await writeJson(path.join(indexDir, "classes.json"), [
-    { id: "UserService", name: "UserService", file: "src/UserService.java" },
-    { id: "FormTag", name: "FormTag", file: "src/tag/FormTag.java" }
+  await writeJson(path.join(indexDir, "java-files.json"), [
+    {
+      path: "src/UserService.java",
+      metadataPath: "java/src/UserService.java.json",
+      imports: [],
+      importIds: [],
+      classIds: ["UserService"],
+      methodIds: ["UserService#find()"],
+      callTargets: [],
+      classCount: 1,
+      methodCount: 1,
+      callCount: 0,
+      classReferenceCount: 0
+    },
+    {
+      path: "src/tag/FormTag.java",
+      metadataPath: "java/src/tag/FormTag.java.json",
+      imports: [],
+      importIds: [],
+      classIds: ["FormTag"],
+      methodIds: [],
+      callTargets: [],
+      classCount: 1,
+      methodCount: 0,
+      callCount: 0,
+      classReferenceCount: 0
+    }
   ]);
-  await writeJson(path.join(indexDir, "methods.json"), [
-    { id: "UserService#find()", name: "find", classId: "UserService" }
+  await writeJson(path.join(indexDir, "java", "src", "UserService.java.json"), {
+    path: "src/UserService.java",
+    imports: [],
+    importIds: [],
+    classIds: ["UserService"],
+    methodIds: ["UserService#find()"],
+    callTargets: [],
+    importEntries: [],
+    classes: [{ id: "UserService", name: "UserService", file: "src/UserService.java" }],
+    methods: [{ id: "UserService#find()", name: "find", classId: "UserService", file: "src/UserService.java" }],
+    calls: [],
+    classReferences: []
+  });
+  await writeJson(path.join(indexDir, "java", "src", "tag", "FormTag.java.json"), {
+    path: "src/tag/FormTag.java",
+    imports: [],
+    importIds: [],
+    classIds: ["FormTag"],
+    methodIds: [],
+    callTargets: [],
+    importEntries: [],
+    classes: [{ id: "FormTag", name: "FormTag", file: "src/tag/FormTag.java" }],
+    methods: [],
+    calls: [],
+    classReferences: []
+  });
+  await writeJson(path.join(indexDir, "jsp-files.json"), [
+    {
+      path: "web/customerEdit.jsp",
+      metadataPath: "jsp/web/customerEdit.jsp.json",
+      imports: [],
+      importIds: [],
+      includes: [],
+      taglibCount: 1,
+      tagCount: 1,
+      scriptletCount: 1,
+      resolvedTagCount: 1
+    }
   ]);
-  await writeJson(path.join(indexDir, "jsp-docs.json"), [
-    { path: "web/customerEdit.jsp" }
-  ]);
+  await writeJson(path.join(indexDir, "jsp", "web", "customerEdit.jsp.json"), {
+    path: "web/customerEdit.jsp",
+    imports: [],
+    importIds: [],
+    includes: [],
+    taglibCount: 1,
+    tagCount: 1,
+    scriptletCount: 1,
+    resolvedTagCount: 1,
+    taglibs: [{ file: "web/customerEdit.jsp", prefix: "form", uri: "/WEB-INF/form.tld" }],
+    tags: [{ file: "web/customerEdit.jsp", prefix: "form", name: "form", raw: "<form:form>", uri: "/WEB-INF/form.tld", handlerClass: "FormTag" }],
+    scriptlets: [{ file: "web/customerEdit.jsp", kind: "scriptlet", code: "service.find();" }],
+    importEntries: [],
+    classReferences: [],
+    methodCalls: []
+  });
   await writeJson(path.join(indexDir, "taglibs.json"), [
     { uri: "/WEB-INF/form.tld", tags: [{ name: "form", tagClass: "FormTag" }] }
   ]);

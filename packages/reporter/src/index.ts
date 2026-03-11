@@ -1,6 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 
+import { flattenJavaFileMetadata, flattenJspFileMetadata, readJavaFileMetadataDir, readJspFileMetadataDir } from "@leflect-java/indexer";
 import {
   ClassLabel,
   DiagnosticPathGroup,
@@ -87,11 +88,15 @@ export async function readReporterInput(
 ): Promise<ReporterInput> {
   const indexDir = path.join(analysisOut, "index");
   const graphDir = path.join(analysisOut, "graph");
+  const javaMetadata = await readJavaFileMetadataDir(indexDir);
+  const jspMetadata = await readJspFileMetadataDir(indexDir);
+  const javaIndex = javaMetadata.length > 0 ? flattenJavaFileMetadata(javaMetadata) : undefined;
+  const jspIndex = jspMetadata.length > 0 ? flattenJspFileMetadata(jspMetadata) : undefined;
 
   return {
-    classes: await readJsonFile<ReporterClassRecord[]>(path.join(indexDir, "classes.json"), []),
-    methods: await readJsonFile<ReporterMethodRecord[]>(path.join(indexDir, "methods.json"), []),
-    jsps: await readJsonFile<ReporterJspRecord[]>(path.join(indexDir, "jsp-docs.json"), []),
+    classes: javaIndex?.classes ?? await readJsonFile<ReporterClassRecord[]>(path.join(indexDir, "classes.json"), []),
+    methods: javaIndex?.methods ?? await readJsonFile<ReporterMethodRecord[]>(path.join(indexDir, "methods.json"), []),
+    jsps: jspIndex?.docs ?? await readJsonFile<ReporterJspRecord[]>(path.join(indexDir, "jsp-docs.json"), []),
     taglibs: await readJsonFile<ReporterTaglibRecord[]>(path.join(indexDir, "taglibs.json"), []),
     reverseIndex: await readJsonFile<ReporterReverseIndex>(
       path.join(indexDir, "reverse-index.json"),

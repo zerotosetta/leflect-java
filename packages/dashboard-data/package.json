@@ -13,6 +13,7 @@
     "clean": "tsc -b --clean"
   },
   "dependencies": {
+    "@leflect-java/indexer": "workspace:*",
     "@leflect-java/schema": "workspace:*"
   },
   "publishConfig": {

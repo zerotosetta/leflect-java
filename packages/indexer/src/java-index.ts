@@ -1,6 +1,8 @@
 import fs from "fs/promises";
 import path from "path";
 
+import { readSourceMetadataTree, removeFiles, writeSourceMetadataTree } from "./file-tree";
+
 export type ClassIndexEntry = {
   id: string;
   name: string;
@@ -53,11 +55,17 @@ export type JavaFileIndexEntry = {
   path: string;
   sourceKind?: string;
   packageName?: string;
+  metadataPath?: string;
   imports: string[];
   importIds: string[];
   classIds: string[];
   methodIds: string[];
   callTargets: string[];
+  importCount?: number;
+  classCount?: number;
+  methodCount?: number;
+  callCount?: number;
+  classReferenceCount?: number;
 };
 
 export type JavaImportIndexEntry = {
@@ -355,25 +363,85 @@ export async function readJavaSummaryIndex(summaryPath: string): Promise<JavaSum
 export async function writeJavaIndex(outDir: string, index: JavaIndex): Promise<void> {
   await fs.mkdir(outDir, { recursive: true });
 
-  await fs.writeFile(path.join(outDir, "java-files.json"), JSON.stringify(index.files, null, 2));
-  await fs.writeFile(path.join(outDir, "java-imports.json"), JSON.stringify(index.imports, null, 2));
-  await fs.writeFile(path.join(outDir, "java-classes.json"), JSON.stringify(index.classes, null, 2));
-  await fs.writeFile(path.join(outDir, "java-methods.json"), JSON.stringify(index.methods, null, 2));
-  await fs.writeFile(path.join(outDir, "java-calls.json"), JSON.stringify(index.calls, null, 2));
-  await fs.writeFile(
-    path.join(outDir, "java-class-references.json"),
-    JSON.stringify(index.classReferences, null, 2)
-  );
-  await fs.writeFile(
-    path.join(outDir, "java-method-calls.json"),
-    JSON.stringify(index.calls, null, 2)
+  const metadata = toJavaFileMetadata(index);
+  const metadataPaths = await writeSourceMetadataTree(path.join(outDir, "java"), metadata);
+  const metadataByPath = new Map(metadata.map((entry) => [entry.path, entry]));
+  const manifest = index.files.map((entry) => ({
+    path: entry.path,
+    sourceKind: entry.sourceKind,
+    packageName: entry.packageName,
+    metadataPath: metadataPaths.get(entry.path),
+    importCount: metadataByPath.get(entry.path)?.importEntries.length ?? 0,
+    classCount: metadataByPath.get(entry.path)?.classes.length ?? 0,
+    methodCount: metadataByPath.get(entry.path)?.methods.length ?? 0,
+    callCount: metadataByPath.get(entry.path)?.calls.length ?? 0,
+    classReferenceCount: metadataByPath.get(entry.path)?.classReferences.length ?? 0
+  }));
+
+  await removeFiles(outDir, [
+    "java-imports.json",
+    "java-classes.json",
+    "java-methods.json",
+    "java-calls.json",
+    "java-class-references.json",
+    "java-method-calls.json",
+    "classes.json",
+    "methods.json",
+    "calls.json"
+  ]);
+  await fs.writeFile(path.join(outDir, "java-files.json"), JSON.stringify(manifest, null, 2));
+}
+
+export async function readJavaFileMetadataDir(indexDir: string): Promise<JavaFileMetadata[]> {
+  return readSourceMetadataTree<JavaFileMetadata>(path.join(indexDir, "java"));
+}
+
+export function flattenJavaFileMetadata(files: JavaFileMetadata[]): JavaIndex {
+  const index: JavaIndex = {
+    files: [],
+    imports: [],
+    classes: [],
+    methods: [],
+    calls: [],
+    classReferences: []
+  };
+
+  for (const file of files) {
+    index.files.push({
+      path: file.path,
+      sourceKind: file.sourceKind,
+      packageName: file.packageName,
+      metadataPath: file.metadataPath,
+      imports: [...file.imports],
+      importIds: [...file.importIds],
+      classIds: [...file.classIds],
+      methodIds: [...file.methodIds],
+      callTargets: [...file.callTargets],
+      importCount: file.importEntries.length,
+      classCount: file.classes.length,
+      methodCount: file.methods.length,
+      callCount: file.calls.length,
+      classReferenceCount: file.classReferences.length
+    });
+    index.imports.push(...file.importEntries);
+    index.classes.push(...file.classes);
+    index.methods.push(...file.methods);
+    index.calls.push(...file.calls);
+    index.classReferences.push(...file.classReferences);
+  }
+
+  index.files.sort((left, right) => left.path.localeCompare(right.path));
+  index.imports.sort((left, right) => `${left.file}:${left.import}`.localeCompare(`${right.file}:${right.import}`));
+  index.classes.sort((left, right) => left.id.localeCompare(right.id));
+  index.methods.sort((left, right) => left.id.localeCompare(right.id));
+  index.calls.sort(compareCalls);
+  index.classReferences.sort((left, right) =>
+    `${left.file}:${left.classPath ?? left.className}:${serializeLocation(left.location)}`.localeCompare(
+      `${right.file}:${right.classPath ?? right.className}:${serializeLocation(right.location)}`
+    )
   );
 
-  await fs.writeFile(path.join(outDir, "classes.json"), JSON.stringify(index.classes, null, 2));
-  await fs.writeFile(path.join(outDir, "methods.json"), JSON.stringify(index.methods, null, 2));
-  await fs.writeFile(path.join(outDir, "calls.json"), JSON.stringify(index.calls, null, 2));
-
-  await writePerFileMetadata(path.join(outDir, "java"), toJavaFileMetadata(index));
+  return index;
 }
 
 function buildFallbackJavaIndex(files: string[]): JavaIndex {
@@ -394,7 +462,12 @@ function buildFallbackJavaIndex(files: string[]): JavaIndex {
       importIds: [],
       classIds: [name],
       methodIds: [],
-      callTargets: []
+      callTargets: [],
+      importCount: 0,
+      classCount: 1,
+      methodCount: 0,
+      callCount: 0,
+      classReferenceCount: 0
     });
   }
 
@@ -411,6 +484,12 @@ function buildFallbackJavaIndex(files: string[]): JavaIndex {
 function toJavaFileMetadata(index: JavaIndex): JavaFileMetadata[] {
   return index.files.map((file) => ({
     ...file,
+    importCount: undefined,
+    classCount: undefined,
+    methodCount: undefined,
+    callCount: undefined,
+    classReferenceCount: undefined,
+    metadataPath: undefined,
     importEntries: index.imports.filter((entry) => entry.file === file.path),
     classes: index.classes.filter((entry) => entry.file === file.path),
     methods: index.methods.filter((entry) => entry.file === file.path),
@@ -631,17 +710,6 @@ function compareCalls(left: CallIndexEntry, right: CallIndexEntry): number {
     (left.rawTarget ?? "").localeCompare(right.rawTarget ?? "") ||
     serializeLocation(left.location).localeCompare(serializeLocation(right.location))
   );
-}
-
-async function writePerFileMetadata(outDir: string, files: JavaFileMetadata[]): Promise<void> {
-  await fs.rm(outDir, { recursive: true, force: true });
-  await fs.mkdir(outDir, { recursive: true });
-
-  for (const entry of files) {
-    const target = path.join(outDir, `${entry.path}.json`);
-    await fs.mkdir(path.dirname(target), { recursive: true });
-    await fs.writeFile(target, JSON.stringify(entry, null, 2));
-  }
 }
 
 function collectUnique(values: string[]): string[] {

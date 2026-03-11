@@ -1,3 +1,4 @@
+export * from "./file-tree";
 export * from "./java-index";
 export * from "./jsp-index";
 export * from "./taglib-index";

@@ -28,7 +28,11 @@ import {
   buildJspIndex,
   buildReverseIndex,
   buildTaglibIndex,
+  flattenJavaFileMetadata,
+  flattenJspFileMetadata,
+  readJavaFileMetadataDir,
   readJavaSummaryIndex,
+  readJspFileMetadataDir,
   writeJavaIndex,
   writeJspIndex,
   writeReverseIndex,
@@ -456,14 +460,26 @@ async function runBuildGraph(args: string[]): Promise<void> {
   });
 
   const indexDir = path.join(config.analysisOut, "index");
-  const classes = await readJsonArray<GraphClassRecord & LabelerClassRecord>(
-    path.join(indexDir, "classes.json")
-  );
-  const methods = await readJsonArray<LabelerMethodRecord>(path.join(indexDir, "methods.json"));
-  const calls = await readJsonArray<JavaCallRecord>(path.join(indexDir, "calls.json"));
-  const jspDocs = await readJsonArray<GraphJspRecord & LabelerJspRecord>(
-    path.join(indexDir, "jsp-docs.json")
-  );
+  const javaMetadata = await readJavaFileMetadataDir(indexDir);
+  const jspMetadata = await readJspFileMetadataDir(indexDir);
+  const javaIndex = javaMetadata.length > 0 ? flattenJavaFileMetadata(javaMetadata) : undefined;
+  const jspIndex = jspMetadata.length > 0 ? flattenJspFileMetadata(jspMetadata) : undefined;
+  const classes = (
+    javaIndex?.classes ??
+    await readJsonArray<GraphClassRecord & LabelerClassRecord>(path.join(indexDir, "classes.json"))
+  ) as Array<GraphClassRecord & LabelerClassRecord>;
+  const methods = (
+    javaIndex?.methods ??
+    await readJsonArray<LabelerMethodRecord>(path.join(indexDir, "methods.json"))
+  ) as LabelerMethodRecord[];
+  const calls = (
+    javaIndex?.calls ??
+    await readJsonArray<JavaCallRecord>(path.join(indexDir, "calls.json"))
+  ) as JavaCallRecord[];
+  const jspDocs = (
+    jspIndex?.docs ??
+    await readJsonArray<GraphJspRecord & LabelerJspRecord>(path.join(indexDir, "jsp-docs.json"))
+  ) as Array<GraphJspRecord & LabelerJspRecord>;
 
   const graphs = buildGraphs(calls, jspDocs, classes, {
     entryFiles: config.entryFiles
@@ -804,16 +820,24 @@ async function loadCliConfig(
 }
 
 async function ensureDashboardArtifacts(analysisOut: string): Promise<void> {
-  const requiredFiles = [
-    path.join(analysisOut, "report", "summary.json"),
-    path.join(analysisOut, "graph", "file-dependencies.json"),
-    path.join(analysisOut, "index", "classes.json"),
-    path.join(analysisOut, "index", "jsp-docs.json")
+  const requiredArtifacts = [
+    [path.join(analysisOut, "report", "summary.json")],
+    [path.join(analysisOut, "graph", "file-dependencies.json")],
+    [path.join(analysisOut, "index", "java"), path.join(analysisOut, "index", "classes.json")],
+    [path.join(analysisOut, "index", "jsp"), path.join(analysisOut, "index", "jsp-docs.json")]
   ];
-  for (const filePath of requiredFiles) {
-    if (!(await pathExists(filePath))) {
+
+  for (const candidates of requiredArtifacts) {
+    let resolved = false;
+    for (const candidate of candidates) {
+      if (await pathExists(candidate)) {
+        resolved = true;
+        break;
+      }
+    }
+    if (!resolved) {
       throw new Error(
-        `Dashboard requires existing analysis artifacts. Missing: ${filePath}. Run 'leflect analyze' first.`
+        `Dashboard requires existing analysis artifacts. Missing one of: ${candidates.join(", ")}. Run 'leflect analyze' first.`
       );
     }
   }

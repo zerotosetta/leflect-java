@@ -1,9 +1,10 @@
 import fs from "fs/promises";
 import path from "path";
 
-import { JspParseResult, SourceLocation } from "@leflect-java/parser-jsp";
+import { JspAstReference, JspDirective, JspTag, ScriptletBlock, SourceLocation, TaglibDirective } from "@leflect-java/parser-jsp";
 
 import { MethodCallParameterEntry, MethodIndexEntry } from "./java-index";
+import { readSourceMetadataTree, removeFiles, writeSourceMetadataTree } from "./file-tree";
 
 export type JspResolvedTag = {
   prefix: string;
@@ -12,13 +13,21 @@ export type JspResolvedTag = {
   handlerClass?: string;
 };
 
-export type JspDocIndexEntry = JspParseResult & {
+export type JspDocIndexEntry = {
   path: string;
+  directives: JspDirective[];
+  imports: string[];
+  includes: string[];
+  taglibs: TaglibDirective[];
+  tags: JspTag[];
+  scriptlets: ScriptletBlock[];
+  ast?: JspAstReference;
   resolvedTags?: JspResolvedTag[];
 };
 
 export type JspFileIndexEntry = {
   path: string;
+  metadataPath?: string;
   imports: string[];
   importIds: string[];
   includes: string[];
@@ -26,7 +35,7 @@ export type JspFileIndexEntry = {
   tagCount: number;
   scriptletCount: number;
   resolvedTagCount: number;
-  ast?: JspParseResult["ast"];
+  ast?: JspAstReference;
 };
 
 export type JspImportIndexEntry = {
@@ -59,6 +68,7 @@ export type JspScriptletIndexEntry = {
   kind: "scriptlet" | "expression" | "declaration";
   code: string;
   location?: SourceLocation;
+  codeOffset?: number;
 };
 
 export type JspClassReferenceIndexEntry = {
@@ -288,16 +298,122 @@ export function buildJspIndex(entries: JspDocIndexEntry[], options: JspIndexOpti
 
 export async function writeJspIndex(outDir: string, index: JspIndex): Promise<void> {
   await fs.mkdir(outDir, { recursive: true });
-  await fs.writeFile(path.join(outDir, "jsp-docs.json"), JSON.stringify(index.docs, null, 2));
-  await fs.writeFile(path.join(outDir, "jsp-files.json"), JSON.stringify(index.files, null, 2));
-  await fs.writeFile(path.join(outDir, "jsp-imports.json"), JSON.stringify(index.imports, null, 2));
-  await fs.writeFile(path.join(outDir, "jsp-taglibs.json"), JSON.stringify(index.taglibs, null, 2));
-  await fs.writeFile(path.join(outDir, "jsp-tags.json"), JSON.stringify(index.tags, null, 2));
-  await fs.writeFile(path.join(outDir, "jsp-scriptlets.json"), JSON.stringify(index.scriptlets, null, 2));
-  await fs.writeFile(path.join(outDir, "jsp-class-references.json"), JSON.stringify(index.classReferences, null, 2));
-  await fs.writeFile(path.join(outDir, "jsp-method-calls.json"), JSON.stringify(index.methodCalls, null, 2));
+  const metadata = toJspFileMetadata(index);
+  const metadataPaths = await writeSourceMetadataTree(path.join(outDir, "jsp"), metadata);
+  const metadataByPath = new Map(metadata.map((entry) => [entry.path, entry]));
+  const manifest = index.files.map((entry) => ({
+    path: entry.path,
+    metadataPath: metadataPaths.get(entry.path),
+    importCount: metadataByPath.get(entry.path)?.importEntries.length ?? 0,
+    includeCount: entry.includes.length,
+    taglibCount: entry.taglibCount,
+    tagCount: entry.tagCount,
+    scriptletCount: entry.scriptletCount,
+    resolvedTagCount: entry.resolvedTagCount,
+    classReferenceCount: metadataByPath.get(entry.path)?.classReferences.length ?? 0,
+    methodCallCount: metadataByPath.get(entry.path)?.methodCalls.length ?? 0,
+    ast: entry.ast
+  }));
 
-  await writePerFileMetadata(path.join(outDir, "jsp"), toJspFileMetadata(index));
+  await removeFiles(outDir, [
+    "jsp-docs.json",
+    "jsp-imports.json",
+    "jsp-taglibs.json",
+    "jsp-tags.json",
+    "jsp-scriptlets.json",
+    "jsp-class-references.json",
+    "jsp-method-calls.json"
+  ]);
+  await fs.writeFile(path.join(outDir, "jsp-files.json"), JSON.stringify(manifest, null, 2));
+}
+
+export async function readJspFileMetadataDir(indexDir: string): Promise<JspFileMetadata[]> {
+  return readSourceMetadataTree<JspFileMetadata>(path.join(indexDir, "jsp"));
+}
+
+export function flattenJspFileMetadata(files: JspFileMetadata[]): JspIndex {
+  const index: JspIndex = {
+    docs: [],
+    files: [],
+    imports: [],
+    taglibs: [],
+    tags: [],
+    scriptlets: [],
+    classReferences: [],
+    methodCalls: []
+  };
+
+  for (const file of files) {
+    index.files.push({
+      path: file.path,
+      metadataPath: file.metadataPath,
+      imports: [...file.imports],
+      importIds: [...file.importIds],
+      includes: [...file.includes],
+      taglibCount: file.taglibCount,
+      tagCount: file.tagCount,
+      scriptletCount: file.scriptletCount,
+      resolvedTagCount: file.resolvedTagCount,
+      ast: file.ast
+    });
+    index.docs.push({
+      path: file.path,
+      directives: [],
+      imports: [...file.imports],
+      includes: [...file.includes],
+      taglibs: file.taglibs.map((taglib) => ({
+        prefix: taglib.prefix,
+        uri: taglib.uri,
+        location: taglib.location ?? defaultLocation()
+      })),
+      tags: file.tags.map((tag) => ({
+        prefix: tag.prefix,
+        name: tag.name,
+        raw: tag.raw,
+        location: tag.location ?? defaultLocation()
+      })),
+      scriptlets: file.scriptlets.map((scriptlet) => ({
+        kind: scriptlet.kind,
+        code: scriptlet.code,
+        location: scriptlet.location ?? defaultLocation(),
+        codeOffset: scriptlet.codeOffset ?? 0
+      })),
+      ast: file.ast,
+      resolvedTags: file.tags
+        .map((tag) => ({
+          prefix: tag.prefix,
+          name: tag.name,
+          uri: tag.uri,
+          handlerClass: tag.handlerClass
+        }))
+        .filter((tag) => tag.uri || tag.handlerClass)
+    });
+    index.imports.push(...file.importEntries);
+    index.taglibs.push(...file.taglibs);
+    index.tags.push(...file.tags);
+    index.scriptlets.push(...file.scriptlets);
+    index.classReferences.push(...file.classReferences);
+    index.methodCalls.push(...file.methodCalls);
+  }
+
+  index.docs.sort((left, right) => left.path.localeCompare(right.path));
+  index.files.sort((left, right) => left.path.localeCompare(right.path));
+  index.imports.sort((left, right) => `${left.file}:${left.import}`.localeCompare(`${right.file}:${right.import}`));
+  index.taglibs.sort((left, right) => `${left.file}:${left.prefix}:${left.uri}`.localeCompare(`${right.file}:${right.prefix}:${right.uri}`));
+  index.tags.sort((left, right) => `${left.file}:${left.prefix}:${left.name}`.localeCompare(`${right.file}:${right.prefix}:${right.name}`));
+  index.scriptlets.sort((left, right) => `${left.file}:${left.kind}:${left.code}`.localeCompare(`${right.file}:${right.kind}:${right.code}`));
+  index.classReferences.sort((left, right) =>
+    `${left.file}:${left.classPath ?? left.className}:${serializeLocation(left.location)}`.localeCompare(
+      `${right.file}:${right.classPath ?? right.className}:${serializeLocation(right.location)}`
+    )
+  );
+  index.methodCalls.sort((left, right) =>
+    `${left.file}:${left.classPath ?? ""}:${left.methodName}:${serializeLocation(left.location)}`.localeCompare(
+      `${right.file}:${right.classPath ?? ""}:${right.methodName}:${serializeLocation(right.location)}`
+    )
+  );
+
+  return index;
 }
 
 function toJspFileMetadata(index: JspIndex): JspFileMetadata[] {
@@ -310,17 +426,6 @@ function toJspFileMetadata(index: JspIndex): JspFileMetadata[] {
     classReferences: index.classReferences.filter((item) => item.file === entry.path),
     methodCalls: index.methodCalls.filter((item) => item.file === entry.path)
   }));
-}
-
-async function writePerFileMetadata(outDir: string, files: JspFileMetadata[]): Promise<void> {
-  await fs.rm(outDir, { recursive: true, force: true });
-  await fs.mkdir(outDir, { recursive: true });
-
-  for (const entry of files) {
-    const target = path.join(outDir, `${entry.path}.json`);
-    await fs.mkdir(path.dirname(target), { recursive: true });
-    await fs.writeFile(target, JSON.stringify(entry, null, 2));
-  }
 }
 
 function normalizePath(value: string): string {
@@ -585,4 +690,13 @@ function serializeLocation(location?: SourceLocation): string {
     return "";
   }
   return [location.line, location.column, location.endLine, location.endColumn].join(":");
+}
+
+function defaultLocation(): SourceLocation {
+  return {
+    line: 1,
+    column: 1,
+    endLine: 1,
+    endColumn: 1
+  };
 }

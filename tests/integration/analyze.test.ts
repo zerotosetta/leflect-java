@@ -4,7 +4,7 @@ import { writeFile } from "fs/promises";
 import { describe, expect, it } from "vitest";
 
 import { run } from "@leflect-java/cli";
-import { cleanupWorkspace, createFixtureWorkspace, readJsonFile } from "@leflect-java/testkit";
+import { cleanupWorkspace, createFixtureWorkspace, exists, readJsonFile } from "@leflect-java/testkit";
 
 describe("integration analyze", () => {
   it("runs the analysis pipeline over a fixture workspace", async () => {
@@ -119,6 +119,12 @@ describe("integration analyze", () => {
           reachableFiles: ["src/UserService.java", "web/customerEdit.jsp"]
         }
       ]);
+      expect(await exists(path.join(workspace.analysisOut, "index", "java", "src", "UserService.java.json"))).toBe(true);
+      expect(await exists(path.join(workspace.analysisOut, "index", "jsp", "web", "customerEdit.jsp.json"))).toBe(true);
+      expect(await exists(path.join(workspace.analysisOut, "index", "classes.json"))).toBe(false);
+      expect(await exists(path.join(workspace.analysisOut, "index", "methods.json"))).toBe(false);
+      expect(await exists(path.join(workspace.analysisOut, "index", "calls.json"))).toBe(false);
+      expect(await exists(path.join(workspace.analysisOut, "index", "jsp-docs.json"))).toBe(false);
     } finally {
       await cleanupWorkspace(workspace);
     }

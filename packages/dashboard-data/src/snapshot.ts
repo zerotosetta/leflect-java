@@ -1,5 +1,6 @@
 import path from "path";
 
+import { flattenJavaFileMetadata, flattenJspFileMetadata, readJavaFileMetadataDir, readJspFileMetadataDir } from "@leflect-java/indexer";
 import { GraphNodeType, LabelsIndex, SummaryReport, UnresolvedReport } from "@leflect-java/schema";
 
 import {
@@ -71,14 +72,11 @@ export async function loadDashboardSnapshot(context: DashboardContext): Promise<
   const signature = await statSignature([
     path.join(analysisOut, "report", "summary.json"),
     path.join(analysisOut, "report", "unresolved.json"),
-    path.join(analysisOut, "index", "classes.json"),
-    path.join(analysisOut, "index", "methods.json"),
-    path.join(analysisOut, "index", "jsp-docs.json"),
+    path.join(analysisOut, "index", "java-files.json"),
+    path.join(analysisOut, "index", "jsp-files.json"),
     path.join(analysisOut, "graph", "file-dependencies.json"),
     path.join(analysisOut, "graph", "file-dependency.jsonl"),
     path.join(analysisOut, "graph", "entry-dependencies.json"),
-    path.join(analysisOut, "index", "java-method-calls.json"),
-    path.join(analysisOut, "index", "jsp-method-calls.json"),
     path.join(analysisOut, "index", "labels.json"),
     dashboardPoliciesPath(analysisOut)
   ]);
@@ -133,9 +131,13 @@ export async function loadDashboardSnapshot(context: DashboardContext): Promise<
     byPath: []
   });
   const labels = await readJsonFile<LabelsIndex | undefined>(path.join(analysisOut, "index", "labels.json"), undefined);
-  const classes = await readJsonFile<DashboardClassRecord[]>(path.join(analysisOut, "index", "classes.json"), []);
-  const methods = await readJsonFile<DashboardMethodRecord[]>(path.join(analysisOut, "index", "methods.json"), []);
-  const jsps = await readJsonFile<DashboardJspRecord[]>(path.join(analysisOut, "index", "jsp-docs.json"), []);
+  const javaMetadata = await readJavaFileMetadataDir(path.join(analysisOut, "index"));
+  const jspMetadata = await readJspFileMetadataDir(path.join(analysisOut, "index"));
+  const javaIndex = javaMetadata.length > 0 ? flattenJavaFileMetadata(javaMetadata) : undefined;
+  const jspIndex = jspMetadata.length > 0 ? flattenJspFileMetadata(jspMetadata) : undefined;
+  const classes = (javaIndex?.classes ?? await readJsonFile<DashboardClassRecord[]>(path.join(analysisOut, "index", "classes.json"), [])) as DashboardClassRecord[];
+  const methods = (javaIndex?.methods ?? await readJsonFile<DashboardMethodRecord[]>(path.join(analysisOut, "index", "methods.json"), [])) as DashboardMethodRecord[];
+  const jsps = (jspIndex?.docs ?? await readJsonFile<DashboardJspRecord[]>(path.join(analysisOut, "index", "jsp-docs.json"), [])) as DashboardJspRecord[];
   const fileDependencyIndex = await readJsonFile<DashboardFileDependencyIndex>(
     path.join(analysisOut, "graph", "file-dependencies.json"),
     { schemaVersion: "1.0", generatedAt: new Date(0).toISOString(), files: [] }
@@ -152,14 +154,14 @@ export async function loadDashboardSnapshot(context: DashboardContext): Promise<
     }
   );
   const fileEdges = await readJsonlFile<DashboardGraphEdge>(path.join(analysisOut, "graph", "file-dependency.jsonl"));
-  const javaMethodCalls = await readJsonFile<DashboardJavaMethodCall[]>(
+  const javaMethodCalls = (javaIndex?.calls ?? await readJsonFile<DashboardJavaMethodCall[]>(
     path.join(analysisOut, "index", "java-method-calls.json"),
     []
-  );
-  const jspMethodCalls = await readJsonFile<DashboardJspMethodCall[]>(
+  )) as DashboardJavaMethodCall[];
+  const jspMethodCalls = (jspIndex?.methodCalls ?? await readJsonFile<DashboardJspMethodCall[]>(
     path.join(analysisOut, "index", "jsp-method-calls.json"),
     []
-  );
+  )) as DashboardJspMethodCall[];
 
   const classesByFile = new Map<string, DashboardClassRecord[]>();
   const methodsByFile = new Map<string, DashboardMethodRecord[]>();
