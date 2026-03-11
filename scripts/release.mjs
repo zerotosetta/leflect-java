@@ -182,14 +182,6 @@ function packPackage(stageDir, packDir) {
 }
 
 function isAlreadyPublished(name, version) {
-  const accessResult = spawnSync("npm", ["access", "get", "status", name], {
-    cwd: repoRoot,
-    encoding: "utf8"
-  });
-  if (accessResult.status === 0) {
-    return true;
-  }
-
   const result = spawnSync("npm", ["view", `${name}@${version}`, "version", "--json"], {
     cwd: repoRoot,
     encoding: "utf8"

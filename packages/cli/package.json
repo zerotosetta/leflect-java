@@ -1,6 +1,6 @@
 {
   "name": "@leflect-java/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "LeflectJava CLI for Java/JSP static analysis",
   "private": false,
   "main": "dist/index.js",
