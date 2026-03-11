@@ -23,6 +23,9 @@ const MARGINS = { top: 28, right: 180, bottom: 28, left: 120 };
 const NODE_DX = 22;
 const NODE_DY = 220;
 const MINIMAP_PADDING = 28;
+const FIT_PADDING = 36;
+const MIN_SCALE = 0.18;
+const MAX_SCALE = 2.4;
 
 class ProjectionDependencyGraph extends LitElement {
   static properties = {
@@ -40,6 +43,7 @@ class ProjectionDependencyGraph extends LitElement {
   private nodeSelection?: TreeNodeSelection;
   private zoomBehavior = d3.zoom<SVGSVGElement, unknown>();
   private currentTransform = d3.zoomIdentity;
+  private initialTransform = d3.zoomIdentity;
   private treeOffsetY = 0;
   private graphBounds?: GraphBounds;
 
@@ -83,7 +87,7 @@ class ProjectionDependencyGraph extends LitElement {
 
     this.svgSelection = d3.select(svgElement);
     this.canvasSelection = this.svgSelection.append("g");
-    this.zoomBehavior = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.45, 2.4]).on("zoom", (event) => {
+    this.zoomBehavior = d3.zoom<SVGSVGElement, unknown>().scaleExtent([MIN_SCALE, MAX_SCALE]).on("zoom", (event) => {
       this.currentTransform = event.transform;
       this.applyTransform();
     });
@@ -118,6 +122,7 @@ class ProjectionDependencyGraph extends LitElement {
     this.clearMinimap();
     this.nodeSelection = undefined;
     this.currentTransform = d3.zoomIdentity;
+    this.initialTransform = d3.zoomIdentity;
     this.treeOffsetY = 0;
     this.graphBounds = undefined;
 
@@ -237,7 +242,9 @@ class ProjectionDependencyGraph extends LitElement {
       .text((datum) => datum.data.edgeType ?? (datum.data.isFocus ? "focus" : datum.data.nodeType));
 
     this.drawMinimap(root);
-    this.applyTransform();
+    this.initialTransform = this.fitTransform();
+    this.currentTransform = this.initialTransform;
+    this.svgSelection.call(this.zoomBehavior.transform, this.initialTransform);
     this.updateSelectionStyles();
   }
 
@@ -449,8 +456,32 @@ class ProjectionDependencyGraph extends LitElement {
     if (!this.svgSelection) {
       return;
     }
-    this.svgSelection.call(this.zoomBehavior.transform, d3.zoomIdentity);
+    this.svgSelection.call(this.zoomBehavior.transform, this.initialTransform);
   };
+
+  private fitTransform(): d3.ZoomTransform {
+    const svgElement = this.svgSelection?.node();
+    const bounds = this.graphBounds;
+    if (!svgElement || !bounds) {
+      return d3.zoomIdentity;
+    }
+
+    const viewportWidth = svgElement.getBoundingClientRect().width;
+    const viewportHeight = svgElement.getBoundingClientRect().height;
+    const contentWidth = Math.max(1, bounds.maxX - bounds.minX);
+    const contentHeight = Math.max(1, bounds.maxY - bounds.minY);
+    const fitScale = clamp(
+      Math.min((viewportWidth - FIT_PADDING * 2) / contentWidth, (viewportHeight - FIT_PADDING * 2) / contentHeight),
+      MIN_SCALE,
+      MAX_SCALE
+    );
+    const offsetX = (viewportWidth - contentWidth * fitScale) / 2;
+    const offsetY = (viewportHeight - contentHeight * fitScale) / 2;
+
+    return d3.zoomIdentity
+      .translate(offsetX - bounds.minX * fitScale - MARGINS.left, offsetY - bounds.minY * fitScale - this.treeOffsetY)
+      .scale(fitScale);
+  }
 
   private linkColor(edgeType: string): string {
     if (edgeType.includes("JSP_USES_TAG")) return "#7ee0a0";
