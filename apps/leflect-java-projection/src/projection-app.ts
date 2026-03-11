@@ -89,7 +89,7 @@ class LeflectJavaProjectionApp extends LitElement {
         </header>
 
         <main class="grid min-h-0 flex-1 grid-cols-[19rem_minmax(0,1fr)_20rem] gap-px overflow-hidden bg-chrome-800">
-          <aside class="flex min-h-0 min-w-0 flex-col overflow-hidden bg-chrome-900">
+          <aside class="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-chrome-900">
             <div class="border-b border-chrome-800 p-2 pb-1">
               <div class="mb-1 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-slate-500">
                 <span>Index Files</span>
@@ -132,9 +132,10 @@ class LeflectJavaProjectionApp extends LitElement {
                 ${this.renderFilterButton("jsp", "JSP")}
               </div>
             </div>
-            <div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-1 py-1">
+            <div class="min-h-0 overflow-y-auto overflow-x-hidden px-1 py-1">
               ${visibleFiles.length > 0
                 ? virtualize({
+                    scroller: true,
                     items: visibleFiles,
                     renderItem: (file) => this.renderFileRow(file)
                   })
@@ -175,12 +176,12 @@ class LeflectJavaProjectionApp extends LitElement {
             </div>
           </section>
 
-          <aside class="flex min-h-0 min-w-0 flex-col overflow-hidden bg-chrome-900">
+          <aside class="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-chrome-900">
             <div class="border-b border-chrome-800 px-2 py-1">
               <div class="text-[10px] uppercase tracking-[0.2em] text-slate-500">Detail</div>
               <div class="truncate font-mono text-[11px] text-slate-200">${this.selectedGraphNodeId || this.selectedPath || "-"}</div>
             </div>
-            <div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 py-1 text-[11px]">
+            <div class="min-h-0 overflow-y-auto overflow-x-hidden px-2 py-1 text-[11px]">
               ${this.detailTask.render({
                 pending: () => html`<div class="py-2 text-slate-500">detail loading...</div>`,
                 complete: (detail) => detail ? this.renderDetail(detail) : html`<div class="py-2 text-slate-500">detail 없음</div>`,
