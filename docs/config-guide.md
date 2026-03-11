@@ -79,7 +79,7 @@ The wizard can also write:
 
 ## Dashboard Server
 
-`leflect dashboard-server` reads an existing config file and serves the Next.js dashboard
+`leflect dashboard-server` reads an existing config file and serves the Lit projection app
 from the analysis output already on disk.
 
 ```bash
@@ -99,13 +99,19 @@ Important behavior:
 Required analysis artifacts:
 
 - `analysis/report/summary.json`
-- `analysis/report/unresolved.json`
 - `analysis/index/java-files.json`
 - `analysis/index/jsp-files.json`
 - `analysis/index/java/**/*.json`
 - `analysis/index/jsp/**/*.json`
 - `analysis/graph/file-dependencies.json`
 - `analysis/graph/file-dependency.jsonl`
+
+Current UI scope:
+
+- one tab: `Dependency Tree`
+- left sidebar: all Java/JSP files
+- center: D3 dependency graph for the selected file
+- right sidebar: shard metadata and reference detail
 
 Useful dashboard-server options:
 

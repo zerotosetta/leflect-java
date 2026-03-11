@@ -111,10 +111,10 @@ entry-rooted dependency subgraphs and per-file reference/dependant summaries.
 
 ## Dashboard
 
-The repository now includes a Next.js dashboard under `apps/dashboard`.
+The repository now includes a Lit projection app under `apps/leflect-java-projection`.
 
 `leflect dashboard-server` does not run analysis. It reads the `leflect.config.json`
-you point to, resolves `analysisOut`, and serves the dashboard from the existing
+you point to, resolves `analysisOut`, and serves the projection UI from the existing
 analysis artifacts already written under that directory.
 
 ```bash
@@ -128,20 +128,19 @@ node bin/leflect dashboard-server \
 What it uses:
 
 - `analysis/report/summary.json`
-- `analysis/report/unresolved.json`
-- `analysis/index/*.json`
+- `analysis/index/java-files.json`
+- `analysis/index/jsp-files.json`
+- `analysis/index/java/**/*.json`
+- `analysis/index/jsp/**/*.json`
 - `analysis/graph/file-dependencies.json`
 - `analysis/graph/file-dependency.jsonl`
-- `analysis/graph/entry-dependencies.json`
 
-The dashboard currently provides:
+The projection UI currently provides one dense, tab-based feature:
 
-- entry browser for JSP / Controller / Action / Service candidates
-- policy tab with multi-policy enable/disable
-- zone tab with expand / collapse / summarize / hide overrides
-- sigma.js flow graph
-- matrix / impact / cycle views
-- node / zone detail panel backed by API routes
+- left sidebar with all Java/JSP files from the analysis index
+- center D3 dependency graph for the selected file
+- right sidebar with source shard metadata plus references / referenced-by details
+- compact header and bottom status bar for large codebases
 
 ## Analysis Output
 

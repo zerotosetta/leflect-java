@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import fs from "fs/promises";
 import path from "path";
-import { spawn } from "child_process";
 
 import {
   buildJspInputManifest,
@@ -80,6 +79,7 @@ import {
 import { runInitCommand } from "./init";
 import { createJavaDependencyCacheInput, resolveJavaClasspathEntries } from "./java-classpath";
 import { createJspDependencyCacheInput, resolveJspClasspathEntries } from "./jsp-classpath";
+import { runProjectionServer } from "./projection-server";
 import { resolveJavaWorkerJar } from "./worker-jar";
 
 type OutputFormat = "json" | "text";
@@ -661,18 +661,15 @@ async function runDashboardServer(args: string[]): Promise<void> {
 
   const mode =
     parsed["mode"] === "production" || parsed["prod"] === "true" ? "production" : "development";
-  const nextBin = resolveNextCliEntrypoint(appDir);
 
-  if (mode === "production" && !(await pathExists(path.join(appDir, ".next", "BUILD_ID")))) {
-    await runNextCommand(nextBin, ["build", appDir], appDir, config, configPath);
-  }
-
-  console.log(`Dashboard server using analysis output: ${config.analysisOut}`);
-  console.log(`Dashboard app: ${appDir}`);
-  console.log(`Open http://${host}:${port}`);
-
-  const nextArgs = [mode === "production" ? "start" : "dev", appDir, "-p", String(port), "-H", host];
-  await runNextCommand(nextBin, nextArgs, appDir, config, configPath);
+  await runProjectionServer({
+    appDir,
+    config,
+    configPath,
+    host,
+    port,
+    mode
+  });
 }
 
 function parseArgs(args: string[]): Record<string, string> {
@@ -731,7 +728,7 @@ function printHelp(): void {
   console.log("  analyze             Run the end-to-end analysis pipeline");
   console.log("  report <subcommand> Generate report artifacts and print one result");
   console.log("  query <subcommand>  Query analysis outputs");
-  console.log("  dashboard-server    Start the Next.js dashboard against existing analysis outputs");
+  console.log("  dashboard-server    Start the Lit projection app against existing analysis outputs");
   console.log("\nReport Subcommands:");
   console.log("  summary             Write report files and print summary.json");
   console.log("  unresolved          Write report files and print unresolved.json");
@@ -823,8 +820,11 @@ async function ensureDashboardArtifacts(analysisOut: string): Promise<void> {
   const requiredArtifacts = [
     [path.join(analysisOut, "report", "summary.json")],
     [path.join(analysisOut, "graph", "file-dependencies.json")],
-    [path.join(analysisOut, "index", "java"), path.join(analysisOut, "index", "classes.json")],
-    [path.join(analysisOut, "index", "jsp"), path.join(analysisOut, "index", "jsp-docs.json")]
+    [path.join(analysisOut, "graph", "file-dependency.jsonl")],
+    [path.join(analysisOut, "index", "java-files.json")],
+    [path.join(analysisOut, "index", "jsp-files.json")],
+    [path.join(analysisOut, "index", "java")],
+    [path.join(analysisOut, "index", "jsp")]
   ];
 
   for (const candidates of requiredArtifacts) {
@@ -847,9 +847,9 @@ async function resolveDashboardAppDir(overridePath?: string): Promise<string | u
   const candidates = [
     overridePath ? path.resolve(overridePath) : undefined,
     process.env.LEFLECT_DASHBOARD_APP_DIR ? path.resolve(process.env.LEFLECT_DASHBOARD_APP_DIR) : undefined,
-    path.resolve(__dirname, "..", "..", "..", "apps", "dashboard"),
-    path.resolve(process.cwd(), "apps", "dashboard"),
-    path.resolve(process.cwd(), "..", "apps", "dashboard")
+    path.resolve(__dirname, "..", "..", "..", "apps", "leflect-java-projection"),
+    path.resolve(process.cwd(), "apps", "leflect-java-projection"),
+    path.resolve(process.cwd(), "..", "apps", "leflect-java-projection")
   ].filter((entry): entry is string => Boolean(entry));
 
   for (const candidate of candidates) {
@@ -860,43 +860,6 @@ async function resolveDashboardAppDir(overridePath?: string): Promise<string | u
 
   return undefined;
 }
-
-function resolveNextCliEntrypoint(appDir: string): string {
-  const packageJsonPath = require.resolve("next/package.json", { paths: [appDir] });
-  return path.join(path.dirname(packageJsonPath), "dist", "bin", "next");
-}
-
-async function runNextCommand(
-  nextBin: string,
-  args: string[],
-  appDir: string,
-  config: CliConfig,
-  configPath: string
-): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    const child = spawn(process.execPath, [nextBin, ...args], {
-      cwd: appDir,
-      stdio: "inherit",
-      env: {
-        ...process.env,
-        LEFLECT_DASHBOARD_ROOT: config.root,
-        LEFLECT_DASHBOARD_ANALYSIS_OUT: config.analysisOut,
-        LEFLECT_DASHBOARD_CONFIG_PATH: configPath,
-        LEFLECT_DASHBOARD_PROJECT: path.basename(config.root)
-      }
-    });
-
-    child.on("error", reject);
-    child.on("exit", (code) => {
-      if (code && code !== 0) {
-        reject(new Error(`Dashboard server exited with code ${code}`));
-        return;
-      }
-      resolve();
-    });
-  });
-}
-
 async function pathExists(targetPath: string): Promise<boolean> {
   try {
     await fs.access(targetPath);

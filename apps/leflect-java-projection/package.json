@@ -1,0 +1,26 @@
+{
+  "name": "leflect-java-projection",
+  "version": "0.1.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@lit-labs/task": "^3.1.0",
+    "@lit-labs/virtualizer": "^2.1.1",
+    "d3": "^7.9.0",
+    "lit": "^3.2.1"
+  },
+  "devDependencies": {
+    "@types/d3": "^7.4.3",
+    "@types/node": "^20.11.30",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.4.5",
+    "vite": "^5.4.12"
+  }
+}
