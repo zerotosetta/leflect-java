@@ -14,10 +14,12 @@ describe("projection snapshot", () => {
     expect(snapshot.files).toHaveLength(3);
     expect(snapshot.files.find((entry) => entry.path === "src/main/java/demo/App.java")?.methodCount).toBe(2);
 
-    const graph = buildProjectionGraph(snapshot, "src/main/java/demo/App.java", "both", 2, 20);
-    expect(graph.stats.nodes).toBe(3);
-    expect(graph.edges).toHaveLength(2);
+    const graph = buildProjectionGraph(snapshot, "src/main/java/demo/App.java", 2, 20);
+    expect(graph.direction).toBe("outbound");
+    expect(graph.stats.nodes).toBe(2);
+    expect(graph.stats.edges).toBe(1);
     expect(graph.nodes.find((node) => node.id === "src/main/java/demo/App.java")?.isFocus).toBe(true);
+    expect(graph.nodes.find((node) => node.id === "src/main/java/demo/Service.java")?.parentId).toBe("src/main/java/demo/App.java");
 
     const detail = await loadProjectionFileDetail(snapshot, "src/main/webapp/index.jsp");
     expect(detail.file.nodeType).toBe("jsp");

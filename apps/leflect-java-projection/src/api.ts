@@ -1,6 +1,5 @@
 import type {
   ProjectionBootstrap,
-  ProjectionDirection,
   ProjectionFileDetail,
   ProjectionFileEntry,
   ProjectionGraphResponse
@@ -25,10 +24,9 @@ export function fetchFiles(signal?: AbortSignal): Promise<{ files: ProjectionFil
 export function fetchGraph(
   path: string,
   depth: number,
-  direction: ProjectionDirection,
   signal?: AbortSignal
 ): Promise<ProjectionGraphResponse> {
-  const params = new URLSearchParams({ path, depth: String(depth), direction });
+  const params = new URLSearchParams({ path, depth: String(depth) });
   return getJson<ProjectionGraphResponse>(`/api/dependency-graph?${params.toString()}`, signal);
 }
 

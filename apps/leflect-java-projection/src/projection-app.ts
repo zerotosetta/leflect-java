@@ -5,10 +5,8 @@ import { virtualize } from "@lit-labs/virtualizer/virtualize.js";
 import { fetchBootstrap, fetchFileDetail, fetchFiles, fetchGraph } from "./api";
 import type {
   ProjectionBootstrap,
-  ProjectionDirection,
   ProjectionFileDetail,
   ProjectionFileEntry,
-  ProjectionGraphResponse,
   ProjectionNodeType
 } from "./types";
 import "./components/dependency-graph";
@@ -23,7 +21,6 @@ class LeflectJavaProjectionApp extends LitElement {
     search: { state: true },
     filter: { state: true },
     depth: { state: true },
-    direction: { state: true },
     statusMessage: { state: true }
   };
 
@@ -35,17 +32,16 @@ class LeflectJavaProjectionApp extends LitElement {
   search = "";
   filter: "all" | Exclude<ProjectionNodeType, "unresolved"> = "all";
   depth = 2;
-  direction: ProjectionDirection = "both";
   statusMessage = "analysis snapshot 대기중";
 
   private readonly graphTask = new Task(this, {
-    task: async ([selectedPath, depth, direction], { signal }) => {
+    task: async ([selectedPath, depth], { signal }) => {
       if (!selectedPath) {
         return undefined;
       }
-      return fetchGraph(selectedPath, depth, direction, signal);
+      return fetchGraph(selectedPath, depth, signal);
     },
-    args: () => [this.selectedPath, this.depth, this.direction] as const
+    args: () => [this.selectedPath, this.depth] as const
   });
 
   private readonly detailTask = new Task(this, {
@@ -86,6 +82,7 @@ class LeflectJavaProjectionApp extends LitElement {
           <div class="flex items-center gap-1 text-[11px] text-slate-400">
             <span class="rounded border border-chrome-700 px-2 py-1">files ${this.bootstrap?.counts.totalFiles ?? 0}</span>
             <span class="rounded border border-chrome-700 px-2 py-1">edges ${this.bootstrap?.counts.edges ?? 0}</span>
+            <span class="rounded border border-chrome-700 px-2 py-1">outbound tree</span>
           </div>
         </header>
 
@@ -121,10 +118,10 @@ class LeflectJavaProjectionApp extends LitElement {
           </aside>
 
           <section class="grid min-h-0 grid-rows-[2.5rem_minmax(0,1fr)] bg-chrome-950">
-            <div class="grid grid-cols-[1fr_auto_auto_auto] items-center gap-1 border-b border-chrome-800 px-2 text-[11px]">
+            <div class="grid grid-cols-[1fr_auto_auto] items-center gap-1 border-b border-chrome-800 px-2 text-[11px]">
               <div class="min-w-0">
                 <div class="truncate font-mono text-[11px] text-slate-200">${this.selectedPath || "파일을 선택하세요"}</div>
-                <div class="truncate text-[10px] text-slate-500">${selectedSummary ? `${selectedSummary.nodeType.toUpperCase()} · refs ${selectedSummary.referenceCount} · dependants ${selectedSummary.dependantCount}` : "graph focus 없음"}</div>
+                <div class="truncate text-[10px] text-slate-500">${selectedSummary ? `${selectedSummary.nodeType.toUpperCase()} · outbound refs ${selectedSummary.referenceCount} · inbound ${selectedSummary.dependantCount}` : "graph focus 없음"}</div>
               </div>
               <label class="flex items-center gap-1 rounded border border-chrome-800 bg-chrome-900 px-2 py-1">
                 <span class="text-slate-500">depth</span>
@@ -132,14 +129,6 @@ class LeflectJavaProjectionApp extends LitElement {
                   <option value="1">1</option>
                   <option value="2">2</option>
                   <option value="3">3</option>
-                </select>
-              </label>
-              <label class="flex items-center gap-1 rounded border border-chrome-800 bg-chrome-900 px-2 py-1">
-                <span class="text-slate-500">flow</span>
-                <select class="bg-transparent outline-none" .value=${this.direction} @change=${this.onDirectionChange}>
-                  <option value="both">both</option>
-                  <option value="outbound">outbound</option>
-                  <option value="inbound">inbound</option>
                 </select>
               </label>
               <button class="rounded border border-chrome-800 bg-chrome-900 px-2 py-1 text-slate-300 hover:border-accent-500" @click=${this.resetGraphSelection}>
@@ -365,11 +354,6 @@ class LeflectJavaProjectionApp extends LitElement {
   private onDepthChange = (event: Event) => {
     this.depth = Number((event.target as HTMLSelectElement).value);
     this.statusMessage = `depth ${this.depth}`;
-  };
-
-  private onDirectionChange = (event: Event) => {
-    this.direction = (event.target as HTMLSelectElement).value as ProjectionDirection;
-    this.statusMessage = `direction ${this.direction}`;
   };
 
   private onGraphNodeSelect = (event: CustomEvent<{ nodeId: string }>) => {

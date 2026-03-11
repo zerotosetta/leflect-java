@@ -1,5 +1,5 @@
 export type ProjectionNodeType = "java" | "jsp" | "unresolved";
-export type ProjectionDirection = "outbound" | "inbound" | "both";
+export type ProjectionDirection = "outbound";
 
 export type ProjectionBootstrap = {
   projectName: string;
@@ -44,12 +44,9 @@ export type ProjectionGraphNode = {
   referenceCount: number;
   dependantCount: number;
   isFocus: boolean;
-};
-
-export type ProjectionGraphEdge = {
-  source: string;
-  target: string;
-  type: string;
+  parentId?: string;
+  depth: number;
+  edgeType?: string;
   confidence: string[];
   symbols: string[];
 };
@@ -64,7 +61,6 @@ export type ProjectionGraphResponse = {
     edges: number;
   };
   nodes: ProjectionGraphNode[];
-  edges: ProjectionGraphEdge[];
 };
 
 export type ProjectionFileDetail = {

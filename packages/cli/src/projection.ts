@@ -3,7 +3,7 @@ import path from "path";
 
 import { FileDependencyIndex, FileDependencyRecord, FileDependencyReference, GraphEdge, GraphNodeType, SummaryReport } from "@leflect-java/schema";
 
-export type ProjectionDirection = "outbound" | "inbound" | "both";
+export type ProjectionDirection = "outbound";
 
 export type ProjectionFileManifestEntry = {
   path: string;
@@ -50,12 +50,9 @@ export type ProjectionGraphNode = {
   referenceCount: number;
   dependantCount: number;
   isFocus: boolean;
-};
-
-export type ProjectionGraphEdge = {
-  source: string;
-  target: string;
-  type: string;
+  parentId?: string;
+  depth: number;
+  edgeType?: string;
   confidence: string[];
   symbols: string[];
 };
@@ -70,7 +67,6 @@ export type ProjectionGraphResponse = {
     edges: number;
   };
   nodes: ProjectionGraphNode[];
-  edges: ProjectionGraphEdge[];
 };
 
 export async function loadProjectionSnapshot(analysisOut: string, projectName: string): Promise<ProjectionSnapshot> {
@@ -183,97 +179,71 @@ export async function loadProjectionSnapshot(analysisOut: string, projectName: s
 export function buildProjectionGraph(
   snapshot: ProjectionSnapshot,
   focusPath: string,
-  direction: ProjectionDirection,
   depth: number,
   maxNodes = 80
 ): ProjectionGraphResponse {
   const normalizedFocus = normalizePath(focusPath);
-  const visited = new Set<string>();
-  const queue: Array<{ path: string; depth: number }> = [{ path: normalizedFocus, depth: 0 }];
+  const visited = new Set<string>([normalizedFocus]);
+  const queue: Array<{ path: string; depth: number; parentId?: string; edge?: AggregatedTreeEdge }> = [
+    { path: normalizedFocus, depth: 0 }
+  ];
+  const nodes = new Map<string, ProjectionGraphNode>([
+    [
+      normalizedFocus,
+      toGraphNode(snapshot, normalizedFocus, normalizedFocus, 0, undefined, undefined)
+    ]
+  ]);
   let truncated = false;
+  let edgeCount = 0;
 
   while (queue.length > 0) {
     const current = queue.shift()!;
-    if (visited.has(current.path)) {
-      continue;
-    }
-    if (visited.size >= maxNodes) {
-      truncated = true;
-      break;
-    }
-    visited.add(current.path);
     if (current.depth >= depth) {
       continue;
     }
 
-    const nextEdges: GraphEdge[] = [];
-    if (direction === "outbound" || direction === "both") {
-      nextEdges.push(...(snapshot.adjacency.get(current.path) ?? []));
-    }
-    if (direction === "inbound" || direction === "both") {
-      nextEdges.push(...(snapshot.reverseAdjacency.get(current.path) ?? []));
-    }
-
+    const nextEdges = aggregateTreeEdges(snapshot.adjacency.get(current.path) ?? []);
     for (const edge of nextEdges) {
-      const neighbor = edge.from === current.path ? edge.to : edge.from;
-      if (!visited.has(neighbor)) {
-        queue.push({ path: neighbor, depth: current.depth + 1 });
-      }
-    }
-  }
-
-  const aggregatedEdges = new Map<string, ProjectionGraphEdge>();
-  for (const nodeId of visited) {
-    const relevantEdges = [
-      ...(snapshot.adjacency.get(nodeId) ?? []),
-      ...(snapshot.reverseAdjacency.get(nodeId) ?? [])
-    ];
-
-    for (const edge of relevantEdges) {
-      if (!visited.has(edge.from) || !visited.has(edge.to)) {
+      if (visited.has(edge.target)) {
         continue;
       }
-      const key = `${edge.from}::${edge.to}::${edge.type}`;
-      const existing = aggregatedEdges.get(key) ?? {
-        source: edge.from,
-        target: edge.to,
-        type: edge.type,
-        confidence: [],
-        symbols: []
-      };
-      if (!existing.confidence.includes(edge.confidence)) {
-        existing.confidence.push(edge.confidence);
+      if (nodes.size >= maxNodes) {
+        truncated = true;
+        break;
       }
-      for (const symbol of [edge.fromSymbol, edge.toSymbol]) {
-        if (symbol && !existing.symbols.includes(symbol)) {
-          existing.symbols.push(symbol);
-        }
-      }
-      aggregatedEdges.set(key, existing);
+      visited.add(edge.target);
+      edgeCount += 1;
+      const childDepth = current.depth + 1;
+      nodes.set(
+        edge.target,
+        toGraphNode(snapshot, edge.target, normalizedFocus, childDepth, current.path, edge)
+      );
+      queue.push({ path: edge.target, depth: childDepth, parentId: current.path, edge });
     }
   }
 
-  const nodes = [...visited].map((nodeId) => toGraphNode(snapshot, nodeId, normalizedFocus)).sort((left, right) => {
+  const orderedNodes = [...nodes.values()].sort((left, right) => {
     if (left.isFocus) return -1;
     if (right.isFocus) return 1;
+    if (left.depth !== right.depth) {
+      return left.depth - right.depth;
+    }
     if (left.nodeType !== right.nodeType) {
       return left.nodeType.localeCompare(right.nodeType);
     }
     return left.path.localeCompare(right.path);
   });
-  const edges = [...aggregatedEdges.values()].sort((left, right) => `${left.source}:${left.target}:${left.type}`.localeCompare(`${right.source}:${right.target}:${right.type}`));
 
   return {
     focusPath: normalizedFocus,
-    direction,
+    direction: "outbound",
     depth,
     truncated,
     stats: {
-      nodes: nodes.length,
-      edges: edges.length
+      nodes: orderedNodes.length,
+      edges: edgeCount
     },
-    nodes,
-    edges
+    nodes: orderedNodes
   };
 }
 
@@ -348,7 +318,21 @@ function compareFiles(left: ProjectionFileEntry, right: ProjectionFileEntry): nu
   return left.path.localeCompare(right.path);
 }
 
-function toGraphNode(snapshot: ProjectionSnapshot, nodeId: string, focusPath: string): ProjectionGraphNode {
+type AggregatedTreeEdge = {
+  target: string;
+  type: string;
+  confidence: string[];
+  symbols: string[];
+};
+
+function toGraphNode(
+  snapshot: ProjectionSnapshot,
+  nodeId: string,
+  focusPath: string,
+  depth: number,
+  parentId?: string,
+  edge?: AggregatedTreeEdge
+): ProjectionGraphNode {
   const file = snapshot.filesByPath.get(nodeId);
   return {
     id: nodeId,
@@ -357,8 +341,41 @@ function toGraphNode(snapshot: ProjectionSnapshot, nodeId: string, focusPath: st
     label: nodeId.split("/").at(-1) ?? nodeId,
     referenceCount: file?.referenceCount ?? (snapshot.adjacency.get(nodeId) ?? []).length,
     dependantCount: file?.dependantCount ?? (snapshot.reverseAdjacency.get(nodeId) ?? []).length,
-    isFocus: nodeId === focusPath
+    isFocus: nodeId === focusPath,
+    parentId,
+    depth,
+    edgeType: edge?.type,
+    confidence: edge?.confidence ?? [],
+    symbols: edge?.symbols ?? []
   };
+}
+
+function aggregateTreeEdges(edges: GraphEdge[]): AggregatedTreeEdge[] {
+  const aggregated = new Map<string, AggregatedTreeEdge>();
+
+  for (const edge of edges) {
+    const key = edge.to;
+    const existing = aggregated.get(key) ?? {
+      target: edge.to,
+      type: edge.type,
+      confidence: [],
+      symbols: []
+    };
+    if (!existing.confidence.includes(edge.confidence)) {
+      existing.confidence.push(edge.confidence);
+    }
+    for (const symbol of [edge.fromSymbol, edge.toSymbol]) {
+      if (symbol && !existing.symbols.includes(symbol)) {
+        existing.symbols.push(symbol);
+      }
+    }
+    if (existing.type !== edge.type && !existing.type.includes(edge.type)) {
+      existing.type = `${existing.type},${edge.type}`;
+    }
+    aggregated.set(key, existing);
+  }
+
+  return [...aggregated.values()].sort((left, right) => left.target.localeCompare(right.target));
 }
 
 function inferNodeType(value: string): GraphNodeType {

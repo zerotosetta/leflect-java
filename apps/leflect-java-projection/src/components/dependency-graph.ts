@@ -1,7 +1,7 @@
 import { LitElement, html } from "lit";
 import * as d3 from "d3";
 
-import type { ProjectionGraphResponse } from "../types";
+import type { ProjectionGraphNode, ProjectionGraphResponse } from "../types";
 
 class ProjectionDependencyGraph extends LitElement {
   static properties = {
@@ -11,7 +11,6 @@ class ProjectionDependencyGraph extends LitElement {
 
   graph?: ProjectionGraphResponse;
   selectedNodeId?: string;
-  private simulation?: d3.Simulation<d3.SimulationNodeDatum, undefined>;
 
   override createRenderRoot(): this {
     return this;
@@ -23,7 +22,7 @@ class ProjectionDependencyGraph extends LitElement {
         <svg class="h-full w-full"></svg>
         ${this.graph && this.graph.nodes.length > 0
           ? null
-          : html`<div class="absolute inset-0 flex items-center justify-center text-[11px] text-slate-500">선택한 파일의 그래프가 없습니다.</div>`}
+          : html`<div class="absolute inset-0 flex items-center justify-center text-[11px] text-slate-500">선택한 파일의 outbound dependency tree가 없습니다.</div>`}
       </div>
     `;
   }
@@ -32,115 +31,139 @@ class ProjectionDependencyGraph extends LitElement {
     this.draw();
   }
 
-  override disconnectedCallback(): void {
-    this.simulation?.stop();
-    this.simulation = undefined;
-    super.disconnectedCallback();
-  }
-
   private draw(): void {
     const svgElement = this.querySelector("svg");
     if (!svgElement) {
       return;
     }
 
-    const rect = svgElement.getBoundingClientRect();
-    const width = Math.max(320, rect.width || 960);
-    const height = Math.max(240, rect.height || 640);
     const svg = d3.select(svgElement);
     svg.selectAll("*").remove();
-    svg.attr("viewBox", `0 0 ${width} ${height}`);
-    this.simulation?.stop();
-    this.simulation = undefined;
 
     if (!this.graph || this.graph.nodes.length === 0) {
       return;
     }
 
     const nodes = this.graph.nodes.map((node) => ({ ...node }));
-    const links = this.graph.edges.map((edge) => ({ ...edge }));
+    const width = Math.max(720, svgElement.getBoundingClientRect().width || 960);
+    const dx = 22;
+    const dy = 220;
+    const margins = { top: 28, right: 180, bottom: 28, left: 120 };
 
-    const root = svg.append("g");
+    const stratified = d3
+      .stratify<ProjectionGraphNode>()
+      .id((datum) => datum.id)
+      .parentId((datum) => datum.parentId ?? null)(nodes);
+
+    const tree = d3.tree<typeof stratified.data>().nodeSize([dx, dy]);
+    const root = tree(stratified);
+
+    let x0 = Infinity;
+    let x1 = -x0;
+    root.each((node) => {
+      if (node.x < x0) x0 = node.x;
+      if (node.x > x1) x1 = node.x;
+    });
+
+    const height = x1 - x0 + margins.top + margins.bottom;
+    svg.attr("viewBox", `0 0 ${width} ${height}`);
+
+    const defs = svg.append("defs");
+    defs
+      .append("marker")
+      .attr("id", "projection-arrow")
+      .attr("viewBox", "0 -5 10 10")
+      .attr("refX", 8)
+      .attr("refY", 0)
+      .attr("markerWidth", 5)
+      .attr("markerHeight", 5)
+      .attr("orient", "auto")
+      .append("path")
+      .attr("d", "M0,-5L10,0L0,5")
+      .attr("fill", "#5b77b8");
+
+    const canvas = svg.append("g").attr("transform", `translate(${margins.left},${margins.top - x0})`);
+
     svg.call(
-      d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.35, 2.5]).on("zoom", (event) => {
-        root.attr("transform", event.transform.toString());
+      d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.45, 2.4]).on("zoom", (event) => {
+        canvas.attr("transform", `translate(${event.transform.x + margins.left},${event.transform.y + margins.top - x0}) scale(${event.transform.k})`);
       })
     );
 
-    const link = root
+    canvas
       .append("g")
-      .attr("stroke-linecap", "round")
-      .selectAll("line")
-      .data(links)
-      .join("line")
-      .attr("stroke", (edge) => edge.type === "JSP_USES_TAG" ? "#7ee0a0" : edge.type === "JSP_SCRIPTLET_CALL" ? "#8ad6ff" : "#5b77b8")
-      .attr("stroke-opacity", 0.68)
-      .attr("stroke-width", (edge) => edge.source === this.graph?.focusPath || edge.target === this.graph?.focusPath ? 1.8 : 1.05);
+      .attr("fill", "none")
+      .attr("stroke-opacity", 0.9)
+      .attr("stroke-width", 1.25)
+      .selectAll("path")
+      .data(root.links())
+      .join("path")
+      .attr("stroke", (datum) => {
+        const edgeType = datum.target.data.edgeType ?? "";
+        if (edgeType.includes("JSP_USES_TAG")) return "#7ee0a0";
+        if (edgeType.includes("JSP_SCRIPTLET_CALL")) return "#8ad6ff";
+        return "#5b77b8";
+      })
+      .attr("marker-end", "url(#projection-arrow)")
+      .attr(
+        "d",
+        d3
+          .linkHorizontal<d3.HierarchyPointLink<ProjectionGraphNode>, d3.HierarchyPointNode<ProjectionGraphNode>>()
+          .x((datum) => datum.y)
+          .y((datum) => datum.x)
+      );
 
-    const node = root
+    const node = canvas
       .append("g")
       .selectAll("g")
-      .data(nodes)
+      .data(root.descendants())
       .join("g")
+      .attr("transform", (datum) => `translate(${datum.y},${datum.x})`)
       .style("cursor", "pointer")
       .on("click", (_, datum) => {
-        this.dispatchEvent(new CustomEvent("projection-node-select", {
-          detail: { nodeId: datum.id },
-          bubbles: true,
-          composed: true
-        }));
+        this.dispatchEvent(
+          new CustomEvent("projection-node-select", {
+            detail: { nodeId: datum.data.id },
+            bubbles: true,
+            composed: true
+          })
+        );
       });
 
     node
       .append("circle")
-      .attr("r", (datum) => datum.isFocus ? 11 : this.selectedNodeId === datum.id ? 9 : 7)
+      .attr("r", (datum) => (datum.data.isFocus ? 6.5 : this.selectedNodeId === datum.data.id ? 5.4 : 4.2))
       .attr("fill", (datum) => {
-        if (datum.isFocus) return "#f5c46b";
-        if (datum.nodeType === "jsp") return "#8ad6ff";
-        if (datum.nodeType === "java") return "#7ee0a0";
+        if (datum.data.isFocus) return "#f5c46b";
+        if (datum.data.nodeType === "jsp") return "#8ad6ff";
+        if (datum.data.nodeType === "java") return "#7ee0a0";
         return "#ff8b8b";
       })
-      .attr("stroke", (datum) => this.selectedNodeId === datum.id ? "#f8fafc" : "#0f172a")
-      .attr("stroke-width", (datum) => this.selectedNodeId === datum.id ? 2.2 : 1.2);
+      .attr("stroke", (datum) => (this.selectedNodeId === datum.data.id ? "#f8fafc" : "#0f172a"))
+      .attr("stroke-width", (datum) => (this.selectedNodeId === datum.data.id ? 1.8 : 1.1));
 
     node
       .append("text")
-      .text((datum) => datum.label)
-      .attr("x", 11)
-      .attr("y", 3)
-      .attr("fill", "#dbeafe")
+      .attr("dy", "0.32em")
+      .attr("x", (datum) => (datum.children ? -10 : 10))
+      .attr("text-anchor", (datum) => (datum.children ? "end" : "start"))
+      .attr("fill", (datum) => (datum.data.isFocus ? "#f8fafc" : "#dbeafe"))
       .attr("font-size", 10)
       .attr("font-family", "SFMono-Regular, ui-monospace, monospace")
-      .attr("opacity", (datum) => datum.isFocus || this.selectedNodeId === datum.id || nodes.length <= 18 ? 1 : 0.45);
+      .text((datum) => datum.data.label)
+      .clone(true)
+      .lower()
+      .attr("stroke", "#050816")
+      .attr("stroke-width", 3);
 
-    this.simulation = d3
-      .forceSimulation(nodes as d3.SimulationNodeDatum[])
-      .force(
-        "link",
-        d3.forceLink(links as d3.SimulationLinkDatum<d3.SimulationNodeDatum>[])
-          .id((datum: any) => datum.id)
-          .distance((edge: any) => edge.source.id === this.graph?.focusPath || edge.target.id === this.graph?.focusPath ? 95 : 140)
-          .strength(0.42)
-      )
-      .force("charge", d3.forceManyBody().strength(-360))
-      .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collision", d3.forceCollide().radius((datum: any) => datum.isFocus ? 36 : 24));
-
-    const focusNode = nodes.find((nodeItem) => nodeItem.id === this.graph?.focusPath) as (d3.SimulationNodeDatum & { fx?: number; fy?: number }) | undefined;
-    if (focusNode) {
-      focusNode.fx = width / 2;
-      focusNode.fy = height / 2;
-    }
-
-    this.simulation.on("tick", () => {
-      link
-        .attr("x1", (datum: any) => datum.source.x ?? width / 2)
-        .attr("y1", (datum: any) => datum.source.y ?? height / 2)
-        .attr("x2", (datum: any) => datum.target.x ?? width / 2)
-        .attr("y2", (datum: any) => datum.target.y ?? height / 2);
-
-      node.attr("transform", (datum: any) => `translate(${datum.x ?? width / 2}, ${datum.y ?? height / 2})`);
-    });
+    node
+      .append("text")
+      .attr("dy", "1.35em")
+      .attr("x", (datum) => (datum.children ? -10 : 10))
+      .attr("text-anchor", (datum) => (datum.children ? "end" : "start"))
+      .attr("fill", "#64748b")
+      .attr("font-size", 8)
+      .text((datum) => datum.data.edgeType ?? (datum.data.isFocus ? "focus" : datum.data.nodeType));
   }
 }
 

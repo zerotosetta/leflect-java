@@ -3,7 +3,7 @@ import http from "http";
 import path from "path";
 import { spawn } from "child_process";
 
-import { buildProjectionGraph, loadProjectionFileDetail, loadProjectionSnapshot, ProjectionDirection } from "./projection";
+import { buildProjectionGraph, loadProjectionFileDetail, loadProjectionSnapshot } from "./projection";
 
 export async function runProjectionServer(options: {
   appDir: string;
@@ -61,8 +61,7 @@ export async function runProjectionServer(options: {
           return;
         }
         const depth = Number.parseInt(url.searchParams.get("depth") ?? "2", 10);
-        const direction = parseDirection(url.searchParams.get("direction"));
-        sendJson(response, 200, buildProjectionGraph(snapshot, targetPath, direction, Number.isFinite(depth) ? depth : 2));
+        sendJson(response, 200, buildProjectionGraph(snapshot, targetPath, Number.isFinite(depth) ? depth : 2));
         return;
       }
 
@@ -157,10 +156,6 @@ function sendJson(response: http.ServerResponse, statusCode: number, payload: un
 
 function resolveViteCliEntrypoint(appDir: string): string {
   return require.resolve("vite/bin/vite.js", { paths: [appDir] });
-}
-
-function parseDirection(value: string | null): ProjectionDirection {
-  return value === "inbound" || value === "outbound" || value === "both" ? value : "both";
 }
 
 function contentType(filePath: string): string {
