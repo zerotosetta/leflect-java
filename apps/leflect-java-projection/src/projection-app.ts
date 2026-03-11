@@ -19,6 +19,7 @@ class LeflectJavaProjectionApp extends LitElement {
     selectedPath: { state: true },
     selectedGraphNodeId: { state: true },
     search: { state: true },
+    classpathFilter: { state: true },
     filter: { state: true },
     depth: { state: true },
     statusMessage: { state: true }
@@ -30,6 +31,7 @@ class LeflectJavaProjectionApp extends LitElement {
   selectedPath = "";
   selectedGraphNodeId = "";
   search = "";
+  classpathFilter = "";
   filter: "all" | Exclude<ProjectionNodeType, "unresolved"> = "all";
   depth = 2;
   statusMessage = "analysis snapshot 대기중";
@@ -86,8 +88,8 @@ class LeflectJavaProjectionApp extends LitElement {
           </div>
         </header>
 
-        <main class="grid min-h-0 flex-1 grid-cols-[19rem_minmax(0,1fr)_20rem] gap-px bg-chrome-800">
-          <aside class="flex min-h-0 flex-col bg-chrome-900">
+        <main class="grid min-h-0 flex-1 grid-cols-[19rem_minmax(0,1fr)_20rem] gap-px overflow-hidden bg-chrome-800">
+          <aside class="flex min-h-0 min-w-0 flex-col overflow-hidden bg-chrome-900">
             <div class="border-b border-chrome-800 p-2 pb-1">
               <div class="mb-1 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-slate-500">
                 <span>Index Files</span>
@@ -101,13 +103,36 @@ class LeflectJavaProjectionApp extends LitElement {
                   this.search = (event.target as HTMLInputElement).value;
                 }}
               />
+              <div class="mb-1 grid grid-cols-[1fr_auto] gap-1">
+                <input
+                  class="h-8 min-w-0 rounded border border-chrome-700 bg-chrome-950 px-2 text-[11px] outline-none placeholder:text-slate-600 focus:border-accent-500"
+                  list="classpath-options"
+                  aria-label="classpath filter"
+                  placeholder="classpath prefix"
+                  .value=${this.classpathFilter}
+                  @input=${(event: InputEvent) => {
+                    this.classpathFilter = (event.target as HTMLInputElement).value;
+                  }}
+                />
+                <button
+                  class="rounded border border-chrome-700 bg-chrome-950 px-2 py-1 text-[10px] text-slate-400 hover:border-chrome-600"
+                  @click=${() => {
+                    this.classpathFilter = "";
+                  }}
+                >
+                  clear
+                </button>
+              </div>
+              <datalist id="classpath-options">
+                ${this.classpathOptions.map((value) => html`<option value=${value}></option>`)}
+              </datalist>
               <div class="flex items-center gap-1 text-[10px]">
                 ${this.renderFilterButton("all", "ALL")}
                 ${this.renderFilterButton("java", "JAVA")}
                 ${this.renderFilterButton("jsp", "JSP")}
               </div>
             </div>
-            <div class="min-h-0 flex-1 overflow-auto px-1 py-1">
+            <div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-1 py-1">
               ${visibleFiles.length > 0
                 ? virtualize({
                     items: visibleFiles,
@@ -117,7 +142,7 @@ class LeflectJavaProjectionApp extends LitElement {
             </div>
           </aside>
 
-          <section class="grid min-h-0 grid-rows-[2.5rem_minmax(0,1fr)] bg-chrome-950">
+          <section class="grid min-h-0 min-w-0 grid-rows-[2.5rem_minmax(0,1fr)] overflow-hidden bg-chrome-950">
             <div class="grid grid-cols-[1fr_auto_auto] items-center gap-1 border-b border-chrome-800 px-2 text-[11px]">
               <div class="min-w-0">
                 <div class="truncate font-mono text-[11px] text-slate-200">${this.selectedPath || "파일을 선택하세요"}</div>
@@ -150,12 +175,12 @@ class LeflectJavaProjectionApp extends LitElement {
             </div>
           </section>
 
-          <aside class="flex min-h-0 flex-col bg-chrome-900">
+          <aside class="flex min-h-0 min-w-0 flex-col overflow-hidden bg-chrome-900">
             <div class="border-b border-chrome-800 px-2 py-1">
               <div class="text-[10px] uppercase tracking-[0.2em] text-slate-500">Detail</div>
               <div class="truncate font-mono text-[11px] text-slate-200">${this.selectedGraphNodeId || this.selectedPath || "-"}</div>
             </div>
-            <div class="min-h-0 flex-1 overflow-auto px-2 py-1 text-[11px]">
+            <div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 py-1 text-[11px]">
               ${this.detailTask.render({
                 pending: () => html`<div class="py-2 text-slate-500">detail loading...</div>`,
                 complete: (detail) => detail ? this.renderDetail(detail) : html`<div class="py-2 text-slate-500">detail 없음</div>`,
@@ -187,15 +212,24 @@ class LeflectJavaProjectionApp extends LitElement {
 
   private get filteredFiles(): ProjectionFileEntry[] {
     const query = this.search.trim().toLowerCase();
+    const classpathQuery = this.classpathFilter.trim().toLowerCase();
     return this.files.filter((file) => {
       if (this.filter !== "all" && file.nodeType !== this.filter) {
+        return false;
+      }
+      const classpath = this.classpathForFile(file).toLowerCase();
+      if (classpathQuery && !classpath.startsWith(classpathQuery)) {
         return false;
       }
       if (!query) {
         return true;
       }
-      return `${file.path} ${file.packageName ?? ""}`.toLowerCase().includes(query);
+      return `${file.path} ${file.packageName ?? ""} ${classpath}`.toLowerCase().includes(query);
     });
+  }
+
+  private get classpathOptions(): string[] {
+    return [...new Set(this.files.map((file) => this.classpathForFile(file)).filter(Boolean))].sort((left, right) => left.localeCompare(right));
   }
 
   private fileByPath(path: string): ProjectionFileEntry | undefined {
@@ -235,6 +269,7 @@ class LeflectJavaProjectionApp extends LitElement {
           <span class=${file.nodeType === "jsp" ? "rounded bg-sky-950 px-1 py-0.5 text-[10px] text-accent-500" : "rounded bg-emerald-950 px-1 py-0.5 text-[10px] text-accent-400"}>${file.nodeType}</span>
           <span class="truncate font-mono text-[11px] text-slate-100">${file.path.split("/").at(-1)}</span>
         </div>
+        <div class="truncate text-[10px] text-slate-400">${this.classpathForFile(file)}</div>
         <div class="truncate font-mono text-[10px] text-slate-500">${file.path}</div>
         <div class="flex items-center gap-2 text-[10px] text-slate-400">
           <span>out ${file.referenceCount}</span>
@@ -365,6 +400,14 @@ class LeflectJavaProjectionApp extends LitElement {
     this.selectedGraphNodeId = this.selectedPath;
     this.statusMessage = "detail selection reset";
   };
+
+  private classpathForFile(file: ProjectionFileEntry): string {
+    if (file.packageName) {
+      return file.packageName;
+    }
+    const parts = file.path.split("/");
+    return parts.length > 1 ? parts.slice(0, -1).join("/") : file.path;
+  }
 }
 
 function toStringList(metadata: Record<string, unknown>, key: string, field: string): string[] {

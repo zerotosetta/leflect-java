@@ -17,6 +17,12 @@ body {
 
 body {
   min-height: 100vh;
+  overflow: hidden;
+}
+
+leflect-java-projection-app {
+  display: block;
+  min-height: 100vh;
 }
 
 button,
