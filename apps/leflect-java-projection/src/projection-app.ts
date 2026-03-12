@@ -2,9 +2,10 @@ import { LitElement, html, nothing } from "lit";
 import { Task } from "@lit-labs/task";
 import { virtualize } from "@lit-labs/virtualizer/virtualize.js";
 
-import { fetchBootstrap, fetchFileDetail, fetchFiles, fetchGraph } from "./api";
+import { fetchBootstrap, fetchEntries, fetchFileDetail, fetchFiles, fetchGraph } from "./api";
 import type {
   ProjectionBootstrap,
+  ProjectionEntry,
   ProjectionFileDetail,
   ProjectionFileEntry,
   ProjectionNodeType
@@ -15,7 +16,9 @@ class LeflectJavaProjectionApp extends LitElement {
   static properties = {
     activeTab: { state: true },
     bootstrap: { state: true },
+    entries: { state: true },
     files: { state: true },
+    selectedEntryId: { state: true },
     selectedPath: { state: true },
     selectedGraphNodeId: { state: true },
     search: { state: true },
@@ -27,7 +30,9 @@ class LeflectJavaProjectionApp extends LitElement {
 
   activeTab = "dependency-tree";
   bootstrap?: ProjectionBootstrap;
+  entries: ProjectionEntry[] = [];
   files: ProjectionFileEntry[] = [];
+  selectedEntryId = "";
   selectedPath = "";
   selectedGraphNodeId = "";
   search = "";
@@ -68,6 +73,7 @@ class LeflectJavaProjectionApp extends LitElement {
   override render() {
     const visibleFiles = this.filteredFiles;
     const selectedSummary = this.fileByPath(this.selectedGraphNodeId || this.selectedPath);
+    const selectedEntry = this.selectedEntry;
 
     return html`
       <div class="flex h-screen min-h-screen flex-col bg-chrome-950 text-slate-100">
@@ -82,6 +88,7 @@ class LeflectJavaProjectionApp extends LitElement {
             </button>
           </nav>
           <div class="flex items-center gap-1 text-[11px] text-slate-400">
+            <span class="rounded border border-chrome-700 px-2 py-1">entries ${this.bootstrap?.counts.entries ?? 0}</span>
             <span class="rounded border border-chrome-700 px-2 py-1">files ${this.bootstrap?.counts.totalFiles ?? 0}</span>
             <span class="rounded border border-chrome-700 px-2 py-1">edges ${this.bootstrap?.counts.edges ?? 0}</span>
             <span class="rounded border border-chrome-700 px-2 py-1">outbound tree</span>
@@ -89,7 +96,7 @@ class LeflectJavaProjectionApp extends LitElement {
         </header>
 
         <main class="grid min-h-0 flex-1 grid-cols-[19rem_minmax(0,1fr)_20rem] gap-px overflow-hidden bg-chrome-800">
-          <aside class="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-chrome-900">
+          <aside class="grid min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden bg-chrome-900">
             <div class="border-b border-chrome-800 p-2 pb-1">
               <div class="mb-1 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-slate-500">
                 <span>Index Files</span>
@@ -132,6 +139,17 @@ class LeflectJavaProjectionApp extends LitElement {
                 ${this.renderFilterButton("jsp", "JSP")}
               </div>
             </div>
+            <div class="border-b border-chrome-800 px-2 py-1.5">
+              <div class="mb-1 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-slate-500">
+                <span>Entries</span>
+                <span>${this.entries.length}</span>
+              </div>
+              <div class="grid max-h-44 gap-1 overflow-y-auto overflow-x-hidden pr-1">
+                ${this.entries.length > 0
+                  ? this.entries.map((entry) => this.renderEntryRow(entry))
+                  : html`<div class="rounded border border-chrome-800 px-2 py-2 text-[10px] text-slate-500">No analyzed entries were found.</div>`}
+              </div>
+            </div>
             <div class="min-h-0 overflow-y-auto overflow-x-hidden px-1 py-1">
               ${visibleFiles.length > 0
                 ? virtualize({
@@ -147,7 +165,13 @@ class LeflectJavaProjectionApp extends LitElement {
             <div class="grid grid-cols-[1fr_auto_auto] items-center gap-1 border-b border-chrome-800 px-2 text-[11px]">
               <div class="min-w-0">
                 <div class="truncate font-mono text-[11px] text-slate-200">${this.selectedPath || "Select a file"}</div>
-                <div class="truncate text-[10px] text-slate-500">${selectedSummary ? `${selectedSummary.nodeType.toUpperCase()} · outbound refs ${selectedSummary.referenceCount} · inbound ${selectedSummary.dependantCount}` : "No graph focus selected"}</div>
+                <div class="truncate text-[10px] text-slate-500">
+                  ${selectedEntry
+                    ? `entry ${selectedEntry.label} · ${selectedSummary ? `${selectedSummary.nodeType.toUpperCase()} · outbound refs ${selectedSummary.referenceCount} · inbound ${selectedSummary.dependantCount}` : "No graph focus selected"}`
+                    : selectedSummary
+                      ? `${selectedSummary.nodeType.toUpperCase()} · outbound refs ${selectedSummary.referenceCount} · inbound ${selectedSummary.dependantCount}`
+                      : "No graph focus selected"}
+                </div>
               </div>
               <label class="flex items-center gap-1 rounded border border-chrome-800 bg-chrome-900 px-2 py-1">
                 <span class="text-slate-500">depth</span>
@@ -202,13 +226,17 @@ class LeflectJavaProjectionApp extends LitElement {
 
   private async loadInitialData(): Promise<void> {
     this.statusMessage = "Loading analysis snapshot";
-    const [bootstrap, filesPayload] = await Promise.all([fetchBootstrap(), fetchFiles()]);
+    const [bootstrap, filesPayload, entriesPayload] = await Promise.all([fetchBootstrap(), fetchFiles(), fetchEntries()]);
     this.bootstrap = bootstrap;
+    this.entries = entriesPayload.entries;
     this.files = filesPayload.files;
-    const defaultFile = bootstrap.defaultFile ?? filesPayload.files[0]?.path ?? "";
+    const fallbackEntry = entriesPayload.entries.find((entry) => entry.focusPath && !entry.disabled);
+    const defaultEntryId = bootstrap.defaultEntryId ?? fallbackEntry?.id ?? entriesPayload.entries[0]?.id ?? "";
+    const defaultFile = bootstrap.defaultFile ?? fallbackEntry?.focusPath ?? filesPayload.files[0]?.path ?? "";
+    this.selectedEntryId = defaultEntryId;
     this.selectedPath = defaultFile;
     this.selectedGraphNodeId = defaultFile;
-    this.statusMessage = `${filesPayload.files.length} files loaded`;
+    this.statusMessage = `${entriesPayload.entries.length} entries · ${filesPayload.files.length} files loaded`;
   }
 
   private get filteredFiles(): ProjectionFileEntry[] {
@@ -237,6 +265,10 @@ class LeflectJavaProjectionApp extends LitElement {
     return this.files.find((file) => file.path === path);
   }
 
+  private get selectedEntry(): ProjectionEntry | undefined {
+    return this.entries.find((entry) => entry.id === this.selectedEntryId);
+  }
+
   private renderFilterButton(filter: "all" | "java" | "jsp", label: string) {
     const active = this.filter === filter;
     return html`
@@ -263,6 +295,7 @@ class LeflectJavaProjectionApp extends LitElement {
         @click=${() => {
           this.selectedPath = file.path;
           this.selectedGraphNodeId = file.path;
+          this.selectedEntryId = this.entries.find((entry) => entry.focusPath === file.path)?.id ?? this.selectedEntryId;
           this.statusMessage = `${file.path} selected`;
         }}
       >
@@ -276,6 +309,47 @@ class LeflectJavaProjectionApp extends LitElement {
           <span>out ${file.referenceCount}</span>
           <span>in ${file.dependantCount}</span>
           ${file.classCount !== undefined ? html`<span>methods ${file.methodCount ?? 0}</span>` : html`<span>tags ${file.tagCount ?? 0}</span>`}
+        </div>
+      </button>
+    `;
+  }
+
+  private renderEntryRow(entry: ProjectionEntry) {
+    const active = entry.id === this.selectedEntryId;
+    const canFocus = Boolean(entry.focusPath) && !entry.disabled;
+    const focusLabel = entry.focusPath ? entry.focusPath.split("/").at(-1) : "unmatched";
+    const sourceLabel = entry.source === "declared" ? "declared" : "matched";
+    return html`
+      <button
+        class=${active
+          ? "grid gap-0.5 rounded border border-accent-500 bg-chrome-800 px-2 py-1 text-left shadow-insetline"
+          : "grid gap-0.5 rounded border border-chrome-800 bg-chrome-950 px-2 py-1 text-left hover:border-chrome-700 hover:bg-chrome-900"}
+        ?disabled=${!canFocus}
+        @click=${() => {
+          if (!entry.focusPath) {
+            this.selectedEntryId = entry.id;
+            this.statusMessage = `${entry.label} has no matched focus path`;
+            return;
+          }
+          this.selectedEntryId = entry.id;
+          this.selectedPath = entry.focusPath;
+          this.selectedGraphNodeId = entry.focusPath;
+          this.statusMessage = `${entry.label} entry selected`;
+        }}
+      >
+        <div class="flex items-center gap-1">
+          <span class=${entry.source === "declared" ? "rounded bg-indigo-950 px-1 py-0.5 text-[9px] uppercase text-indigo-300" : "rounded bg-amber-950 px-1 py-0.5 text-[9px] uppercase text-amber-300"}>${sourceLabel}</span>
+          ${entry.focusNodeType
+            ? html`<span class=${entry.focusNodeType === "jsp" ? "rounded bg-sky-950 px-1 py-0.5 text-[9px] uppercase text-accent-500" : "rounded bg-emerald-950 px-1 py-0.5 text-[9px] uppercase text-accent-400"}>${entry.focusNodeType}</span>`
+            : nothing}
+          ${entry.variantOf ? html`<span class="rounded bg-chrome-700 px-1 py-0.5 text-[9px] uppercase text-slate-300">variant</span>` : nothing}
+        </div>
+        <div class="truncate text-[11px] font-semibold text-slate-100">${entry.label}</div>
+        <div class="truncate font-mono text-[10px] text-slate-500">${focusLabel}</div>
+        <div class="flex items-center gap-2 text-[10px] text-slate-400">
+          <span>reach ${entry.reachableCount}</span>
+          <span>edges ${entry.edgeCount}</span>
+          <span>seeds ${entry.seedPaths.length}</span>
         </div>
       </button>
     `;
@@ -342,6 +416,7 @@ class LeflectJavaProjectionApp extends LitElement {
         @click=${() => {
           this.selectedPath = file.path;
           this.selectedGraphNodeId = file.path;
+          this.selectedEntryId = this.entries.find((entry) => entry.focusPath === file.path)?.id ?? this.selectedEntryId;
           this.statusMessage = `${file.path} focus moved`;
         }}
       >

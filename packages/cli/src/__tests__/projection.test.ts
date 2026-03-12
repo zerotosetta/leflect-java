@@ -12,6 +12,14 @@ describe("projection snapshot", () => {
     const snapshot = await loadProjectionSnapshot(analysisOut, "demo-project");
 
     expect(snapshot.files).toHaveLength(3);
+    expect(snapshot.entries).toHaveLength(2);
+    expect(snapshot.defaultEntryId).toBe("demo.home");
+    expect(snapshot.entries[0]).toMatchObject({
+      id: "demo.home",
+      source: "declared",
+      focusPath: "src/main/webapp/index.jsp",
+      reachableCount: 2
+    });
     expect(snapshot.files.find((entry) => entry.path === "src/main/java/demo/App.java")?.methodCount).toBe(2);
 
     const graph = buildProjectionGraph(snapshot, "src/main/java/demo/App.java", 2, 20);
@@ -89,6 +97,74 @@ async function createProjectionFixture(): Promise<string> {
       JSON.stringify({ from: "src/main/webapp/index.jsp", to: "src/main/java/demo/Service.java", type: "JSP_SCRIPTLET_CALL", confidence: "medium", fromSymbol: "work" })
     ].join("\n") + "\n"
   );
+
+  await writeJson(path.join(analysisOut, "graph", "entry-dependencies.json"), {
+    schemaVersion: "1.0",
+    generatedAt: new Date(0).toISOString(),
+    patterns: {
+      java: [],
+      jsp: ["index\\.jsp$"]
+    },
+    matchedEntries: [
+      {
+        path: "src/main/webapp/index.jsp",
+        nodeType: "jsp",
+        matchedBy: ["index\\.jsp$"]
+      }
+    ],
+    unmatchedPatterns: [],
+    entries: [
+      {
+        entry: "src/main/webapp/index.jsp",
+        nodeType: "jsp",
+        matchedBy: ["index\\.jsp$"],
+        nodeCount: 2,
+        edgeCount: 1,
+        reachableFiles: ["src/main/webapp/index.jsp", "src/main/java/demo/Service.java"],
+        edges: [
+          {
+            from: "src/main/webapp/index.jsp",
+            to: "src/main/java/demo/Service.java",
+            type: "JSP_SCRIPTLET_CALL",
+            confidence: "medium"
+          }
+        ]
+      }
+    ],
+    declaredEntries: [
+      {
+        id: "demo.home",
+        type: "virtual_page",
+        label: "Demo Home",
+        description: "Demo entry",
+        tags: ["sample"],
+        seeds: {
+          java: [],
+          jsp: [
+            {
+              targetType: "jsp",
+              value: "src/main/webapp/index.jsp",
+              matched: true,
+              path: "src/main/webapp/index.jsp",
+              nodeType: "jsp"
+            }
+          ]
+        },
+        deferredTargets: [],
+        nodeCount: 2,
+        edgeCount: 1,
+        reachableFiles: ["src/main/webapp/index.jsp", "src/main/java/demo/Service.java"],
+        edges: [
+          {
+            from: "src/main/webapp/index.jsp",
+            to: "src/main/java/demo/Service.java",
+            type: "JSP_SCRIPTLET_CALL",
+            confidence: "medium"
+          }
+        ]
+      }
+    ]
+  });
 
   await writeJson(path.join(analysisOut, "index", "java-files.json"), [
     {

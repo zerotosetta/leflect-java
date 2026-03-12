@@ -39,13 +39,23 @@ export async function runProjectionServer(options: {
             totalFiles: snapshot.files.length,
             javaFiles: snapshot.files.filter((entry) => entry.nodeType === "java").length,
             jspFiles: snapshot.files.filter((entry) => entry.nodeType === "jsp").length,
+            entries: snapshot.entries.length,
             edges: snapshot.edgeCount,
             classes: snapshot.summary.counts.classes,
             methods: snapshot.summary.counts.methods
           },
-          defaultFile: snapshot.files.find((entry) => entry.nodeType === "jsp")?.path ?? snapshot.files[0]?.path,
+          defaultEntryId: snapshot.defaultEntryId,
+          defaultFile:
+            snapshot.entries.find((entry) => entry.id === snapshot.defaultEntryId)?.focusPath ??
+            snapshot.files.find((entry) => entry.nodeType === "jsp")?.path ??
+            snapshot.files[0]?.path,
           tabs: [{ id: "dependency-tree", label: "Dependency Tree" }]
         });
+        return;
+      }
+
+      if (url.pathname === "/api/entries") {
+        sendJson(response, 200, { entries: snapshot.entries });
         return;
       }
 

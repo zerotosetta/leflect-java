@@ -1,5 +1,6 @@
 import type {
   ProjectionBootstrap,
+  ProjectionEntry,
   ProjectionFileDetail,
   ProjectionFileEntry,
   ProjectionGraphResponse
@@ -19,6 +20,10 @@ export function fetchBootstrap(signal?: AbortSignal): Promise<ProjectionBootstra
 
 export function fetchFiles(signal?: AbortSignal): Promise<{ files: ProjectionFileEntry[] }> {
   return getJson<{ files: ProjectionFileEntry[] }>("/api/files", signal);
+}
+
+export function fetchEntries(signal?: AbortSignal): Promise<{ entries: ProjectionEntry[] }> {
+  return getJson<{ entries: ProjectionEntry[] }>("/api/entries", signal);
 }
 
 export function fetchGraph(

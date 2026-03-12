@@ -8,10 +8,12 @@ export type ProjectionBootstrap = {
     totalFiles: number;
     javaFiles: number;
     jspFiles: number;
+    entries: number;
     edges: number;
     classes: number;
     methods: number;
   };
+  defaultEntryId?: string;
   defaultFile?: string;
   tabs: Array<{ id: string; label: string }>;
 };
@@ -34,6 +36,23 @@ export type ProjectionFileEntry = {
   resolvedTagCount?: number;
   referenceCount: number;
   dependantCount: number;
+};
+
+export type ProjectionEntry = {
+  id: string;
+  label: string;
+  source: "declared" | "matched";
+  focusPath?: string;
+  focusNodeType?: Exclude<ProjectionNodeType, "unresolved">;
+  description?: string;
+  tags: string[];
+  variantOf?: string;
+  matchedBy: string[];
+  seedPaths: string[];
+  nodeCount: number;
+  edgeCount: number;
+  reachableCount: number;
+  disabled: boolean;
 };
 
 export type ProjectionGraphNode = {

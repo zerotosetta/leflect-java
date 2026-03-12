@@ -1,7 +1,17 @@
 import fs from "fs/promises";
 import path from "path";
 
-import { FileDependencyIndex, FileDependencyRecord, FileDependencyReference, GraphEdge, GraphNodeType, SummaryReport } from "@leflect-java/schema";
+import {
+  DeclaredEntryDependencyRecord,
+  DeclaredEntrySeedRecord,
+  EntryDependencyIndex,
+  FileDependencyIndex,
+  FileDependencyRecord,
+  FileDependencyReference,
+  GraphEdge,
+  GraphNodeType,
+  SummaryReport
+} from "@leflect-java/schema";
 
 export type ProjectionDirection = "outbound";
 
@@ -31,12 +41,33 @@ export type ProjectionFileEntry = Omit<ProjectionFileManifestEntry, "nodeType"> 
   referencedBy: FileDependencyReference[];
 };
 
+export type ProjectionEntrySource = "declared" | "matched";
+
+export type ProjectionEntry = {
+  id: string;
+  label: string;
+  source: ProjectionEntrySource;
+  focusPath?: string;
+  focusNodeType?: Exclude<GraphNodeType, "unresolved">;
+  description?: string;
+  tags: string[];
+  variantOf?: string;
+  matchedBy: string[];
+  seedPaths: string[];
+  nodeCount: number;
+  edgeCount: number;
+  reachableCount: number;
+  disabled: boolean;
+};
+
 export type ProjectionSnapshot = {
   projectName: string;
   analysisOut: string;
   summary: SummaryReport;
   files: ProjectionFileEntry[];
   filesByPath: Map<string, ProjectionFileEntry>;
+  entries: ProjectionEntry[];
+  defaultEntryId?: string;
   adjacency: Map<string, GraphEdge[]>;
   reverseAdjacency: Map<string, GraphEdge[]>;
   edgeCount: number;
@@ -70,7 +101,7 @@ export type ProjectionGraphResponse = {
 };
 
 export async function loadProjectionSnapshot(analysisOut: string, projectName: string): Promise<ProjectionSnapshot> {
-  const [summary, fileIndex, edges, javaManifest, jspManifest] = await Promise.all([
+  const [summary, fileIndex, edges, javaManifest, jspManifest, entryIndex] = await Promise.all([
     readJsonFile<SummaryReport>(path.join(analysisOut, "report", "summary.json"), {
       schemaVersion: "1.0",
       generatedAt: new Date(0).toISOString(),
@@ -97,7 +128,16 @@ export async function loadProjectionSnapshot(analysisOut: string, projectName: s
     }),
     readJsonlFile<GraphEdge>(path.join(analysisOut, "graph", "file-dependency.jsonl")),
     readJsonFile<Omit<ProjectionFileManifestEntry, "nodeType">[]>(path.join(analysisOut, "index", "java-files.json"), []),
-    readJsonFile<Omit<ProjectionFileManifestEntry, "nodeType">[]>(path.join(analysisOut, "index", "jsp-files.json"), [])
+    readJsonFile<Omit<ProjectionFileManifestEntry, "nodeType">[]>(path.join(analysisOut, "index", "jsp-files.json"), []),
+    readJsonFile<EntryDependencyIndex>(path.join(analysisOut, "graph", "entry-dependencies.json"), {
+      schemaVersion: "1.0",
+      generatedAt: new Date(0).toISOString(),
+      patterns: { java: [], jsp: [] },
+      matchedEntries: [],
+      unmatchedPatterns: [],
+      entries: [],
+      declaredEntries: []
+    })
   ]);
 
   const filesByPath = new Map<string, ProjectionFileEntry>();
@@ -163,6 +203,8 @@ export async function loadProjectionSnapshot(analysisOut: string, projectName: s
   }
 
   const files = [...filesByPath.values()].sort(compareFiles);
+  const entries = buildProjectionEntries(entryIndex);
+  const defaultEntryId = entries.find((entry) => !entry.disabled)?.id ?? entries[0]?.id;
 
   return {
     projectName,
@@ -170,6 +212,8 @@ export async function loadProjectionSnapshot(analysisOut: string, projectName: s
     summary,
     files,
     filesByPath,
+    entries,
+    defaultEntryId,
     adjacency,
     reverseAdjacency,
     edgeCount: edges.length
@@ -318,6 +362,59 @@ function compareFiles(left: ProjectionFileEntry, right: ProjectionFileEntry): nu
   return left.path.localeCompare(right.path);
 }
 
+function buildProjectionEntries(entryIndex: EntryDependencyIndex): ProjectionEntry[] {
+  const declaredEntries = entryIndex.declaredEntries.map((entry) => {
+    const seedRecords = [...entry.seeds.jsp, ...entry.seeds.java];
+    const focusSeed = resolveDeclaredEntryFocusSeed(entry);
+    return {
+      id: entry.id,
+      label: entry.label ?? entry.id,
+      source: "declared" as const,
+      focusPath: focusSeed?.path ? normalizePath(focusSeed.path) : undefined,
+      focusNodeType: focusSeed?.nodeType ?? resolveSeedNodeType(focusSeed?.targetType),
+      description: entry.description,
+      tags: [...(entry.tags ?? [])].sort(),
+      variantOf: entry.variantOf,
+      matchedBy: [],
+      seedPaths: seedRecords.map((seed) => normalizePath(seed.path ?? seed.value)),
+      nodeCount: entry.nodeCount,
+      edgeCount: entry.edgeCount,
+      reachableCount: entry.reachableFiles.length,
+      disabled: !focusSeed?.path
+    };
+  });
+
+  const matchedEntries = entryIndex.entries.map((entry) => ({
+    id: normalizePath(entry.entry),
+    label: entry.entry.split("/").at(-1) ?? entry.entry,
+    source: "matched" as const,
+    focusPath: normalizePath(entry.entry),
+    focusNodeType: entry.nodeType,
+    description: undefined,
+    tags: [],
+    variantOf: undefined,
+    matchedBy: [...entry.matchedBy].sort(),
+    seedPaths: [normalizePath(entry.entry)],
+    nodeCount: entry.nodeCount,
+    edgeCount: entry.edgeCount,
+    reachableCount: entry.reachableFiles.length,
+    disabled: false
+  }));
+
+  return [...declaredEntries, ...matchedEntries].sort((left, right) => {
+    if (left.source !== right.source) {
+      return left.source === "declared" ? -1 : 1;
+    }
+    if (left.variantOf && !right.variantOf) {
+      return 1;
+    }
+    if (!left.variantOf && right.variantOf) {
+      return -1;
+    }
+    return left.label.localeCompare(right.label);
+  });
+}
+
 type AggregatedTreeEdge = {
   target: string;
   type: string;
@@ -386,6 +483,42 @@ function inferNodeType(value: string): GraphNodeType {
     return "java";
   }
   return "unresolved";
+}
+
+function resolveSeedNodeType(value?: "java" | "jsp"): Exclude<GraphNodeType, "unresolved"> | undefined {
+  if (value === "java" || value === "jsp") {
+    return value;
+  }
+  return undefined;
+}
+
+function resolveDeclaredEntryFocusSeed(entry: DeclaredEntryDependencyRecord): DeclaredEntrySeedRecord | undefined {
+  const matchedJspSeeds = entry.seeds.jsp.filter((seed) => seed.matched && seed.path);
+  const matchedJavaSeeds = entry.seeds.java.filter((seed) => seed.matched && seed.path);
+  const jspSeeds = entry.seeds.jsp.filter((seed) => seed.path);
+  const javaSeeds = entry.seeds.java.filter((seed) => seed.path);
+  const nonFragmentJsp = (seeds: DeclaredEntrySeedRecord[]) =>
+    seeds.find((seed) => seed.path && !seed.path.includes("/fragments/"));
+
+  if (entry.variantOf) {
+    return (
+      matchedJavaSeeds[0] ??
+      nonFragmentJsp(matchedJspSeeds) ??
+      matchedJspSeeds[0] ??
+      javaSeeds[0] ??
+      nonFragmentJsp(jspSeeds) ??
+      jspSeeds[0]
+    );
+  }
+
+  return (
+    nonFragmentJsp(matchedJspSeeds) ??
+    matchedJspSeeds[0] ??
+    matchedJavaSeeds[0] ??
+    nonFragmentJsp(jspSeeds) ??
+    jspSeeds[0] ??
+    javaSeeds[0]
+  );
 }
 
 function pushMap(map: Map<string, GraphEdge[]>, key: string, edge: GraphEdge): void {
