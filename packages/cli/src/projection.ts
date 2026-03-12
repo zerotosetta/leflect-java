@@ -47,6 +47,7 @@ export type ProjectionEntry = {
   id: string;
   label: string;
   source: ProjectionEntrySource;
+  entryType?: string;
   focusPath?: string;
   focusNodeType?: Exclude<GraphNodeType, "unresolved">;
   description?: string;
@@ -370,6 +371,7 @@ function buildProjectionEntries(entryIndex: EntryDependencyIndex): ProjectionEnt
       id: entry.id,
       label: entry.label ?? entry.id,
       source: "declared" as const,
+      entryType: entry.type,
       focusPath: focusSeed?.path ? normalizePath(focusSeed.path) : undefined,
       focusNodeType: focusSeed?.nodeType ?? resolveSeedNodeType(focusSeed?.targetType),
       description: entry.description,
@@ -388,6 +390,7 @@ function buildProjectionEntries(entryIndex: EntryDependencyIndex): ProjectionEnt
     id: normalizePath(entry.entry),
     label: entry.entry.split("/").at(-1) ?? entry.entry,
     source: "matched" as const,
+    entryType: "matched_file",
     focusPath: normalizePath(entry.entry),
     focusNodeType: entry.nodeType,
     description: undefined,

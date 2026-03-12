@@ -74,6 +74,10 @@ class LeflectJavaProjectionApp extends LitElement {
     const visibleFiles = this.filteredFiles;
     const selectedSummary = this.fileByPath(this.selectedGraphNodeId || this.selectedPath);
     const selectedEntry = this.selectedEntry;
+    const tabs = this.bootstrap?.tabs ?? [
+      { id: "dependency-tree", label: "Dependency Tree" },
+      { id: "entries", label: "Entries" }
+    ];
 
     return html`
       <div class="flex h-screen min-h-screen flex-col bg-chrome-950 text-slate-100">
@@ -83,136 +87,20 @@ class LeflectJavaProjectionApp extends LitElement {
             <div class="text-sm font-semibold text-slate-100">${this.bootstrap?.projectName ?? "Loading project..."}</div>
           </div>
           <nav class="flex items-center gap-1 self-stretch">
-            <button class="rounded border border-chrome-700 bg-chrome-800 px-2 py-1 text-[11px] font-medium text-accent-500">
-              Dependency Tree
-            </button>
+            ${tabs.map((tab) => this.renderTabButton(tab.id, tab.label))}
           </nav>
           <div class="flex items-center gap-1 text-[11px] text-slate-400">
             <span class="rounded border border-chrome-700 px-2 py-1">entries ${this.bootstrap?.counts.entries ?? 0}</span>
             <span class="rounded border border-chrome-700 px-2 py-1">files ${this.bootstrap?.counts.totalFiles ?? 0}</span>
             <span class="rounded border border-chrome-700 px-2 py-1">edges ${this.bootstrap?.counts.edges ?? 0}</span>
-            <span class="rounded border border-chrome-700 px-2 py-1">outbound tree</span>
+            <span class="rounded border border-chrome-700 px-2 py-1">${this.activeTab === "entries" ? "entry browser" : "outbound tree"}</span>
           </div>
         </header>
 
         <main class="grid min-h-0 flex-1 grid-cols-[19rem_minmax(0,1fr)_20rem] gap-px overflow-hidden bg-chrome-800">
-          <aside class="grid min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden bg-chrome-900">
-            <div class="border-b border-chrome-800 p-2 pb-1">
-              <div class="mb-1 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-slate-500">
-                <span>Index Files</span>
-                <span>${visibleFiles.length}/${this.files.length}</span>
-              </div>
-              <input
-                class="mb-1 h-8 w-full rounded border border-chrome-700 bg-chrome-950 px-2 text-[11px] outline-none placeholder:text-slate-600 focus:border-accent-500"
-                placeholder="search path or package"
-                .value=${this.search}
-                @input=${(event: InputEvent) => {
-                  this.search = (event.target as HTMLInputElement).value;
-                }}
-              />
-              <div class="mb-1 grid grid-cols-[1fr_auto] gap-1">
-                <input
-                  class="h-8 min-w-0 rounded border border-chrome-700 bg-chrome-950 px-2 text-[11px] outline-none placeholder:text-slate-600 focus:border-accent-500"
-                  list="classpath-options"
-                  aria-label="classpath filter"
-                  placeholder="classpath prefix"
-                  .value=${this.classpathFilter}
-                  @input=${(event: InputEvent) => {
-                    this.classpathFilter = (event.target as HTMLInputElement).value;
-                  }}
-                />
-                <button
-                  class="rounded border border-chrome-700 bg-chrome-950 px-2 py-1 text-[10px] text-slate-400 hover:border-chrome-600"
-                  @click=${() => {
-                    this.classpathFilter = "";
-                  }}
-                >
-                  clear
-                </button>
-              </div>
-              <datalist id="classpath-options">
-                ${this.classpathOptions.map((value) => html`<option value=${value}></option>`)}
-              </datalist>
-              <div class="flex items-center gap-1 text-[10px]">
-                ${this.renderFilterButton("all", "ALL")}
-                ${this.renderFilterButton("java", "JAVA")}
-                ${this.renderFilterButton("jsp", "JSP")}
-              </div>
-            </div>
-            <div class="border-b border-chrome-800 px-2 py-1.5">
-              <div class="mb-1 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-slate-500">
-                <span>Entries</span>
-                <span>${this.entries.length}</span>
-              </div>
-              <div class="grid max-h-44 gap-1 overflow-y-auto overflow-x-hidden pr-1">
-                ${this.entries.length > 0
-                  ? this.entries.map((entry) => this.renderEntryRow(entry))
-                  : html`<div class="rounded border border-chrome-800 px-2 py-2 text-[10px] text-slate-500">No analyzed entries were found.</div>`}
-              </div>
-            </div>
-            <div class="min-h-0 overflow-y-auto overflow-x-hidden px-1 py-1">
-              ${visibleFiles.length > 0
-                ? virtualize({
-                    scroller: true,
-                    items: visibleFiles,
-                    renderItem: (file) => this.renderFileRow(file)
-                  })
-                : html`<div class="p-2 text-[11px] text-slate-500">No files match the current filters.</div>`}
-            </div>
-          </aside>
-
-          <section class="grid min-h-0 min-w-0 grid-rows-[2.5rem_minmax(0,1fr)] overflow-hidden bg-chrome-950">
-            <div class="grid grid-cols-[1fr_auto_auto] items-center gap-1 border-b border-chrome-800 px-2 text-[11px]">
-              <div class="min-w-0">
-                <div class="truncate font-mono text-[11px] text-slate-200">${this.selectedPath || "Select a file"}</div>
-                <div class="truncate text-[10px] text-slate-500">
-                  ${selectedEntry
-                    ? `entry ${selectedEntry.label} · ${selectedSummary ? `${selectedSummary.nodeType.toUpperCase()} · outbound refs ${selectedSummary.referenceCount} · inbound ${selectedSummary.dependantCount}` : "No graph focus selected"}`
-                    : selectedSummary
-                      ? `${selectedSummary.nodeType.toUpperCase()} · outbound refs ${selectedSummary.referenceCount} · inbound ${selectedSummary.dependantCount}`
-                      : "No graph focus selected"}
-                </div>
-              </div>
-              <label class="flex items-center gap-1 rounded border border-chrome-800 bg-chrome-900 px-2 py-1">
-                <span class="text-slate-500">depth</span>
-                <select class="bg-transparent outline-none" .value=${String(this.depth)} @change=${this.onDepthChange}>
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                </select>
-              </label>
-              <button class="rounded border border-chrome-800 bg-chrome-900 px-2 py-1 text-slate-300 hover:border-accent-500" @click=${this.resetGraphSelection}>
-                reset
-              </button>
-            </div>
-            <div class="min-h-0 p-1">
-              ${this.graphTask.render({
-                pending: () => html`<div class="flex h-full items-center justify-center text-[11px] text-slate-500">Building graph...</div>`,
-                complete: (graph) => graph
-                  ? html`<projection-dependency-graph
-                      .graph=${graph}
-                      .selectedNodeId=${this.selectedGraphNodeId || this.selectedPath}
-                      @projection-node-select=${this.onGraphNodeSelect}
-                    ></projection-dependency-graph>`
-                  : html`<div class="flex h-full items-center justify-center text-[11px] text-slate-500">Select a file to inspect its outbound dependency tree.</div>`,
-                error: (error) => html`<div class="flex h-full items-center justify-center text-[11px] text-red-300">${String(error)}</div>`
-              })}
-            </div>
-          </section>
-
-          <aside class="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-chrome-900">
-            <div class="border-b border-chrome-800 px-2 py-1">
-              <div class="text-[10px] uppercase tracking-[0.2em] text-slate-500">Detail</div>
-              <div class="truncate font-mono text-[11px] text-slate-200">${this.selectedGraphNodeId || this.selectedPath || "-"}</div>
-            </div>
-            <div class="min-h-0 overflow-y-auto overflow-x-hidden px-2 py-1 text-[11px]">
-              ${this.detailTask.render({
-                pending: () => html`<div class="py-2 text-slate-500">detail loading...</div>`,
-                complete: (detail) => detail ? this.renderDetail(detail) : html`<div class="py-2 text-slate-500">No detail available.</div>`,
-                error: (error) => html`<div class="py-2 text-red-300">${String(error)}</div>`
-              })}
-            </div>
-          </aside>
+          ${this.activeTab === "entries"
+            ? this.renderEntriesLayout(selectedEntry)
+            : this.renderDependencyTreeLayout(visibleFiles, selectedSummary, selectedEntry)}
         </main>
 
         <footer class="grid h-7 grid-cols-[1fr_auto_auto] items-center gap-2 border-t border-chrome-800 bg-chrome-900 px-2 text-[10px] text-slate-400">
@@ -267,6 +155,199 @@ class LeflectJavaProjectionApp extends LitElement {
 
   private get selectedEntry(): ProjectionEntry | undefined {
     return this.entries.find((entry) => entry.id === this.selectedEntryId);
+  }
+
+  private renderTabButton(tabId: string, label: string) {
+    const active = this.activeTab === tabId;
+    return html`
+      <button
+        class=${active
+          ? "rounded border border-chrome-700 bg-chrome-800 px-2 py-1 text-[11px] font-medium text-accent-500"
+          : "rounded border border-chrome-800 bg-chrome-950 px-2 py-1 text-[11px] text-slate-400 hover:border-chrome-700 hover:text-slate-200"}
+        @click=${() => {
+          this.activeTab = tabId;
+          this.statusMessage = `${label} tab selected`;
+        }}
+      >
+        ${label}
+      </button>
+    `;
+  }
+
+  private renderDependencyTreeLayout(
+    visibleFiles: ProjectionFileEntry[],
+    selectedSummary: ProjectionFileEntry | undefined,
+    selectedEntry: ProjectionEntry | undefined
+  ) {
+    return html`
+      <aside class="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-chrome-900">
+        ${this.renderFileSidebar(visibleFiles)}
+      </aside>
+      ${this.renderGraphWorkspace({
+        title: this.selectedPath || "Select a file",
+        subtitle: selectedEntry
+          ? `entry ${selectedEntry.label} · ${selectedSummary ? `${selectedSummary.nodeType.toUpperCase()} · outbound refs ${selectedSummary.referenceCount} · inbound ${selectedSummary.dependantCount}` : "No graph focus selected"}`
+          : selectedSummary
+            ? `${selectedSummary.nodeType.toUpperCase()} · outbound refs ${selectedSummary.referenceCount} · inbound ${selectedSummary.dependantCount}`
+            : "No graph focus selected",
+        emptyMessage: "Select a file to inspect its outbound dependency tree."
+      })}
+      <aside class="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-chrome-900">
+        <div class="border-b border-chrome-800 px-2 py-1">
+          <div class="text-[10px] uppercase tracking-[0.2em] text-slate-500">Detail</div>
+          <div class="truncate font-mono text-[11px] text-slate-200">${this.selectedGraphNodeId || this.selectedPath || "-"}</div>
+        </div>
+        <div class="min-h-0 overflow-y-auto overflow-x-hidden px-2 py-1 text-[11px]">
+          ${this.detailTask.render({
+            pending: () => html`<div class="py-2 text-slate-500">detail loading...</div>`,
+            complete: (detail) => detail ? this.renderDetail(detail) : html`<div class="py-2 text-slate-500">No detail available.</div>`,
+            error: (error) => html`<div class="py-2 text-red-300">${String(error)}</div>`
+          })}
+        </div>
+      </aside>
+    `;
+  }
+
+  private renderEntriesLayout(selectedEntry: ProjectionEntry | undefined) {
+    return html`
+      <aside class="grid min-h-0 min-w-0 overflow-hidden bg-chrome-900">
+        ${this.renderEntryListPanel()}
+      </aside>
+      ${this.renderGraphWorkspace({
+        title: selectedEntry?.label ?? "Select an entry",
+        subtitle: selectedEntry
+          ? `${selectedEntry.entryType ?? selectedEntry.source} · focus ${selectedEntry.focusPath ?? "unmatched"} · reach ${selectedEntry.reachableCount} · edges ${selectedEntry.edgeCount}`
+          : "Select an entry to inspect its focus graph.",
+        emptyMessage: "Select an entry to inspect its graph."
+      })}
+      <aside class="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-chrome-900">
+        <div class="border-b border-chrome-800 px-2 py-1">
+          <div class="text-[10px] uppercase tracking-[0.2em] text-slate-500">Entry</div>
+          <div class="truncate text-[11px] text-slate-200">${selectedEntry?.label ?? "-"}</div>
+        </div>
+        <div class="min-h-0 overflow-y-auto overflow-x-hidden px-2 py-1 text-[11px]">
+          ${selectedEntry
+            ? this.renderEntryDetail(selectedEntry)
+            : html`<div class="py-2 text-slate-500">No entry selected.</div>`}
+        </div>
+      </aside>
+    `;
+  }
+
+  private renderFileSidebar(visibleFiles: ProjectionFileEntry[]) {
+    return html`
+      <div class="border-b border-chrome-800 p-2 pb-1">
+        <div class="mb-1 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-slate-500">
+          <span>Index Files</span>
+          <span>${visibleFiles.length}/${this.files.length}</span>
+        </div>
+        <input
+          class="mb-1 h-8 w-full rounded border border-chrome-700 bg-chrome-950 px-2 text-[11px] outline-none placeholder:text-slate-600 focus:border-accent-500"
+          placeholder="search path or package"
+          .value=${this.search}
+          @input=${(event: InputEvent) => {
+            this.search = (event.target as HTMLInputElement).value;
+          }}
+        />
+        <div class="mb-1 grid grid-cols-[1fr_auto] gap-1">
+          <input
+            class="h-8 min-w-0 rounded border border-chrome-700 bg-chrome-950 px-2 text-[11px] outline-none placeholder:text-slate-600 focus:border-accent-500"
+            list="classpath-options"
+            aria-label="classpath filter"
+            placeholder="classpath prefix"
+            .value=${this.classpathFilter}
+            @input=${(event: InputEvent) => {
+              this.classpathFilter = (event.target as HTMLInputElement).value;
+            }}
+          />
+          <button
+            class="rounded border border-chrome-700 bg-chrome-950 px-2 py-1 text-[10px] text-slate-400 hover:border-chrome-600"
+            @click=${() => {
+              this.classpathFilter = "";
+            }}
+          >
+            clear
+          </button>
+        </div>
+        <datalist id="classpath-options">
+          ${this.classpathOptions.map((value) => html`<option value=${value}></option>`)}
+        </datalist>
+        <div class="flex items-center gap-1 text-[10px]">
+          ${this.renderFilterButton("all", "ALL")}
+          ${this.renderFilterButton("java", "JAVA")}
+          ${this.renderFilterButton("jsp", "JSP")}
+        </div>
+      </div>
+      <div class="min-h-0 overflow-y-auto overflow-x-hidden px-1 py-1">
+        ${visibleFiles.length > 0
+          ? virtualize({
+              scroller: true,
+              items: visibleFiles,
+              renderItem: (file) => this.renderFileRow(file)
+            })
+          : html`<div class="p-2 text-[11px] text-slate-500">No files match the current filters.</div>`}
+      </div>
+    `;
+  }
+
+  private renderEntryListPanel() {
+    return html`
+      <div class="border-b border-chrome-800 px-2 py-1.5">
+        <div class="mb-1 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-slate-500">
+          <span>Entries</span>
+          <span>${this.entries.length}</span>
+        </div>
+        <div class="text-[10px] text-slate-500">Virtual entries are included here as declared entries.</div>
+      </div>
+      <div class="min-h-0 overflow-y-auto overflow-x-hidden px-2 py-1.5">
+        <div class="grid gap-1 pr-1">
+          ${this.entries.length > 0
+            ? this.entries.map((entry) => this.renderEntryRow(entry))
+            : html`<div class="rounded border border-chrome-800 px-2 py-2 text-[10px] text-slate-500">No analyzed entries were found.</div>`}
+        </div>
+      </div>
+    `;
+  }
+
+  private renderGraphWorkspace(options: {
+    title: string;
+    subtitle: string;
+    emptyMessage: string;
+  }) {
+    return html`
+      <section class="grid min-h-0 min-w-0 grid-rows-[2.5rem_minmax(0,1fr)] overflow-hidden bg-chrome-950">
+        <div class="grid grid-cols-[1fr_auto_auto] items-center gap-1 border-b border-chrome-800 px-2 text-[11px]">
+          <div class="min-w-0">
+            <div class="truncate font-mono text-[11px] text-slate-200">${options.title}</div>
+            <div class="truncate text-[10px] text-slate-500">${options.subtitle}</div>
+          </div>
+          <label class="flex items-center gap-1 rounded border border-chrome-800 bg-chrome-900 px-2 py-1">
+            <span class="text-slate-500">depth</span>
+            <select class="bg-transparent outline-none" .value=${String(this.depth)} @change=${this.onDepthChange}>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+            </select>
+          </label>
+          <button class="rounded border border-chrome-800 bg-chrome-900 px-2 py-1 text-slate-300 hover:border-accent-500" @click=${this.resetGraphSelection}>
+            reset
+          </button>
+        </div>
+        <div class="min-h-0 p-1">
+          ${this.graphTask.render({
+            pending: () => html`<div class="flex h-full items-center justify-center text-[11px] text-slate-500">Building graph...</div>`,
+            complete: (graph) => graph
+              ? html`<projection-dependency-graph
+                  .graph=${graph}
+                  .selectedNodeId=${this.selectedGraphNodeId || this.selectedPath}
+                  @projection-node-select=${this.onGraphNodeSelect}
+                ></projection-dependency-graph>`
+              : html`<div class="flex h-full items-center justify-center text-[11px] text-slate-500">${options.emptyMessage}</div>`,
+            error: (error) => html`<div class="flex h-full items-center justify-center text-[11px] text-red-300">${String(error)}</div>`
+          })}
+        </div>
+      </section>
+    `;
   }
 
   private renderFilterButton(filter: "all" | "java" | "jsp", label: string) {
@@ -339,6 +420,7 @@ class LeflectJavaProjectionApp extends LitElement {
       >
         <div class="flex items-center gap-1">
           <span class=${entry.source === "declared" ? "rounded bg-indigo-950 px-1 py-0.5 text-[9px] uppercase text-indigo-300" : "rounded bg-amber-950 px-1 py-0.5 text-[9px] uppercase text-amber-300"}>${sourceLabel}</span>
+          ${entry.entryType ? html`<span class="rounded bg-chrome-700 px-1 py-0.5 text-[9px] uppercase text-slate-200">${entry.entryType}</span>` : nothing}
           ${entry.focusNodeType
             ? html`<span class=${entry.focusNodeType === "jsp" ? "rounded bg-sky-950 px-1 py-0.5 text-[9px] uppercase text-accent-500" : "rounded bg-emerald-950 px-1 py-0.5 text-[9px] uppercase text-accent-400"}>${entry.focusNodeType}</span>`
             : nothing}
@@ -352,6 +434,69 @@ class LeflectJavaProjectionApp extends LitElement {
           <span>seeds ${entry.seedPaths.length}</span>
         </div>
       </button>
+    `;
+  }
+
+  private renderEntryDetail(entry: ProjectionEntry) {
+    return html`
+      <div class="grid gap-2">
+        <section class="rounded border border-chrome-800 bg-chrome-950 px-2 py-1">
+          <div class="mb-1 flex flex-wrap items-center gap-1">
+            <span class=${entry.source === "declared" ? "rounded bg-indigo-950 px-1 py-0.5 text-[9px] uppercase text-indigo-300" : "rounded bg-amber-950 px-1 py-0.5 text-[9px] uppercase text-amber-300"}>${entry.source}</span>
+            ${entry.entryType ? html`<span class="rounded bg-chrome-700 px-1 py-0.5 text-[9px] uppercase text-slate-200">${entry.entryType}</span>` : nothing}
+            ${entry.focusNodeType ? html`<span class=${entry.focusNodeType === "jsp" ? "rounded bg-sky-950 px-1 py-0.5 text-[9px] uppercase text-accent-500" : "rounded bg-emerald-950 px-1 py-0.5 text-[9px] uppercase text-accent-400"}>${entry.focusNodeType}</span>` : nothing}
+            ${entry.variantOf ? html`<span class="rounded bg-chrome-700 px-1 py-0.5 text-[9px] uppercase text-slate-300">variant of ${entry.variantOf}</span>` : nothing}
+          </div>
+          <div class="truncate text-[12px] font-semibold text-slate-100">${entry.label}</div>
+          <div class="truncate font-mono text-[10px] text-slate-500">${entry.id}</div>
+          ${entry.description ? html`<p class="mt-2 text-[10px] leading-5 text-slate-300">${entry.description}</p>` : nothing}
+          <div class="mt-2 grid grid-cols-2 gap-1 text-[10px] text-slate-400">
+            <div class="rounded border border-chrome-800 px-2 py-1">reach ${entry.reachableCount}</div>
+            <div class="rounded border border-chrome-800 px-2 py-1">edges ${entry.edgeCount}</div>
+            <div class="rounded border border-chrome-800 px-2 py-1">nodes ${entry.nodeCount}</div>
+            <div class="rounded border border-chrome-800 px-2 py-1">seeds ${entry.seedPaths.length}</div>
+          </div>
+          ${entry.focusPath
+            ? html`
+                <button
+                  class="mt-2 rounded border border-accent-500 px-2 py-1 text-[10px] font-semibold text-accent-500 hover:bg-chrome-900"
+                  @click=${() => {
+                    this.activeTab = "dependency-tree";
+                    this.selectedPath = entry.focusPath ?? this.selectedPath;
+                    this.selectedGraphNodeId = entry.focusPath ?? this.selectedGraphNodeId;
+                    this.statusMessage = `${entry.label} opened in dependency tree`;
+                  }}
+                >
+                  open in dependency tree
+                </button>
+              `
+            : nothing}
+        </section>
+        <section class="rounded border border-chrome-800 bg-chrome-950 px-2 py-1">
+          <div class="mb-1 text-[10px] uppercase tracking-[0.18em] text-slate-500">Focus Path</div>
+          ${entry.focusPath
+            ? html`<div class="truncate rounded border border-chrome-800 px-2 py-1 font-mono text-[10px] text-slate-200">${entry.focusPath}</div>`
+            : html`<div class="text-[10px] text-slate-500">No matched focus path.</div>`}
+        </section>
+        <section class="rounded border border-chrome-800 bg-chrome-950 px-2 py-1">
+          <div class="mb-1 text-[10px] uppercase tracking-[0.18em] text-slate-500">Tags</div>
+          ${entry.tags.length > 0
+            ? html`<div class="flex flex-wrap gap-1">${entry.tags.map((tag) => html`<span class="rounded border border-chrome-700 px-2 py-0.5 text-[10px] text-slate-300">${tag}</span>`)}</div>`
+            : html`<div class="text-[10px] text-slate-500">None</div>`}
+        </section>
+        <section class="rounded border border-chrome-800 bg-chrome-950 px-2 py-1">
+          <div class="mb-1 text-[10px] uppercase tracking-[0.18em] text-slate-500">Seed Paths</div>
+          <div class="grid gap-1">
+            ${entry.seedPaths.map((seedPath) => html`<div class="truncate rounded border border-chrome-800 px-2 py-1 font-mono text-[10px] text-slate-300">${seedPath}</div>`)}
+          </div>
+        </section>
+        <section class="rounded border border-chrome-800 bg-chrome-950 px-2 py-1">
+          <div class="mb-1 text-[10px] uppercase tracking-[0.18em] text-slate-500">Matched By</div>
+          ${entry.matchedBy.length > 0
+            ? html`<div class="grid gap-1">${entry.matchedBy.map((value) => html`<div class="truncate rounded border border-chrome-800 px-2 py-1 font-mono text-[10px] text-slate-300">${value}</div>`)}</div>`
+            : html`<div class="text-[10px] text-slate-500">No entry-file pattern for this entry.</div>`}
+        </section>
+      </div>
     `;
   }
 

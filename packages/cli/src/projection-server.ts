@@ -49,7 +49,10 @@ export async function runProjectionServer(options: {
             snapshot.entries.find((entry) => entry.id === snapshot.defaultEntryId)?.focusPath ??
             snapshot.files.find((entry) => entry.nodeType === "jsp")?.path ??
             snapshot.files[0]?.path,
-          tabs: [{ id: "dependency-tree", label: "Dependency Tree" }]
+          tabs: [
+            { id: "dependency-tree", label: "Dependency Tree" },
+            { id: "entries", label: "Entries" }
+          ]
         });
         return;
       }

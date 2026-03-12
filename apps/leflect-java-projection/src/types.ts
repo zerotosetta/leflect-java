@@ -42,6 +42,7 @@ export type ProjectionEntry = {
   id: string;
   label: string;
   source: "declared" | "matched";
+  entryType?: string;
   focusPath?: string;
   focusNodeType?: Exclude<ProjectionNodeType, "unresolved">;
   description?: string;
