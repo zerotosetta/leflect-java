@@ -1,0 +1,6 @@
+{
+  "id": "IF_ACCOUNT_BALANCE",
+  "system": "core-banking",
+  "request": ["accountId"],
+  "response": ["balance"]
+}

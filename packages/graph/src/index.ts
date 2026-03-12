@@ -2,6 +2,8 @@ import fs from "fs/promises";
 import path from "path";
 
 import {
+  DeclaredEntryDependencyRecord,
+  DeclaredEntrySeedRecord,
   EntryDependencyIndex,
   FileDependencyIndex,
   FileDependencyRecord,
@@ -9,7 +11,8 @@ import {
   GraphConfidence,
   GraphEdge,
   GraphEdgeType,
-  GraphNodeType
+  GraphNodeType,
+  LeflectEntryDefinition
 } from "@leflect-java/schema";
 
 export type JavaCallRecord = {
@@ -47,6 +50,7 @@ export type GraphBuildOptions = {
     java?: string[];
     jsp?: string[];
   };
+  entries?: LeflectEntryDefinition[];
 };
 
 export type GraphBuildResult = {
@@ -156,7 +160,12 @@ export function buildGraphs(
     jspJavaEdges,
     fileEdges,
     fileDependencies: buildFileDependencyIndex(fileEdges, nodeTypes),
-    entryDependencies: buildEntryDependencyIndex(fileEdges, nodeTypes, options.entryFiles)
+    entryDependencies: buildEntryDependencyIndex(
+      fileEdges,
+      nodeTypes,
+      options.entryFiles,
+      options.entries
+    )
   };
 }
 
@@ -342,21 +351,24 @@ function buildFileDependencyIndex(
 function buildEntryDependencyIndex(
   fileEdges: GraphEdge[],
   nodeTypes: Map<string, Exclude<GraphNodeType, "unresolved">>,
-  entryFiles?: GraphBuildOptions["entryFiles"]
+  entryFiles?: GraphBuildOptions["entryFiles"],
+  declaredEntries?: LeflectEntryDefinition[]
 ): EntryDependencyIndex {
   const patterns = {
     java: entryFiles?.java ?? [],
     jsp: entryFiles?.jsp ?? []
   };
+  const adjacency = buildAdjacency(fileEdges);
 
-  if (patterns.java.length === 0 && patterns.jsp.length === 0) {
+  if (patterns.java.length === 0 && patterns.jsp.length === 0 && (declaredEntries?.length ?? 0) === 0) {
     return {
       schemaVersion: SCHEMA_VERSION,
       generatedAt: new Date().toISOString(),
       patterns,
       matchedEntries: [],
       unmatchedPatterns: [],
-      entries: []
+      entries: [],
+      declaredEntries: []
     };
   }
 
@@ -391,46 +403,31 @@ function buildEntryDependencyIndex(
     }
   }
 
-  const adjacency = new Map<string, GraphEdge[]>();
-  for (const edge of fileEdges) {
-    const edges = adjacency.get(edge.from) ?? [];
-    edges.push(edge);
-    adjacency.set(edge.from, edges);
-  }
-
   const entries = [...matchMap.values()]
     .sort((left, right) => left.path.localeCompare(right.path))
     .map((entry) => {
-      const visited = new Set<string>([entry.path]);
-      const queue = [entry.path];
-      const collected = new Map<string, GraphEdge>();
-
-      while (queue.length > 0) {
-        const current = queue.shift();
-        if (!current) {
-          continue;
-        }
-
-        for (const edge of adjacency.get(current) ?? []) {
-          collected.set(edgeSignature(edge), edge);
-
-          if (nodeTypes.has(edge.to) && !visited.has(edge.to)) {
-            visited.add(edge.to);
-            queue.push(edge.to);
-          }
-        }
-      }
-
-      const edges = [...collected.values()].sort(compareEdge);
+      const traversal = traverseFromSeeds([entry.path], adjacency, nodeTypes);
+      const edges = [...traversal.edges.values()].sort(compareEdge);
       return {
         entry: entry.path,
         nodeType: entry.nodeType,
         matchedBy: [...new Set(entry.matchedBy)].sort(),
-        nodeCount: visited.size,
+        nodeCount: traversal.visited.size,
         edgeCount: edges.length,
-        reachableFiles: [...visited].sort(),
+        reachableFiles: [...traversal.visited].sort(),
         edges
       };
+    });
+
+  const expandedEntries = expandDeclaredEntries(declaredEntries ?? []);
+  const declaredEntryRecords = expandedEntries
+    .map((entry) => buildDeclaredEntryRecord(entry, adjacency, nodeTypes))
+    .sort((left, right) => {
+      const baseDelta = left.id.localeCompare(right.id);
+      if (baseDelta !== 0) {
+        return baseDelta;
+      }
+      return (left.variantOf ?? "").localeCompare(right.variantOf ?? "");
     });
 
   return {
@@ -455,8 +452,138 @@ function buildEntryDependencyIndex(
           pattern
         };
       }),
-    entries
+    entries,
+    declaredEntries: declaredEntryRecords
   };
+}
+
+function buildDeclaredEntryRecord(
+  entry: LeflectEntryDefinition & { variantOf?: string },
+  adjacency: Map<string, GraphEdge[]>,
+  nodeTypes: Map<string, Exclude<GraphNodeType, "unresolved">>
+): DeclaredEntryDependencyRecord {
+  const javaSeeds = buildDeclaredSeeds(entry.java ?? [], "java", nodeTypes);
+  const jspSeeds = buildDeclaredSeeds(entry.jsp ?? [], "jsp", nodeTypes);
+  const traversableSeeds = [...javaSeeds, ...jspSeeds]
+    .filter((seed): seed is DeclaredEntrySeedRecord & { path: string } => Boolean(seed.path))
+    .map((seed) => seed.path);
+  const traversal = traverseFromSeeds(traversableSeeds, adjacency, nodeTypes);
+  const deferredTargets = [
+    ...(entry.query ?? []).map((value) => ({
+      targetType: "query" as const,
+      value,
+      reason: "graph-model-pending" as const
+    })),
+    ...(entry.interfaceSpecs ?? []).map((value) => ({
+      targetType: "interface" as const,
+      value,
+      reason: "graph-model-pending" as const
+    }))
+  ];
+
+  return {
+    id: entry.id,
+    type: entry.type,
+    label: entry.label,
+    description: entry.description,
+    tags: entry.tags,
+    variantOf: entry.variantOf,
+    seeds: {
+      java: javaSeeds,
+      jsp: jspSeeds
+    },
+    deferredTargets,
+    nodeCount: traversal.visited.size,
+    edgeCount: traversal.edges.size,
+    reachableFiles: [...traversal.visited].sort(),
+    edges: [...traversal.edges.values()].sort(compareEdge)
+  };
+}
+
+function buildDeclaredSeeds(
+  values: string[],
+  nodeType: "java" | "jsp",
+  nodeTypes: Map<string, Exclude<GraphNodeType, "unresolved">>
+): DeclaredEntrySeedRecord[] {
+  return values
+    .map((value) => {
+      const normalizedValue = normalizePath(value);
+      const matched = nodeTypes.get(normalizedValue) === nodeType;
+      return {
+        targetType: nodeType,
+        value: normalizedValue,
+        matched,
+        path: matched ? normalizedValue : undefined,
+        nodeType: matched ? nodeType : undefined
+      };
+    })
+    .sort((left, right) => left.value.localeCompare(right.value));
+}
+
+function buildAdjacency(fileEdges: GraphEdge[]): Map<string, GraphEdge[]> {
+  const adjacency = new Map<string, GraphEdge[]>();
+  for (const edge of fileEdges) {
+    const edges = adjacency.get(edge.from) ?? [];
+    edges.push(edge);
+    adjacency.set(edge.from, edges);
+  }
+  return adjacency;
+}
+
+function traverseFromSeeds(
+  seeds: string[],
+  adjacency: Map<string, GraphEdge[]>,
+  nodeTypes: Map<string, Exclude<GraphNodeType, "unresolved">>
+): {
+  visited: Set<string>;
+  edges: Map<string, GraphEdge>;
+} {
+  const visited = new Set<string>(seeds.map((seed) => normalizePath(seed)));
+  const queue = [...visited];
+  const collected = new Map<string, GraphEdge>();
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) {
+      continue;
+    }
+
+    for (const edge of adjacency.get(current) ?? []) {
+      collected.set(edgeSignature(edge), edge);
+
+      if (nodeTypes.has(edge.to) && !visited.has(edge.to)) {
+        visited.add(edge.to);
+        queue.push(edge.to);
+      }
+    }
+  }
+
+  return { visited, edges: collected };
+}
+
+function expandDeclaredEntries(
+  entries: LeflectEntryDefinition[]
+): Array<LeflectEntryDefinition & { variantOf?: string }> {
+  return entries.flatMap((entry) => {
+    const baseEntry: LeflectEntryDefinition & { variantOf?: string } = {
+      ...entry
+    };
+    const variants = (entry.variants ?? []).map((variant) => ({
+      ...entry,
+      id: variant.id,
+      label: variant.label ?? entry.label,
+      description: variant.description ?? entry.description,
+      jsp: variant.jsp ?? entry.jsp,
+      java: variant.java ?? entry.java,
+      query: variant.query ?? entry.query,
+      interfaceSpecs: variant.interfaceSpecs ?? entry.interfaceSpecs,
+      tags: [...new Set([...(entry.tags ?? []), ...(variant.tags ?? [])])],
+      variants: undefined,
+      variantOf: entry.id
+    }));
+
+    return [baseEntry, ...variants];
+  });
 }
 
 function compilePattern(

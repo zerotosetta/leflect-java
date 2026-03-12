@@ -1,15 +1,21 @@
 # Config Guide
 
-LeflectJava reads configuration from `leflect.config.json`.
+LeflectJava reads configuration from the first matching file under the source root:
 
-Default location:
+- `leflect.config.ts`
+- `leflect.config.mjs`
+- `leflect.config.js`
+- `leflect.config.cjs`
+- `leflect.config.json`
 
-- `<source-root>/leflect.config.json`
+Recommended default:
+
+- `<source-root>/leflect.config.ts`
 
 You can also point the CLI to another file:
 
 ```bash
-node bin/leflect analyze --root /path/to/repo --config /path/to/leflect.config.json
+node bin/leflect analyze --root /path/to/repo --config /path/to/leflect.config.ts
 ```
 
 The config file can also be created with the wizard:
@@ -17,6 +23,7 @@ The config file can also be created with the wizard:
 ```bash
 node bin/leflect init --root /path/to/repo
 node bin/leflect init --root /path/to/repo --yes
+node bin/leflect init --root /path/to/repo --config-format ts --yes
 ```
 
 ## How Config Is Applied
@@ -24,6 +31,7 @@ node bin/leflect init --root /path/to/repo --yes
 - `root` is the repository being analyzed
 - `analysisOut` defaults to `analysis`
 - relative paths in the config file are resolved from `root`
+- relative plugin imports inside `leflect.config.ts` are resolved from the config file itself
 - CLI options such as `--out`, `--analysis`, `--ignore-file`, `--labels-out` override config values
 - `--jsp-ast-mode` overrides only the JSP AST mode
 - if `java.workerJar` is omitted, the CLI still tries runtime auto-detection from:
@@ -36,6 +44,17 @@ node bin/leflect init --root /path/to/repo --yes
 ## Minimal Config
 
 This is enough to run scan, TLD parsing, JSP metadata, index, graph, and report output.
+
+```ts
+import { defineConfig } from "@leflect-java/core";
+
+export default defineConfig({
+  analysisOut: "./analysis",
+  ignoreFile: "./.gitignore"
+});
+```
+
+JSON remains supported:
 
 ```json
 {
@@ -52,7 +71,7 @@ With this config:
 
 ## Init Wizard
 
-`leflect init` writes `leflect.config.json` with either interactive prompts or detected defaults.
+`leflect init` writes `leflect.config.ts` or `leflect.config.json` with either interactive prompts or detected defaults.
 
 Useful commands:
 
@@ -60,6 +79,7 @@ Useful commands:
 node bin/leflect init --root /path/to/repo
 node bin/leflect init --root /path/to/repo --yes
 node bin/leflect init --root /path/to/repo --yes --force
+node bin/leflect init --root /path/to/repo --config-format ts --yes
 ```
 
 The wizard detects:
@@ -76,6 +96,30 @@ The wizard can also write:
 - `java.classpath`, `jsp.classpath`
 - `java.mavenCommand`, `jsp.mavenCommand`
 - `entryFiles.java`, `entryFiles.jsp`
+- and it can target a TypeScript config file with `--config-format ts`
+
+## TypeScript Config And Plugins
+
+Use `defineConfig(...)` from `@leflect-java/core` as the assembly point for repository-specific setup.
+
+```ts
+import { defineConfig } from "@leflect-java/core";
+
+import { dynamicQueryPlugin } from "./leflect/plugins/dynamic-query-plugin";
+
+export default defineConfig({
+  plugins: [dynamicQueryPlugin()]
+});
+```
+
+Current plugin support:
+
+- plugins are loaded from config and validated
+- plugin order is normalized by `enforce`
+- plugin metadata is written to `analysis/manifests/plugins.json`
+- hook execution is a later phase and is not active in the current analyzer pipeline
+
+The public plugin types come from `@leflect-java/schema`.
 
 ## Dashboard Server
 
@@ -85,7 +129,7 @@ from the analysis output already on disk.
 ```bash
 node bin/leflect dashboard-server \
   --root /path/to/repo \
-  --config /path/to/repo/leflect.config.json \
+  --config /path/to/repo/leflect.config.ts \
   --mode production \
   --port 3210
 ```
@@ -162,6 +206,43 @@ With this config:
 - `analysis/graph/entry-dependencies.json` contains the matched entry files and the reachable dependency graph for each entry
 - `analysis/graph/file-dependencies.json` contains per-file `references`, `referencedBy`, `referenceCount`, and `dependantCount`
 - unmatched patterns are also recorded so you can see when a config pattern selected nothing
+
+## Declared Entry Config
+
+Use `entries` when the analysis should start from logical business screens instead of only from regex-selected files.
+
+```ts
+import { defineConfig } from "@leflect-java/core";
+
+export default defineConfig({
+  entries: [
+    {
+      id: "account.list",
+      type: "virtual_page",
+      jsp: [
+        "src/main/webapp/WEB-INF/jsp/common/header.jsp",
+        "src/main/webapp/WEB-INF/jsp/account/list.jsp"
+      ],
+      java: ["src/main/java/com/example/account/AccountController.java"],
+      query: ["account.selectBalance"],
+      interfaceSpecs: ["IF_ACCOUNT_BALANCE"],
+      variants: [
+        {
+          id: "account.list.mobile",
+          jsp: ["src/main/webapp/WEB-INF/jsp/account/list.jsp"]
+        }
+      ]
+    }
+  ]
+});
+```
+
+Current behavior:
+
+- JSP and Java seeds are normalized to source-relative paths
+- `analysis/manifests/entries.json` records the declared entry registry
+- `analysis/graph/entry-dependencies.json` expands each entry and variant into a reachable file subgraph
+- `query` and `interfaceSpecs` are recorded as deferred targets because the current file graph does not traverse them yet
 
 ### How Matching Works
 
@@ -247,18 +328,18 @@ Mix Java and JSP entrypoints:
 
 ### Common Mistakes
 
-- `*.jsp` 같은 glob 패턴을 쓰면 안 된다
-  - `.+\\.jsp$` 또는 `^src/main/webapp/.+\\.jsp$`처럼 정규식을 써야 한다
-- `.`을 그대로 쓰면 “아무 문자 1개”로 해석된다
-  - 파일 확장자는 `\\.java`, `\\.jsp`처럼 escape 해야 한다
-- path anchor를 안 쓰면 예상보다 많이 매칭될 수 있다
-  - 예: `Service`는 경로 어디든 포함되면 다 매칭된다
-- Windows 경로처럼 `\\` 구분자를 기대하면 안 된다
-  - LeflectJava 내부 경로는 항상 `/`로 정규화된다
+- Do not use glob syntax such as `*.jsp`
+  - Use a regular expression such as `.+\\.jsp$` or `^src/main/webapp/.+\\.jsp$`
+- A bare `.` means "any single character" in a regular expression
+  - Escape file extensions as `\\.java` and `\\.jsp`
+- If you skip path anchors, the pattern may match more files than expected
+  - Example: `Service` matches any path containing that fragment
+- Do not expect Windows-style `\\` path separators
+  - LeflectJava normalizes internal source paths to `/`
 
 ### Recommended Patterns
 
-Legacy web MVC 프로젝트에서 시작점 후보를 빠르게 잡고 싶다면:
+If you need a quick first pass for legacy web MVC entry candidates:
 
 ```json
 {
@@ -278,21 +359,21 @@ Legacy web MVC 프로젝트에서 시작점 후보를 빠르게 잡고 싶다면
 
 ### What To Check After Running
 
-Entry 설정 후 `analyze` 또는 `build-graph`를 실행하면 아래 파일을 먼저 보면 된다.
+After running `analyze` or `build-graph`, start with these files:
 
 - `analysis/graph/entry-dependencies.json`
-  - `matchedEntries`: 실제로 어떤 파일이 entry로 선택되었는지
-  - `unmatchedPatterns`: 아무 파일도 잡지 못한 패턴
-  - `entries[*].reachableFiles`: 각 entry에서 도달 가능한 파일 목록
-  - `entries[*].edges`: 각 entry의 dependency subgraph
+  - `matchedEntries`: which files were actually selected as entry roots
+  - `unmatchedPatterns`: patterns that matched nothing
+  - `entries[*].reachableFiles`: files reachable from each matched entry
+  - `entries[*].edges`: the dependency subgraph for each matched entry
 - `analysis/graph/file-dependencies.json`
-  - 각 `.java`/`.jsp` 파일의 `references`, `referencedBy`, `referenceCount`, `dependantCount`
+  - `references`, `referencedBy`, `referenceCount`, and `dependantCount` for each `.java`/`.jsp` file
 
-만약 기대한 entry가 안 잡히면:
+If the expected entry did not match:
 
-- `analysis/files/files.jsonl`에서 실제 source-relative path를 확인
-- 그 경로 기준으로 정규식을 다시 맞추기
-- `entry-dependencies.json`의 `unmatchedPatterns`를 확인
+- inspect the real source-relative paths in `analysis/files/files.jsonl`
+- adjust the regular expression against those paths
+- inspect `unmatchedPatterns` in `entry-dependencies.json`
 
 ## Index Output Detail
 
@@ -577,7 +658,7 @@ If you only want report/index output:
 
 If you want entry-rooted dependency graphs and per-file dependants:
 
-- set `entryFiles.java` and/or `entryFiles.jsp`
+- set `entryFiles.java` and/or `entryFiles.jsp`, or declare `entries`
 - inspect `analysis/graph/entry-dependencies.json`
 - inspect `analysis/graph/file-dependencies.json`
 
@@ -632,21 +713,23 @@ Java AST exists but semantic resolution is incomplete
 
 For most real Java/JSP repositories, start with:
 
-```json
-{
-  "analysisOut": "./analysis",
-  "ignoreFile": ".gitignore",
-  "java": {
-    "workerJar": "./java-worker/target/leflectjava-java-worker-*.jar"
+```ts
+import { defineConfig } from "@leflect-java/core";
+
+export default defineConfig({
+  analysisOut: "./analysis",
+  ignoreFile: "./.gitignore",
+  java: {
+    workerJar: "./java-worker/target/leflectjava-java-worker-*.jar"
   },
-  "jsp": {
-    "webappRoot": "src/main/webapp"
+  jsp: {
+    webappRoot: "./src/main/webapp"
   }
-}
+});
 ```
 
 Then run:
 
 ```bash
-node bin/leflect analyze --root /path/to/repo --config /path/to/repo/leflect.config.json --incremental
+node bin/leflect analyze --root /path/to/repo --config /path/to/repo/leflect.config.ts --incremental
 ```

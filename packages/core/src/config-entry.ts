@@ -1,8 +1,4 @@
-export * from "./cache";
-export * from "./config";
-export * from "./define-config";
-export * from "./manifests";
-export * from "./plugin-manifest";
+export { defineConfig } from "./define-config";
 export type {
   AnalyzerHookDefinition,
   HookResolveResult,

@@ -5,7 +5,12 @@ import { mkdtemp, mkdir, readFile, writeFile } from "fs/promises";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { run } from "../index";
-import { createConfigFromAnswers, discoverInitDefaults, InitAnswers } from "../init";
+import {
+  createConfigFromAnswers,
+  discoverInitDefaults,
+  InitAnswers,
+  renderConfigFile
+} from "../init";
 
 async function tempDir(prefix: string): Promise<string> {
   return mkdtemp(path.join(os.tmpdir(), prefix));
@@ -113,5 +118,36 @@ describe("init command", () => {
     });
     expect(config["java"]).toEqual({});
     expect((config["java"] as Record<string, unknown>)["workerJar"]).toBeUndefined();
+  });
+
+  it("renders a TypeScript config file", () => {
+    const config = renderConfigFile(
+      {
+        analysisOut: "./analysis",
+        entries: [
+          {
+            id: "account.list",
+            type: "virtual_page",
+            jsp: ["src/main/webapp/WEB-INF/jsp/account/list.jsp"]
+          }
+        ]
+      },
+      "ts"
+    );
+
+    expect(config).toContain("import { defineConfig } from \"@leflect-java/core\";");
+    expect(config).toContain("export default defineConfig(");
+    expect(config).toContain("\"account.list\"");
+  });
+
+  it("writes a TypeScript config when requested", async () => {
+    const root = await tempDir("leflect-init-");
+    const configPath = path.join(root, "leflect.config.ts");
+
+    await run(["init", "--root", root, "--config-format", "ts", "--yes"]);
+
+    const config = await readFile(configPath, "utf8");
+    expect(config).toContain("defineConfig");
+    expect(config).toContain("analysisOut");
   });
 });

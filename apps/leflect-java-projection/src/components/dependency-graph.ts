@@ -74,7 +74,7 @@ class ProjectionDependencyGraph extends LitElement {
           : null}
         ${this.graph && this.graph.nodes.length > 0
           ? null
-          : html`<div class="absolute inset-0 flex items-center justify-center text-[11px] text-slate-500">선택한 파일의 outbound dependency tree가 없습니다.</div>`}
+          : html`<div class="absolute inset-0 flex items-center justify-center text-[11px] text-slate-500">No outbound dependency tree is available for the selected file.</div>`}
       </div>
     `;
   }

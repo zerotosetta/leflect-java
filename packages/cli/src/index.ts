@@ -13,6 +13,8 @@ import {
   readFileHashesCache,
   readStageCacheState,
   removeRelativeJsonFiles,
+  resolveDefaultConfigPath,
+  writeConfigRegistryArtifacts,
   writeStageCacheState
 } from "@leflect-java/core";
 import {
@@ -76,7 +78,7 @@ import {
   resolveSystemClasspathMaxRetries,
   resolveSystemClasspathSearchRoots
 } from "./auto-classpath";
-import { runInitCommand } from "./init";
+import { ConfigFileFormat, runInitCommand } from "./init";
 import { createJavaDependencyCacheInput, resolveJavaClasspathEntries } from "./java-classpath";
 import { createJspDependencyCacheInput, resolveJspClasspathEntries } from "./jsp-classpath";
 import { runProjectionServer } from "./projection-server";
@@ -176,13 +178,16 @@ async function runScan(args: string[]): Promise<void> {
 async function runInit(args: string[]): Promise<void> {
   const parsed = parseArgs(args);
   const root = parsed["root"] ? path.resolve(parsed["root"]) : process.cwd();
+  const existingConfigPath = !parsed["config"] ? await resolveDefaultConfigPath(root) : undefined;
   const configPath = parsed["config"]
     ? path.resolve(parsed["config"])
-    : path.join(root, "leflect.config.json");
+    : existingConfigPath ?? path.join(root, defaultConfigName(parsed["config-format"]));
+  const configFormat = resolveConfigFormat(parsed["config-format"], configPath);
 
   await runInitCommand({
     root,
     configPath,
+    configFormat,
     force: parsed["force"] === "true",
     yes: parsed["yes"] === "true",
     parsed
@@ -482,9 +487,11 @@ async function runBuildGraph(args: string[]): Promise<void> {
   ) as Array<GraphJspRecord & LabelerJspRecord>;
 
   const graphs = buildGraphs(calls, jspDocs, classes, {
-    entryFiles: config.entryFiles
+    entryFiles: config.entryFiles,
+    entries: config.entries
   });
   await writeGraphFiles(config.analysisOut, graphs);
+  await writeConfigRegistryArtifacts(config);
 
   const labels = buildLabelsIndex({
     classes,
@@ -636,9 +643,10 @@ async function runQuery(args: string[]): Promise<void> {
 
 async function runDashboardServer(args: string[]): Promise<void> {
   const parsed = parseArgs(args);
+  const root = parsed["root"] ? path.resolve(parsed["root"]) : process.cwd();
   const configPath = parsed["config"]
     ? path.resolve(parsed["config"])
-    : path.join(parsed["root"] ? path.resolve(parsed["root"]) : process.cwd(), "leflect.config.json");
+    : await resolveDefaultConfigPath(root) ?? path.join(root, "leflect.config.json");
   const config = await loadCliConfig(parsed, {
     analysisOut: parsed["analysis"] ? path.resolve(parsed["analysis"]) : undefined
   });
@@ -718,7 +726,7 @@ function printHelp(): void {
   console.log("LeflectJava CLI (scaffold)");
   console.log("\nUsage:\n  leflect <command> [options]\n");
   console.log("Commands:");
-  console.log("  init                Create leflect.config.json with an interactive wizard");
+  console.log("  init                Create leflect.config.ts or leflect.config.json with an interactive wizard");
   console.log("  scan                Scan repository and build file inventory");
   console.log("  parse-java          Convert Java source files to JavaParser AST JSON");
   console.log("  parse-jsp           Parse JSP metadata and Jasper->JavaParser AST by default");
@@ -741,7 +749,8 @@ function printHelp(): void {
   console.log("  --root <path>        Repository root");
   console.log("  --analysis <path>    Analysis directory (for build-graph/report/query)");
   console.log("  --out <path>         Analysis output directory");
-  console.log("  --config <path>      Config file path (default: <root>/leflect.config.json)");
+  console.log("  --config <path>      Config file path (default: discovered leflect.config.* or <root>/leflect.config.json)");
+  console.log("  --config-format <f>  Config format for init: json | ts");
   console.log("  --yes                Accept detected defaults for init");
   console.log("  --force              Overwrite an existing config during init");
   console.log("  --auto-system-classpath  Enable system classpath discovery");
@@ -814,6 +823,23 @@ async function loadCliConfig(
   });
 
   return config;
+}
+
+function resolveConfigFormat(value: string | undefined, configPath: string): ConfigFileFormat {
+  if (value && value !== "ts" && value !== "json") {
+    throw new Error("Option '--config-format' must be 'json' or 'ts'");
+  }
+  if (value === "ts") {
+    return "ts";
+  }
+  if (value === "json") {
+    return "json";
+  }
+  return configPath.endsWith(".ts") ? "ts" : "json";
+}
+
+function defaultConfigName(format?: string): string {
+  return format === "ts" ? "leflect.config.ts" : "leflect.config.json";
 }
 
 async function ensureDashboardArtifacts(analysisOut: string): Promise<void> {

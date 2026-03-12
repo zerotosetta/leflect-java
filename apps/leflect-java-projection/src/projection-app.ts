@@ -34,7 +34,7 @@ class LeflectJavaProjectionApp extends LitElement {
   classpathFilter = "";
   filter: "all" | Exclude<ProjectionNodeType, "unresolved"> = "all";
   depth = 2;
-  statusMessage = "analysis snapshot 대기중";
+  statusMessage = "Waiting for analysis snapshot";
 
   private readonly graphTask = new Task(this, {
     task: async ([selectedPath, depth], { signal }) => {
@@ -139,15 +139,15 @@ class LeflectJavaProjectionApp extends LitElement {
                     items: visibleFiles,
                     renderItem: (file) => this.renderFileRow(file)
                   })
-                : html`<div class="p-2 text-[11px] text-slate-500">표시할 파일이 없습니다.</div>`}
+                : html`<div class="p-2 text-[11px] text-slate-500">No files match the current filters.</div>`}
             </div>
           </aside>
 
           <section class="grid min-h-0 min-w-0 grid-rows-[2.5rem_minmax(0,1fr)] overflow-hidden bg-chrome-950">
             <div class="grid grid-cols-[1fr_auto_auto] items-center gap-1 border-b border-chrome-800 px-2 text-[11px]">
               <div class="min-w-0">
-                <div class="truncate font-mono text-[11px] text-slate-200">${this.selectedPath || "파일을 선택하세요"}</div>
-                <div class="truncate text-[10px] text-slate-500">${selectedSummary ? `${selectedSummary.nodeType.toUpperCase()} · outbound refs ${selectedSummary.referenceCount} · inbound ${selectedSummary.dependantCount}` : "graph focus 없음"}</div>
+                <div class="truncate font-mono text-[11px] text-slate-200">${this.selectedPath || "Select a file"}</div>
+                <div class="truncate text-[10px] text-slate-500">${selectedSummary ? `${selectedSummary.nodeType.toUpperCase()} · outbound refs ${selectedSummary.referenceCount} · inbound ${selectedSummary.dependantCount}` : "No graph focus selected"}</div>
               </div>
               <label class="flex items-center gap-1 rounded border border-chrome-800 bg-chrome-900 px-2 py-1">
                 <span class="text-slate-500">depth</span>
@@ -163,14 +163,14 @@ class LeflectJavaProjectionApp extends LitElement {
             </div>
             <div class="min-h-0 p-1">
               ${this.graphTask.render({
-                pending: () => html`<div class="flex h-full items-center justify-center text-[11px] text-slate-500">그래프를 계산중입니다...</div>`,
+                pending: () => html`<div class="flex h-full items-center justify-center text-[11px] text-slate-500">Building graph...</div>`,
                 complete: (graph) => graph
                   ? html`<projection-dependency-graph
                       .graph=${graph}
                       .selectedNodeId=${this.selectedGraphNodeId || this.selectedPath}
                       @projection-node-select=${this.onGraphNodeSelect}
                     ></projection-dependency-graph>`
-                  : html`<div class="flex h-full items-center justify-center text-[11px] text-slate-500">파일을 선택하세요.</div>`,
+                  : html`<div class="flex h-full items-center justify-center text-[11px] text-slate-500">Select a file to inspect its outbound dependency tree.</div>`,
                 error: (error) => html`<div class="flex h-full items-center justify-center text-[11px] text-red-300">${String(error)}</div>`
               })}
             </div>
@@ -184,7 +184,7 @@ class LeflectJavaProjectionApp extends LitElement {
             <div class="min-h-0 overflow-y-auto overflow-x-hidden px-2 py-1 text-[11px]">
               ${this.detailTask.render({
                 pending: () => html`<div class="py-2 text-slate-500">detail loading...</div>`,
-                complete: (detail) => detail ? this.renderDetail(detail) : html`<div class="py-2 text-slate-500">detail 없음</div>`,
+                complete: (detail) => detail ? this.renderDetail(detail) : html`<div class="py-2 text-slate-500">No detail available.</div>`,
                 error: (error) => html`<div class="py-2 text-red-300">${String(error)}</div>`
               })}
             </div>
@@ -201,7 +201,7 @@ class LeflectJavaProjectionApp extends LitElement {
   }
 
   private async loadInitialData(): Promise<void> {
-    this.statusMessage = "analysis snapshot 로딩중";
+    this.statusMessage = "Loading analysis snapshot";
     const [bootstrap, filesPayload] = await Promise.all([fetchBootstrap(), fetchFiles()]);
     this.bootstrap = bootstrap;
     this.files = filesPayload.files;
@@ -352,7 +352,7 @@ class LeflectJavaProjectionApp extends LitElement {
 
   private renderReferenceTable(items: ProjectionFileDetail["references"]) {
     if (items.length === 0) {
-      return html`<div class="text-[10px] text-slate-500">없음</div>`;
+      return html`<div class="text-[10px] text-slate-500">None</div>`;
     }
 
     return html`
@@ -382,7 +382,7 @@ class LeflectJavaProjectionApp extends LitElement {
         </div>
         ${items.length > 0
           ? html`<div class="grid gap-1">${items.slice(0, limit).map((item) => html`<div class="truncate rounded border border-chrome-800 px-2 py-1 font-mono text-[10px] text-slate-300">${item}</div>`)}</div>`
-          : html`<div class="text-[10px] text-slate-500">없음</div>`}
+          : html`<div class="text-[10px] text-slate-500">None</div>`}
       </div>
     `;
   }

@@ -13,7 +13,8 @@
     "clean": "tsc -b --clean"
   },
   "dependencies": {
-    "@leflect-java/schema": "workspace:*"
+    "@leflect-java/schema": "workspace:*",
+    "esbuild": "^0.25.1"
   },
   "publishConfig": {
     "access": "public"

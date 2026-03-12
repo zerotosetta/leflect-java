@@ -1,10 +1,10 @@
 import os from "os";
 import path from "path";
-import { mkdtemp, writeFile } from "fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "fs/promises";
 
 import { describe, expect, it } from "vitest";
 
-import { loadConfig } from "../config";
+import { loadConfig, resolveDefaultConfigPath } from "../config";
 import { buildJavaInputManifest, buildJspInputManifest } from "../manifests";
 
 async function tempDir(prefix: string): Promise<string> {
@@ -117,6 +117,94 @@ describe("loadConfig", () => {
 
     expect(result.config.jsp?.astMode).toBe("jasper");
     expect(result.config.jsp?.webappRoot).toBe(path.join(root, "src", "main", "webapp"));
+  });
+
+  it("discovers and loads a TypeScript config with local plugins", async () => {
+    const workspaceRoot = path.resolve(__dirname, "../../../../");
+    const root = await mkdtemp(path.join(workspaceRoot, ".tmp-leflect-config-"));
+
+    try {
+      await mkdir(path.join(root, "leflect", "plugins"), { recursive: true });
+      await writeFile(
+        path.join(root, "leflect", "plugins", "dynamic-query-plugin.ts"),
+        [
+          "export function dynamicQueryPlugin() {",
+          "  return {",
+          "    name: 'dynamic-query',",
+          "    enforce: 'pre',",
+          "    hooks: [{",
+          "      id: 'invoke-query',",
+          "      target: 'java',",
+          "      when() { return true; },",
+          "      resolve() { return { matched: false }; }",
+          "    }]",
+          "  };",
+          "}",
+          ""
+        ].join("\n")
+      );
+      await writeFile(
+        path.join(root, "leflect.config.ts"),
+        [
+          "import { defineConfig } from '@leflect-java/core';",
+          "import { dynamicQueryPlugin } from './leflect/plugins/dynamic-query-plugin';",
+          "",
+          "export default defineConfig({",
+          "  analysisOut: './custom-analysis',",
+          "  entries: [",
+          "    {",
+          "      id: 'account.list',",
+          "      type: 'virtual_page',",
+          "      jsp: ['./src/main/webapp/WEB-INF/jsp/account/list.jsp'],",
+          "      java: ['src/main/java/com/example/account/AccountController.java'],",
+          "      query: ['account.selectBalance'],",
+          "      interfaceSpecs: ['IF_ACCOUNT_BALANCE'],",
+          "      variants: [",
+          "        {",
+          "          id: 'account.list.mobile',",
+          "          jsp: ['src/main/webapp/WEB-INF/jsp/mobile/account/list.jsp']",
+          "        }",
+          "      ]",
+          "    }",
+          "  ],",
+          "  plugins: [dynamicQueryPlugin()]",
+          "});",
+          ""
+        ].join("\n")
+      );
+
+      const resolvedPath = await resolveDefaultConfigPath(root);
+      const result = await loadConfig({ root });
+
+      expect(resolvedPath).toBe(path.join(root, "leflect.config.ts"));
+      expect(result.loaded).toBe(true);
+      expect(result.configPath).toBe(path.join(root, "leflect.config.ts"));
+      expect(result.config.analysisOut).toBe(path.join(root, "custom-analysis"));
+      expect(result.config.entries).toEqual([
+        {
+          id: "account.list",
+          type: "virtual_page",
+          jsp: ["src/main/webapp/WEB-INF/jsp/account/list.jsp"],
+          java: ["src/main/java/com/example/account/AccountController.java"],
+          query: ["account.selectBalance"],
+          interfaceSpecs: ["IF_ACCOUNT_BALANCE"],
+          variants: [
+            {
+              id: "account.list.mobile",
+              jsp: ["src/main/webapp/WEB-INF/jsp/mobile/account/list.jsp"]
+            }
+          ]
+        }
+      ]);
+      expect(result.config.plugins).toHaveLength(1);
+      expect(result.config.plugins?.[0]?.name).toBe("dynamic-query");
+      expect(result.config.plugins?.[0]?.enforce).toBe("pre");
+      expect(result.config.plugins?.[0]?.hooks?.[0]?.id).toBe("invoke-query");
+      expect(typeof result.config.plugins?.[0]?.hooks?.[0]?.when).toBe("function");
+      expect(typeof result.config.plugins?.[0]?.hooks?.[0]?.resolve).toBe("function");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 
   it("applies overrides", async () => {

@@ -53,6 +53,38 @@ export type EntryDependencyRecord = {
   edges: GraphEdge[];
 };
 
+export type DeclaredEntrySeedRecord = {
+  targetType: "java" | "jsp";
+  value: string;
+  matched: boolean;
+  path?: string;
+  nodeType?: Exclude<GraphNodeType, "unresolved">;
+};
+
+export type DeclaredEntryDeferredTarget = {
+  targetType: "query" | "interface";
+  value: string;
+  reason: "graph-model-pending";
+};
+
+export type DeclaredEntryDependencyRecord = {
+  id: string;
+  type: string;
+  label?: string;
+  description?: string;
+  tags?: string[];
+  variantOf?: string;
+  seeds: {
+    java: DeclaredEntrySeedRecord[];
+    jsp: DeclaredEntrySeedRecord[];
+  };
+  deferredTargets: DeclaredEntryDeferredTarget[];
+  nodeCount: number;
+  edgeCount: number;
+  reachableFiles: string[];
+  edges: GraphEdge[];
+};
+
 export type EntryDependencyIndex = {
   schemaVersion: string;
   generatedAt: string;
@@ -66,4 +98,5 @@ export type EntryDependencyIndex = {
     pattern: string;
   }>;
   entries: EntryDependencyRecord[];
+  declaredEntries: DeclaredEntryDependencyRecord[];
 };

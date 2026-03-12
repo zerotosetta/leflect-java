@@ -6,6 +6,8 @@ import { JspAstMode, LeflectConfigInput } from "@leflect-java/schema";
 
 import { resolveJavaWorkerJar } from "./worker-jar";
 
+export type ConfigFileFormat = "json" | "ts";
+
 export type InitDefaults = {
   analysisOut: string;
   ignoreFile?: string;
@@ -42,6 +44,7 @@ export type InitAnswers = {
 export type InitCommandOptions = {
   root: string;
   configPath: string;
+  configFormat: ConfigFileFormat;
   force: boolean;
   yes: boolean;
   parsed: Record<string, string>;
@@ -73,7 +76,11 @@ export async function runInitCommand(options: InitCommandOptions): Promise<void>
   const config = createConfigFromAnswers(options.root, answers);
 
   await fs.mkdir(path.dirname(options.configPath), { recursive: true });
-  await fs.writeFile(options.configPath, JSON.stringify(config, null, 2) + "\n", "utf8");
+  await fs.writeFile(
+    options.configPath,
+    renderConfigFile(config, options.configFormat),
+    "utf8"
+  );
 
   console.log(`Config written: ${options.configPath}`);
   console.log(`JSP AST mode: ${answers.jspAstMode}`);
@@ -214,6 +221,22 @@ export function createConfigFromAnswers(root: string, answers: InitAnswers): Lef
   }
 
   return config;
+}
+
+export function renderConfigFile(
+  config: LeflectConfigInput,
+  format: ConfigFileFormat
+): string {
+  if (format === "ts") {
+    return [
+      "import { defineConfig } from \"@leflect-java/core\";",
+      "",
+      `export default defineConfig(${JSON.stringify(config, null, 2)});`,
+      ""
+    ].join("\n");
+  }
+
+  return `${JSON.stringify(config, null, 2)}\n`;
 }
 
 async function collectInteractiveAnswers(

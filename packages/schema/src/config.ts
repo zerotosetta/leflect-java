@@ -1,10 +1,40 @@
+import type { LeflectPlugin } from "./plugin";
+
 export type JspAstMode = "lightweight" | "jasper";
+
+export type LeflectEntryType = "virtual_page" | "entry";
+
+export type LeflectEntryVariant = {
+  id: string;
+  label?: string;
+  description?: string;
+  jsp?: string[];
+  java?: string[];
+  query?: string[];
+  interfaceSpecs?: string[];
+  tags?: string[];
+};
+
+export type LeflectEntryDefinition = {
+  id: string;
+  type: LeflectEntryType;
+  label?: string;
+  description?: string;
+  jsp?: string[];
+  java?: string[];
+  query?: string[];
+  interfaceSpecs?: string[];
+  tags?: string[];
+  variants?: LeflectEntryVariant[];
+};
 
 export type LeflectConfig = {
   root: string;
   analysisOut: string;
   ignoreFile?: string;
   labelsOut?: string;
+  entries?: LeflectEntryDefinition[];
+  plugins?: LeflectPlugin[];
   classpathDiscovery?: {
     enabled?: boolean;
     maxRetries?: number;

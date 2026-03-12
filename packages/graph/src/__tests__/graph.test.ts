@@ -35,7 +35,28 @@ describe("graph", () => {
         entryFiles: {
           java: ["A\\.java$"],
           jsp: ["index\\.jsp$"]
-        }
+        },
+        entries: [
+          {
+            id: "account.list",
+            type: "virtual_page",
+            label: "Account List",
+            description: "A virtual page seed with fan-out JSPs plus deferred query and interface targets.",
+            jsp: ["view/index.jsp"],
+            java: ["src/a/A.java"],
+            query: ["account.selectBalance"],
+            interfaceSpecs: ["IF_ACCOUNT_BALANCE"],
+            tags: ["legacy", "account"],
+            variants: [
+              {
+                id: "account.list.mobile",
+                label: "Account List Mobile",
+                jsp: ["view/index.jsp"],
+                tags: ["mobile"]
+              }
+            ]
+          }
+        ]
       }
     );
 
@@ -214,6 +235,165 @@ describe("graph", () => {
         ]
       }
     ]);
+    expect(result.entryDependencies.declaredEntries).toEqual([
+      {
+        id: "account.list",
+        type: "virtual_page",
+        label: "Account List",
+        description: "A virtual page seed with fan-out JSPs plus deferred query and interface targets.",
+        tags: ["legacy", "account"],
+        seeds: {
+          java: [
+            {
+              targetType: "java",
+              value: "src/a/A.java",
+              matched: true,
+              path: "src/a/A.java",
+              nodeType: "java"
+            }
+          ],
+          jsp: [
+            {
+              targetType: "jsp",
+              value: "view/index.jsp",
+              matched: true,
+              path: "view/index.jsp",
+              nodeType: "jsp"
+            }
+          ]
+        },
+        deferredTargets: [
+          {
+            targetType: "query",
+            value: "account.selectBalance",
+            reason: "graph-model-pending"
+          },
+          {
+            targetType: "interface",
+            value: "IF_ACCOUNT_BALANCE",
+            reason: "graph-model-pending"
+          }
+        ],
+        nodeCount: 5,
+        edgeCount: 3,
+        reachableFiles: [
+          "src/a/A.java",
+          "src/b/B.java",
+          "src/service/UserService.java",
+          "src/tag/FormTag.java",
+          "view/index.jsp"
+        ],
+        edges: [
+          {
+            from: "src/a/A.java",
+            to: "src/b/B.java",
+            type: "JAVA_CALL",
+            confidence: "high",
+            fromFile: "src/a/A.java",
+            toFile: "src/b/B.java",
+            fromSymbol: "a.A#run()",
+            toSymbol: "b.B#save()"
+          },
+          {
+            from: "view/index.jsp",
+            to: "src/service/UserService.java",
+            type: "JSP_SCRIPTLET_CALL",
+            confidence: "low",
+            fromFile: "view/index.jsp",
+            toFile: "src/service/UserService.java",
+            toSymbol: "com.example.UserService"
+          },
+          {
+            from: "view/index.jsp",
+            to: "src/tag/FormTag.java",
+            type: "JSP_USES_TAG",
+            confidence: "high",
+            fromFile: "view/index.jsp",
+            toFile: "src/tag/FormTag.java",
+            toSymbol: "com.example.FormTag"
+          }
+        ]
+      },
+      {
+        id: "account.list.mobile",
+        type: "virtual_page",
+        label: "Account List Mobile",
+        description: "A virtual page seed with fan-out JSPs plus deferred query and interface targets.",
+        tags: ["legacy", "account", "mobile"],
+        variantOf: "account.list",
+        seeds: {
+          java: [
+            {
+              targetType: "java",
+              value: "src/a/A.java",
+              matched: true,
+              path: "src/a/A.java",
+              nodeType: "java"
+            }
+          ],
+          jsp: [
+            {
+              targetType: "jsp",
+              value: "view/index.jsp",
+              matched: true,
+              path: "view/index.jsp",
+              nodeType: "jsp"
+            }
+          ]
+        },
+        deferredTargets: [
+          {
+            targetType: "query",
+            value: "account.selectBalance",
+            reason: "graph-model-pending"
+          },
+          {
+            targetType: "interface",
+            value: "IF_ACCOUNT_BALANCE",
+            reason: "graph-model-pending"
+          }
+        ],
+        nodeCount: 5,
+        edgeCount: 3,
+        reachableFiles: [
+          "src/a/A.java",
+          "src/b/B.java",
+          "src/service/UserService.java",
+          "src/tag/FormTag.java",
+          "view/index.jsp"
+        ],
+        edges: [
+          {
+            from: "src/a/A.java",
+            to: "src/b/B.java",
+            type: "JAVA_CALL",
+            confidence: "high",
+            fromFile: "src/a/A.java",
+            toFile: "src/b/B.java",
+            fromSymbol: "a.A#run()",
+            toSymbol: "b.B#save()"
+          },
+          {
+            from: "view/index.jsp",
+            to: "src/service/UserService.java",
+            type: "JSP_SCRIPTLET_CALL",
+            confidence: "low",
+            fromFile: "view/index.jsp",
+            toFile: "src/service/UserService.java",
+            toSymbol: "com.example.UserService"
+          },
+          {
+            from: "view/index.jsp",
+            to: "src/tag/FormTag.java",
+            type: "JSP_USES_TAG",
+            confidence: "high",
+            fromFile: "view/index.jsp",
+            toFile: "src/tag/FormTag.java",
+            toSymbol: "com.example.FormTag"
+          }
+        ]
+      }
+    ]);
   });
 
   it("writes graph jsonl files", async () => {
@@ -234,7 +414,8 @@ describe("graph", () => {
         patterns: { java: [], jsp: [] },
         matchedEntries: [],
         unmatchedPatterns: [],
-        entries: []
+        entries: [],
+        declaredEntries: []
       }
     });
 
