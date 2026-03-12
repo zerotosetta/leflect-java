@@ -18,6 +18,7 @@ LeflectJava is a monorepo for Java/JSP static analysis focused on:
 ```bash
 pnpm install
 pnpm build
+pnpm java-worker:build
 node bin/leflect init --yes
 node bin/leflect --help
 ```
@@ -90,6 +91,32 @@ Current plugin support is intentionally scoped:
 Explicit virtual-page style entries are available through `config.entries`.
 Declared entries are written to `analysis/manifests/entries.json` and expanded into
 `analysis/graph/entry-dependencies.json`.
+
+To scaffold a new plugin file:
+
+```bash
+node bin/leflect scaffold-plugin --root ./repo --name account-query --target java
+```
+
+That writes a TypeScript plugin template under `leflect/plugins/` and prints the import snippet
+to add to `leflect.config.ts` when a TypeScript config is present.
+
+## Java Worker Scripts
+
+The workspace includes helper scripts for the Java worker build:
+
+```bash
+pnpm java-worker:build
+pnpm java-worker:test
+pnpm java-worker:package
+```
+
+The script prefers:
+
+- `MAVEN_BIN`
+- `java-worker/mvnw`
+- `mvn` from `PATH`
+- `/tmp/apache-maven-3.9.9/bin/mvn` as a local fallback
 
 ## Core Commands
 

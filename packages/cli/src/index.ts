@@ -81,6 +81,7 @@ import {
 import { ConfigFileFormat, runInitCommand } from "./init";
 import { createJavaDependencyCacheInput, resolveJavaClasspathEntries } from "./java-classpath";
 import { createJspDependencyCacheInput, resolveJspClasspathEntries } from "./jsp-classpath";
+import { runPluginScaffoldCommand } from "./plugin-scaffold";
 import { runProjectionServer } from "./projection-server";
 import { resolveJavaWorkerJar } from "./worker-jar";
 
@@ -118,6 +119,9 @@ export async function run(argv: string[]): Promise<void> {
   switch (command) {
     case "init":
       await runInit(rest);
+      return;
+    case "scaffold-plugin":
+      await runScaffoldPlugin(rest);
       return;
     case "scan":
       await runScan(rest);
@@ -192,6 +196,37 @@ async function runInit(args: string[]): Promise<void> {
     yes: parsed["yes"] === "true",
     parsed
   });
+}
+
+async function runScaffoldPlugin(args: string[]): Promise<void> {
+  const parsed = parseArgs(args);
+  const root = parsed["root"] ? path.resolve(parsed["root"]) : process.cwd();
+  const configPath = parsed["config"]
+    ? path.resolve(parsed["config"])
+    : await resolveDefaultConfigPath(root);
+  const name = parsed["name"];
+  if (!name) {
+    throw new Error("scaffold-plugin requires --name <plugin-name>");
+  }
+
+  const target = resolvePluginTarget(parsed["target"]);
+  const result = await runPluginScaffoldCommand({
+    root,
+    name,
+    target,
+    outputPath: parsed["plugin-out"],
+    force: parsed["force"] === "true",
+    configPath
+  });
+
+  console.log(`Plugin scaffold written: ${result.filePath}`);
+  console.log(`Factory: ${result.factoryName}`);
+  console.log(`Plugin name: ${result.pluginName}`);
+  if (result.importPath && result.configPath) {
+    console.log(`Add to ${result.configPath}:`);
+    console.log(`  import { ${result.factoryName} } from "${result.importPath}";`);
+    console.log(`  plugins: [${result.factoryName}()]`);
+  }
 }
 
 async function runParseJava(args: string[]): Promise<void> {
@@ -727,6 +762,7 @@ function printHelp(): void {
   console.log("\nUsage:\n  leflect <command> [options]\n");
   console.log("Commands:");
   console.log("  init                Create leflect.config.ts or leflect.config.json with an interactive wizard");
+  console.log("  scaffold-plugin     Generate a TypeScript plugin scaffold for leflect.config.ts projects");
   console.log("  scan                Scan repository and build file inventory");
   console.log("  parse-java          Convert Java source files to JavaParser AST JSON");
   console.log("  parse-jsp           Parse JSP metadata and Jasper->JavaParser AST by default");
@@ -751,6 +787,9 @@ function printHelp(): void {
   console.log("  --out <path>         Analysis output directory");
   console.log("  --config <path>      Config file path (default: discovered leflect.config.* or <root>/leflect.config.json)");
   console.log("  --config-format <f>  Config format for init: json | ts");
+  console.log("  --name <value>       Plugin scaffold name");
+  console.log("  --target <value>     Plugin hook target for scaffold-plugin: java | jsp | common");
+  console.log("  --plugin-out <path>  Output path for scaffold-plugin (default: <root>/leflect/plugins/<name>-plugin.ts)");
   console.log("  --yes                Accept detected defaults for init");
   console.log("  --force              Overwrite an existing config during init");
   console.log("  --auto-system-classpath  Enable system classpath discovery");
@@ -840,6 +879,16 @@ function resolveConfigFormat(value: string | undefined, configPath: string): Con
 
 function defaultConfigName(format?: string): string {
   return format === "ts" ? "leflect.config.ts" : "leflect.config.json";
+}
+
+function resolvePluginTarget(value?: string): "java" | "jsp" | "common" {
+  if (!value) {
+    return "java";
+  }
+  if (value === "java" || value === "jsp" || value === "common") {
+    return value;
+  }
+  throw new Error("Option '--target' must be 'java', 'jsp', or 'common'");
 }
 
 async function ensureDashboardArtifacts(analysisOut: string): Promise<void> {

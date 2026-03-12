@@ -121,6 +121,28 @@ Current plugin support:
 
 The public plugin types come from `@leflect-java/schema`.
 
+Generate a plugin scaffold with:
+
+```bash
+node bin/leflect scaffold-plugin \
+  --root /path/to/repo \
+  --name dynamic-query \
+  --target java
+```
+
+Supported options:
+
+- `--name <value>`: plugin name seed
+- `--target <java|jsp|common>`: default hook target in the generated template
+- `--plugin-out <path>`: override the output path
+- `--force`: overwrite an existing scaffold file
+
+Default output:
+
+- `<root>/leflect/plugins/<name>-plugin.ts`
+
+If the repository uses `leflect.config.ts`, the command also prints the import snippet to add to the config.
+
 ## Dashboard Server
 
 `leflect dashboard-server` reads an existing config file and serves the Lit projection app
