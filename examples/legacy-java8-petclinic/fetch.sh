@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
+OVERLAY_DIR="$SCRIPT_DIR/overlay"
 
 SAMPLE_URL=${PETCLINIC_GIT_URL:-https://github.com/spring-petclinic/spring-framework-petclinic.git}
 SAMPLE_TAG=${PETCLINIC_GIT_TAG:-v5.0.8}
@@ -74,6 +75,10 @@ else
   git clone --branch "$SAMPLE_TAG" --depth 1 "$SAMPLE_URL" "$TARGET_DIR"
 fi
 
+if [ -d "$OVERLAY_DIR" ]; then
+  cp -R "$OVERLAY_DIR/." "$TARGET_DIR/"
+fi
+
 python3 - <<'PY' "$CONFIG_PATH" "$WORKER_JAR" "$JSP_AST_MODE" "$DEFAULT_CLASSPATH_JSON"
 import json
 import os
@@ -99,6 +104,37 @@ config = {
     "classpathDiscovery": {
         "enabled": True,
     },
+    "entryFiles": {
+        "java": [
+            "LegacyOwnerConsoleAdapter\\.java$",
+        ],
+        "jsp": [
+            "WEB-INF/jsp/legacy/.+\\.jsp$",
+        ],
+    },
+    "entries": [
+        {
+            "id": "legacy.owner.console",
+            "type": "virtual_page",
+            "label": "Legacy Owner Console",
+            "description": "Virtual page sample with JSP fan-out and a six-hop adapter chain into Java files.",
+            "jsp": [
+                "src/main/webapp/WEB-INF/jsp/legacy/virtualOwnerConsole.jsp",
+                "src/main/webapp/WEB-INF/jsp/legacy/fragments/ownerConsolePanel.jsp",
+            ],
+            "tags": ["legacy", "sample", "depth-5"],
+            "variants": [
+                {
+                    "id": "legacy.owner.console.adapter",
+                    "label": "Legacy Owner Console Adapter Seed",
+                    "java": [
+                        "src/main/java/org/springframework/samples/petclinic/web/legacy/LegacyOwnerConsoleAdapter.java",
+                    ],
+                    "tags": ["adapter"],
+                }
+            ],
+        }
+    ],
     "java": {
         "mavenCommand": "./mvnw",
     },

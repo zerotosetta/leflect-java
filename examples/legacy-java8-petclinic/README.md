@@ -16,6 +16,7 @@ at tag `v5.0.8`.
 `fetch.sh`
 
 - shallow-clones the upstream sample into `.examples/spring-framework-petclinic-v5.0.8`
+- overlays a legacy sample extension with a virtual-page JSP fan-out and a six-hop Java adapter chain
 - writes a predeclared TypeScript config based on `examples/legacy-java8-petclinic/leflect.config.ts`
   into the cloned sample root and then applies environment/detection overrides
 - if a local worker JAR already exists at `java-worker/target/leflectjava-java-worker-*.jar`,
@@ -30,8 +31,8 @@ at tag `v5.0.8`.
 
 - runs `pnpm build` for LeflectJava
 - fetches the sample if needed
-- runs `node bin/leflect analyze --config <sample>/leflect.config.ts --incremental`
-- prints `report summary` and one `query jsp-impact` example
+- runs `node bin/leflect analyze --config <sample>/leflect.config.ts`
+- prints `report summary`, one `query jsp-impact` example, and the declared-entry depth summary
 
 ## Usage
 
@@ -52,6 +53,12 @@ Template config:
 examples/legacy-java8-petclinic/leflect.config.ts
 ```
 
+- declared entry sample:
+  - `legacy.owner.console`
+  - seeds `src/main/webapp/WEB-INF/jsp/legacy/virtualOwnerConsole.jsp`
+    and `src/main/webapp/WEB-INF/jsp/legacy/fragments/ownerConsolePanel.jsp`
+  - traverses a six-hop Java chain that starts at
+    `src/main/java/org/springframework/samples/petclinic/web/legacy/LegacyOwnerConsoleAdapter.java`
 - default mode is full analysis (`jsp.astMode=jasper`, Maven/classpath discovery enabled)
 - `fetch.sh` keeps that baseline and only downgrades JSP AST mode to `lightweight`
   when no Java worker JAR can be found
@@ -76,3 +83,7 @@ examples/legacy-java8-petclinic/leflect.config.ts
 - You can do the same for Java analysis with `LEFLECT_JAVA_CLASSPATH`.
 - Without a Java worker JAR, the example pins `jsp.astMode` to `lightweight` so the
   sample remains runnable. You can override this with `LEFLECT_JSP_AST_MODE=jasper`.
+- The generated sample now includes these overlay files:
+  - `src/main/webapp/WEB-INF/jsp/legacy/virtualOwnerConsole.jsp`
+  - `src/main/webapp/WEB-INF/jsp/legacy/fragments/ownerConsolePanel.jsp`
+  - `src/main/java/org/springframework/samples/petclinic/web/legacy/*.java`
