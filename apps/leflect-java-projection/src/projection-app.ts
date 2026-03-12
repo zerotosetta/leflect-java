@@ -42,13 +42,15 @@ class LeflectJavaProjectionApp extends LitElement {
   statusMessage = "Waiting for analysis snapshot";
 
   private readonly graphTask = new Task(this, {
-    task: async ([selectedPath, depth], { signal }) => {
-      if (!selectedPath) {
+    task: async ([selectedPath, depth, activeTab, selectedEntryId], { signal }) => {
+      const selectedEntry = this.entries.find((entry) => entry.id === selectedEntryId);
+      const entryId = activeTab === "entries" ? selectedEntry?.id : undefined;
+      if (!selectedPath && !entryId) {
         return undefined;
       }
-      return fetchGraph(selectedPath, depth, signal);
+      return fetchGraph({ path: selectedPath || undefined, depth, entryId }, signal);
     },
-    args: () => [this.selectedPath, this.depth] as const
+    args: () => [this.selectedPath, this.depth, this.activeTab, this.selectedEntryId] as const
   });
 
   private readonly detailTask = new Task(this, {
@@ -166,6 +168,12 @@ class LeflectJavaProjectionApp extends LitElement {
           : "rounded border border-chrome-800 bg-chrome-950 px-2 py-1 text-[11px] text-slate-400 hover:border-chrome-700 hover:text-slate-200"}
         @click=${() => {
           this.activeTab = tabId;
+          if (tabId === "entries" && this.selectedEntry) {
+            this.selectedGraphNodeId = this.defaultGraphNodeId(this.selectedEntry);
+          }
+          if (tabId === "dependency-tree") {
+            this.selectedGraphNodeId = this.selectedPath;
+          }
           this.statusMessage = `${label} tab selected`;
         }}
       >
@@ -339,7 +347,7 @@ class LeflectJavaProjectionApp extends LitElement {
             complete: (graph) => graph
               ? html`<projection-dependency-graph
                   .graph=${graph}
-                  .selectedNodeId=${this.selectedGraphNodeId || this.selectedPath}
+                  .selectedNodeId=${this.selectedGraphNodeId || graph.focusPath}
                   @projection-node-select=${this.onGraphNodeSelect}
                 ></projection-dependency-graph>`
               : html`<div class="flex h-full items-center justify-center text-[11px] text-slate-500">${options.emptyMessage}</div>`,
@@ -397,7 +405,7 @@ class LeflectJavaProjectionApp extends LitElement {
 
   private renderEntryRow(entry: ProjectionEntry) {
     const active = entry.id === this.selectedEntryId;
-    const canFocus = Boolean(entry.focusPath) && !entry.disabled;
+    const canFocus = entry.source === "declared" || (Boolean(entry.focusPath) && !entry.disabled);
     const focusLabel = entry.focusPath ? entry.focusPath.split("/").at(-1) : "unmatched";
     const sourceLabel = entry.source === "declared" ? "declared" : "matched";
     return html`
@@ -407,14 +415,14 @@ class LeflectJavaProjectionApp extends LitElement {
           : "grid gap-0.5 rounded border border-chrome-800 bg-chrome-950 px-2 py-1 text-left hover:border-chrome-700 hover:bg-chrome-900"}
         ?disabled=${!canFocus}
         @click=${() => {
-          if (!entry.focusPath) {
+          if (!entry.focusPath && entry.source !== "declared") {
             this.selectedEntryId = entry.id;
             this.statusMessage = `${entry.label} has no matched focus path`;
             return;
           }
           this.selectedEntryId = entry.id;
-          this.selectedPath = entry.focusPath;
-          this.selectedGraphNodeId = entry.focusPath;
+          this.selectedPath = entry.focusPath ?? this.selectedPath;
+          this.selectedGraphNodeId = this.defaultGraphNodeId(entry);
           this.statusMessage = `${entry.label} entry selected`;
         }}
       >
@@ -552,7 +560,7 @@ class LeflectJavaProjectionApp extends LitElement {
   }
 
   private renderFocusButton(file: ProjectionFileEntry) {
-    if (file.nodeType === "unresolved" || file.path === this.selectedPath) {
+    if (file.nodeType === "unresolved" || file.nodeType === "entry" || file.path === this.selectedPath) {
       return nothing;
     }
     return html`
@@ -618,7 +626,9 @@ class LeflectJavaProjectionApp extends LitElement {
   };
 
   private resetGraphSelection = () => {
-    this.selectedGraphNodeId = this.selectedPath;
+    this.selectedGraphNodeId = this.activeTab === "entries" && this.selectedEntry
+      ? this.defaultGraphNodeId(this.selectedEntry)
+      : this.selectedPath;
     this.statusMessage = "detail selection reset";
   };
 
@@ -628,6 +638,13 @@ class LeflectJavaProjectionApp extends LitElement {
     }
     const parts = file.path.split("/");
     return parts.length > 1 ? parts.slice(0, -1).join("/") : file.path;
+  }
+
+  private defaultGraphNodeId(entry: ProjectionEntry): string {
+    if (entry.source === "declared") {
+      return `entry:${entry.id}`;
+    }
+    return entry.focusPath ?? this.selectedGraphNodeId;
   }
 }
 

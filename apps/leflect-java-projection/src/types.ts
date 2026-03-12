@@ -1,4 +1,4 @@
-export type ProjectionNodeType = "java" | "jsp" | "unresolved";
+export type ProjectionNodeType = "java" | "jsp" | "unresolved" | "entry";
 export type ProjectionDirection = "outbound";
 
 export type ProjectionBootstrap = {

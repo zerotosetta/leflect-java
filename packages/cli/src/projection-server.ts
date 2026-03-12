@@ -69,12 +69,21 @@ export async function runProjectionServer(options: {
 
       if (url.pathname === "/api/dependency-graph") {
         const targetPath = url.searchParams.get("path");
-        if (!targetPath) {
-          sendJson(response, 400, { error: "Query parameter 'path' is required" });
+        const entryId = url.searchParams.get("entryId") ?? undefined;
+        if (!targetPath && !entryId) {
+          sendJson(response, 400, { error: "Query parameter 'path' or 'entryId' is required" });
           return;
         }
         const depth = Number.parseInt(url.searchParams.get("depth") ?? "2", 10);
-        sendJson(response, 200, buildProjectionGraph(snapshot, targetPath, Number.isFinite(depth) ? depth : 2));
+        sendJson(
+          response,
+          200,
+          buildProjectionGraph(snapshot, {
+            focusPath: targetPath ?? undefined,
+            entryId,
+            depth: Number.isFinite(depth) ? depth : 2
+          })
+        );
         return;
       }
 

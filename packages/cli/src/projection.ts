@@ -61,6 +61,16 @@ export type ProjectionEntry = {
   disabled: boolean;
 };
 
+type ProjectionEntryGraph = {
+  id: string;
+  label: string;
+  source: ProjectionEntrySource;
+  entryType?: string;
+  focusPath?: string;
+  seedPaths: string[];
+  adjacency: Map<string, GraphEdge[]>;
+};
+
 export type ProjectionSnapshot = {
   projectName: string;
   analysisOut: string;
@@ -68,6 +78,7 @@ export type ProjectionSnapshot = {
   files: ProjectionFileEntry[];
   filesByPath: Map<string, ProjectionFileEntry>;
   entries: ProjectionEntry[];
+  entryGraphsById: Map<string, ProjectionEntryGraph>;
   defaultEntryId?: string;
   adjacency: Map<string, GraphEdge[]>;
   reverseAdjacency: Map<string, GraphEdge[]>;
@@ -77,7 +88,7 @@ export type ProjectionSnapshot = {
 export type ProjectionGraphNode = {
   id: string;
   path: string;
-  nodeType: GraphNodeType;
+  nodeType: GraphNodeType | "entry";
   label: string;
   referenceCount: number;
   dependantCount: number;
@@ -204,7 +215,7 @@ export async function loadProjectionSnapshot(analysisOut: string, projectName: s
   }
 
   const files = [...filesByPath.values()].sort(compareFiles);
-  const entries = buildProjectionEntries(entryIndex);
+  const { entries, entryGraphsById } = buildProjectionEntries(entryIndex);
   const defaultEntryId = entries.find((entry) => !entry.disabled)?.id ?? entries[0]?.id;
 
   return {
@@ -214,6 +225,7 @@ export async function loadProjectionSnapshot(analysisOut: string, projectName: s
     files,
     filesByPath,
     entries,
+    entryGraphsById,
     defaultEntryId,
     adjacency,
     reverseAdjacency,
@@ -223,11 +235,29 @@ export async function loadProjectionSnapshot(analysisOut: string, projectName: s
 
 export function buildProjectionGraph(
   snapshot: ProjectionSnapshot,
-  focusPath: string,
-  depth: number,
-  maxNodes = 80
+  options: {
+    focusPath?: string;
+    depth: number;
+    maxNodes?: number;
+    entryId?: string;
+  }
 ): ProjectionGraphResponse {
-  const normalizedFocus = normalizePath(focusPath);
+  const entryGraph = options.entryId ? snapshot.entryGraphsById.get(options.entryId) : undefined;
+  if (entryGraph?.source === "declared") {
+    return buildDeclaredEntryGraph(snapshot, entryGraph, options.depth, options.maxNodes ?? 80);
+  }
+  if (!options.focusPath) {
+    return {
+      focusPath: options.entryId ? entryNodeId(options.entryId) : "",
+      direction: "outbound",
+      depth: options.depth,
+      truncated: false,
+      stats: { nodes: 0, edges: 0 },
+      nodes: []
+    };
+  }
+
+  const normalizedFocus = normalizePath(options.focusPath);
   const visited = new Set<string>([normalizedFocus]);
   const queue: Array<{ path: string; depth: number; parentId?: string; edge?: AggregatedTreeEdge }> = [
     { path: normalizedFocus, depth: 0 }
@@ -243,7 +273,7 @@ export function buildProjectionGraph(
 
   while (queue.length > 0) {
     const current = queue.shift()!;
-    if (current.depth >= depth) {
+    if (current.depth >= options.depth) {
       continue;
     }
 
@@ -252,7 +282,7 @@ export function buildProjectionGraph(
       if (visited.has(edge.target)) {
         continue;
       }
-      if (nodes.size >= maxNodes) {
+      if (nodes.size >= (options.maxNodes ?? 80)) {
         truncated = true;
         break;
       }
@@ -282,7 +312,7 @@ export function buildProjectionGraph(
   return {
     focusPath: normalizedFocus,
     direction: "outbound",
-    depth,
+    depth: options.depth,
     truncated,
     stats: {
       nodes: orderedNodes.length,
@@ -363,10 +393,24 @@ function compareFiles(left: ProjectionFileEntry, right: ProjectionFileEntry): nu
   return left.path.localeCompare(right.path);
 }
 
-function buildProjectionEntries(entryIndex: EntryDependencyIndex): ProjectionEntry[] {
+function buildProjectionEntries(entryIndex: EntryDependencyIndex): {
+  entries: ProjectionEntry[];
+  entryGraphsById: Map<string, ProjectionEntryGraph>;
+} {
+  const entryGraphsById = new Map<string, ProjectionEntryGraph>();
   const declaredEntries = entryIndex.declaredEntries.map((entry) => {
     const seedRecords = [...entry.seeds.jsp, ...entry.seeds.java];
     const focusSeed = resolveDeclaredEntryFocusSeed(entry);
+    const seedPaths = uniquePaths(seedRecords.map((seed) => seed.path ?? seed.value));
+    entryGraphsById.set(entry.id, {
+      id: entry.id,
+      label: entry.label ?? entry.id,
+      source: "declared",
+      entryType: entry.type,
+      focusPath: focusSeed?.path ? normalizePath(focusSeed.path) : undefined,
+      seedPaths,
+      adjacency: buildAdjacency(entry.edges)
+    });
     return {
       id: entry.id,
       label: entry.label ?? entry.id,
@@ -378,7 +422,7 @@ function buildProjectionEntries(entryIndex: EntryDependencyIndex): ProjectionEnt
       tags: [...(entry.tags ?? [])].sort(),
       variantOf: entry.variantOf,
       matchedBy: [],
-      seedPaths: seedRecords.map((seed) => normalizePath(seed.path ?? seed.value)),
+      seedPaths,
       nodeCount: entry.nodeCount,
       edgeCount: entry.edgeCount,
       reachableCount: entry.reachableFiles.length,
@@ -386,36 +430,142 @@ function buildProjectionEntries(entryIndex: EntryDependencyIndex): ProjectionEnt
     };
   });
 
-  const matchedEntries = entryIndex.entries.map((entry) => ({
-    id: normalizePath(entry.entry),
-    label: entry.entry.split("/").at(-1) ?? entry.entry,
-    source: "matched" as const,
-    entryType: "matched_file",
-    focusPath: normalizePath(entry.entry),
-    focusNodeType: entry.nodeType,
-    description: undefined,
-    tags: [],
-    variantOf: undefined,
-    matchedBy: [...entry.matchedBy].sort(),
-    seedPaths: [normalizePath(entry.entry)],
-    nodeCount: entry.nodeCount,
-    edgeCount: entry.edgeCount,
-    reachableCount: entry.reachableFiles.length,
-    disabled: false
-  }));
-
-  return [...declaredEntries, ...matchedEntries].sort((left, right) => {
-    if (left.source !== right.source) {
-      return left.source === "declared" ? -1 : 1;
-    }
-    if (left.variantOf && !right.variantOf) {
-      return 1;
-    }
-    if (!left.variantOf && right.variantOf) {
-      return -1;
-    }
-    return left.label.localeCompare(right.label);
+  const matchedEntries = entryIndex.entries.map((entry) => {
+    const normalizedEntryPath = normalizePath(entry.entry);
+    entryGraphsById.set(normalizedEntryPath, {
+      id: normalizedEntryPath,
+      label: entry.entry.split("/").at(-1) ?? entry.entry,
+      source: "matched",
+      entryType: "matched_file",
+      focusPath: normalizedEntryPath,
+      seedPaths: [normalizedEntryPath],
+      adjacency: buildAdjacency(entry.edges)
+    });
+    return {
+      id: normalizedEntryPath,
+      label: entry.entry.split("/").at(-1) ?? entry.entry,
+      source: "matched" as const,
+      entryType: "matched_file",
+      focusPath: normalizedEntryPath,
+      focusNodeType: entry.nodeType,
+      description: undefined,
+      tags: [],
+      variantOf: undefined,
+      matchedBy: [...entry.matchedBy].sort(),
+      seedPaths: [normalizedEntryPath],
+      nodeCount: entry.nodeCount,
+      edgeCount: entry.edgeCount,
+      reachableCount: entry.reachableFiles.length,
+      disabled: false
+    };
   });
+
+  return {
+    entries: [...declaredEntries, ...matchedEntries].sort((left, right) => {
+      if (left.source !== right.source) {
+        return left.source === "declared" ? -1 : 1;
+      }
+      if (left.variantOf && !right.variantOf) {
+        return 1;
+      }
+      if (!left.variantOf && right.variantOf) {
+        return -1;
+      }
+      return left.label.localeCompare(right.label);
+    }),
+    entryGraphsById
+  };
+}
+
+function buildDeclaredEntryGraph(
+  snapshot: ProjectionSnapshot,
+  entryGraph: ProjectionEntryGraph,
+  depth: number,
+  maxNodes: number
+): ProjectionGraphResponse {
+  const rootId = entryNodeId(entryGraph.id);
+  const nodes = new Map<string, ProjectionGraphNode>([
+    [
+      rootId,
+      {
+        id: rootId,
+        path: rootId,
+        nodeType: "entry",
+        label: entryGraph.label,
+        referenceCount: entryGraph.seedPaths.length,
+        dependantCount: 0,
+        isFocus: true,
+        depth: 0,
+        confidence: [],
+        symbols: []
+      }
+    ]
+  ]);
+  const visited = new Set<string>([rootId]);
+  const queue: Array<{ path: string; depth: number }> = [];
+  let truncated = false;
+  let edgeCount = 0;
+
+  if (depth >= 1) {
+    for (const seedPath of entryGraph.seedPaths) {
+      if (visited.has(seedPath)) {
+        continue;
+      }
+      if (nodes.size >= maxNodes) {
+        truncated = true;
+        break;
+      }
+      visited.add(seedPath);
+      nodes.set(
+        seedPath,
+        toGraphNode(snapshot, seedPath, rootId, 1, rootId, {
+          target: seedPath,
+          type: "ENTRY_SEED",
+          confidence: [],
+          symbols: []
+        })
+      );
+      queue.push({ path: seedPath, depth: 1 });
+      edgeCount += 1;
+    }
+  }
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    if (current.depth >= depth) {
+      continue;
+    }
+
+    const nextEdges = aggregateTreeEdges(entryGraph.adjacency.get(current.path) ?? []);
+    for (const edge of nextEdges) {
+      if (visited.has(edge.target)) {
+        continue;
+      }
+      if (nodes.size >= maxNodes) {
+        truncated = true;
+        break;
+      }
+      visited.add(edge.target);
+      edgeCount += 1;
+      const childDepth = current.depth + 1;
+      nodes.set(edge.target, toGraphNode(snapshot, edge.target, rootId, childDepth, current.path, edge));
+      queue.push({ path: edge.target, depth: childDepth });
+    }
+  }
+
+  const orderedNodes = [...nodes.values()].sort(compareGraphNodes);
+
+  return {
+    focusPath: rootId,
+    direction: "outbound",
+    depth,
+    truncated,
+    stats: {
+      nodes: orderedNodes.length,
+      edges: edgeCount
+    },
+    nodes: orderedNodes
+  };
 }
 
 type AggregatedTreeEdge = {
@@ -476,6 +626,40 @@ function aggregateTreeEdges(edges: GraphEdge[]): AggregatedTreeEdge[] {
   }
 
   return [...aggregated.values()].sort((left, right) => left.target.localeCompare(right.target));
+}
+
+function compareGraphNodes(left: ProjectionGraphNode, right: ProjectionGraphNode): number {
+  if (left.isFocus) return -1;
+  if (right.isFocus) return 1;
+  if (left.depth !== right.depth) {
+    return left.depth - right.depth;
+  }
+  if (left.nodeType !== right.nodeType) {
+    return left.nodeType.localeCompare(right.nodeType);
+  }
+  return left.path.localeCompare(right.path);
+}
+
+function buildAdjacency(edges: GraphEdge[]): Map<string, GraphEdge[]> {
+  const adjacency = new Map<string, GraphEdge[]>();
+  for (const edge of edges) {
+    pushMap(adjacency, normalizePath(edge.from), {
+      ...edge,
+      from: normalizePath(edge.from),
+      to: normalizePath(edge.to),
+      fromFile: edge.fromFile ? normalizePath(edge.fromFile) : undefined,
+      toFile: edge.toFile ? normalizePath(edge.toFile) : undefined
+    });
+  }
+  return adjacency;
+}
+
+function uniquePaths(paths: string[]): string[] {
+  return [...new Set(paths.map((value) => normalizePath(value)).filter(Boolean))].sort((left, right) => left.localeCompare(right));
+}
+
+export function entryNodeId(entryId: string): string {
+  return `entry:${entryId}`;
 }
 
 function inferNodeType(value: string): GraphNodeType {

@@ -27,11 +27,20 @@ export function fetchEntries(signal?: AbortSignal): Promise<{ entries: Projectio
 }
 
 export function fetchGraph(
-  path: string,
-  depth: number,
+  options: {
+    path?: string;
+    depth: number;
+    entryId?: string;
+  },
   signal?: AbortSignal
 ): Promise<ProjectionGraphResponse> {
-  const params = new URLSearchParams({ path, depth: String(depth) });
+  const params = new URLSearchParams({ depth: String(options.depth) });
+  if (options.path) {
+    params.set("path", options.path);
+  }
+  if (options.entryId) {
+    params.set("entryId", options.entryId);
+  }
   return getJson<ProjectionGraphResponse>(`/api/dependency-graph?${params.toString()}`, signal);
 }
 

@@ -22,12 +22,27 @@ describe("projection snapshot", () => {
     });
     expect(snapshot.files.find((entry) => entry.path === "src/main/java/demo/App.java")?.methodCount).toBe(2);
 
-    const graph = buildProjectionGraph(snapshot, "src/main/java/demo/App.java", 2, 20);
+    const graph = buildProjectionGraph(snapshot, {
+      focusPath: "src/main/java/demo/App.java",
+      depth: 2,
+      maxNodes: 20
+    });
     expect(graph.direction).toBe("outbound");
     expect(graph.stats.nodes).toBe(2);
     expect(graph.stats.edges).toBe(1);
     expect(graph.nodes.find((node) => node.id === "src/main/java/demo/App.java")?.isFocus).toBe(true);
     expect(graph.nodes.find((node) => node.id === "src/main/java/demo/Service.java")?.parentId).toBe("src/main/java/demo/App.java");
+
+    const entryGraph = buildProjectionGraph(snapshot, {
+      entryId: "demo.home",
+      focusPath: "src/main/webapp/index.jsp",
+      depth: 2,
+      maxNodes: 20
+    });
+    expect(entryGraph.focusPath).toBe("entry:demo.home");
+    expect(entryGraph.nodes.find((node) => node.id === "entry:demo.home")?.nodeType).toBe("entry");
+    expect(entryGraph.nodes.find((node) => node.id === "src/main/webapp/index.jsp")?.parentId).toBe("entry:demo.home");
+    expect(entryGraph.stats.edges).toBe(2);
 
     const detail = await loadProjectionFileDetail(snapshot, "src/main/webapp/index.jsp");
     expect(detail.file.nodeType).toBe("jsp");

@@ -477,6 +477,7 @@ class ProjectionDependencyGraph extends LitElement {
   }
 
   private linkColor(edgeType: string): string {
+    if (edgeType.includes("ENTRY_SEED")) return "#f5a35b";
     if (edgeType.includes("JSP_USES_TAG")) return "#7ee0a0";
     if (edgeType.includes("JSP_SCRIPTLET_CALL")) return "#8ad6ff";
     return "#5b77b8";
@@ -484,6 +485,7 @@ class ProjectionDependencyGraph extends LitElement {
 
   private nodeFill(node: ProjectionGraphNode): string {
     if (node.isFocus) return "#f5c46b";
+    if (node.nodeType === "entry") return "#f5a35b";
     if (node.nodeType === "jsp") return "#8ad6ff";
     if (node.nodeType === "java") return "#7ee0a0";
     return "#ff8b8b";
