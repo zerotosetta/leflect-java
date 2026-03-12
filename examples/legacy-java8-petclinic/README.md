@@ -16,7 +16,7 @@ at tag `v5.0.8`.
 `fetch.sh`
 
 - shallow-clones the upstream sample into `.examples/spring-framework-petclinic-v5.0.8`
-- copies the predeclared template `examples/legacy-java8-petclinic/leflect.config.json`
+- writes a predeclared TypeScript config based on `examples/legacy-java8-petclinic/leflect.config.ts`
   into the cloned sample root and then applies environment/detection overrides
 - if a local worker JAR already exists at `java-worker/target/leflectjava-java-worker-*.jar`,
   it auto-enables full Java/JSP AST extraction
@@ -30,7 +30,7 @@ at tag `v5.0.8`.
 
 - runs `pnpm build` for LeflectJava
 - fetches the sample if needed
-- runs `node bin/leflect analyze --config <sample>/leflect.config.json --incremental`
+- runs `node bin/leflect analyze --config <sample>/leflect.config.ts --incremental`
 - prints `report summary` and one `query jsp-impact` example
 
 ## Usage
@@ -49,7 +49,7 @@ bash examples/legacy-java8-petclinic/run.sh /absolute/path/to/sample
 Template config:
 
 ```text
-examples/legacy-java8-petclinic/leflect.config.json
+examples/legacy-java8-petclinic/leflect.config.ts
 ```
 
 - default mode is full analysis (`jsp.astMode=jasper`, Maven/classpath discovery enabled)

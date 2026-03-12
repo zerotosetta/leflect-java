@@ -6,7 +6,7 @@ REPO_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
 
 SAMPLE_TAG=${PETCLINIC_GIT_TAG:-v5.0.8}
 TARGET_DIR=${1:-"$REPO_ROOT/.examples/spring-framework-petclinic-$SAMPLE_TAG"}
-CONFIG_PATH="$TARGET_DIR/leflect.config.json"
+CONFIG_PATH="$TARGET_DIR/leflect.config.ts"
 QUERY_FILE=${QUERY_FILE:-src/main/webapp/WEB-INF/jsp/owners/findOwners.jsp}
 
 bash "$SCRIPT_DIR/fetch.sh" "$TARGET_DIR"
