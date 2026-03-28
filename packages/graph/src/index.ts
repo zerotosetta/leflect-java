@@ -35,6 +35,7 @@ export type GraphClassRecord = {
 export type GraphResolvedTag = {
   prefix: string;
   name: string;
+  uri?: string;
   handlerClass?: string;
 };
 
@@ -45,16 +46,29 @@ export type GraphJspRecord = {
   resolvedTags?: GraphResolvedTag[];
 };
 
+export type GraphJavaClassReferenceRecord = {
+  file: string;
+  className: string;
+  qualifiedName?: string;
+  classPath?: string;
+  kind?: string;
+  snippet?: string;
+};
+
 export type GraphBuildOptions = {
   entryFiles?: {
     java?: string[];
     jsp?: string[];
   };
   entries?: LeflectEntryDefinition[];
+  javaClassReferences?: GraphJavaClassReferenceRecord[];
 };
 
 export type GraphBuildResult = {
   javaCallEdges: GraphEdge[];
+  javaImportEdges: GraphEdge[];
+  javaTypeReferenceEdges: GraphEdge[];
+  javaNewEdges: GraphEdge[];
   jspJavaEdges: GraphEdge[];
   fileEdges: GraphEdge[];
   fileDependencies: FileDependencyIndex;
@@ -62,6 +76,25 @@ export type GraphBuildResult = {
 };
 
 const SCHEMA_VERSION = "1.0";
+const STANDARD_TAGLIB_URIS = new Set([
+  "http://java.sun.com/jsp/jstl/core",
+  "http://java.sun.com/jsp/jstl/fmt",
+  "http://java.sun.com/jsp/jstl/functions",
+  "http://java.sun.com/jsp/jstl/sql",
+  "http://java.sun.com/jsp/jstl/xml",
+  "http://xmlns.jcp.org/jsp/jstl/core",
+  "http://xmlns.jcp.org/jsp/jstl/fmt",
+  "http://xmlns.jcp.org/jsp/jstl/functions",
+  "http://xmlns.jcp.org/jsp/jstl/sql",
+  "http://xmlns.jcp.org/jsp/jstl/xml",
+  "jakarta.tags.core",
+  "jakarta.tags.fmt",
+  "jakarta.tags.functions",
+  "jakarta.tags.sql",
+  "jakarta.tags.xml"
+]);
+
+const STANDARD_JSTL_PREFIXES = new Set(["c", "fmt", "fn", "sql", "x"]);
 
 export function buildJavaCallGraph(
   calls: JavaCallRecord[],
@@ -116,6 +149,9 @@ export function buildJspGraph(
     const resolvedTags = doc.resolvedTags ?? [];
     if (resolvedTags.length > 0) {
       for (const tag of resolvedTags) {
+        if (isStandardTagReference(tag.prefix, tag.uri, tag.handlerClass)) {
+          continue;
+        }
         const resolvedClass = tag.handlerClass ? classLookup.get(tag.handlerClass) : undefined;
         edges.push({
           from: jspPath,
@@ -131,6 +167,9 @@ export function buildJspGraph(
     }
 
     for (const [index, tag] of (doc.tags ?? []).entries()) {
+      if (isStandardTagReference(tag.prefix)) {
+        continue;
+      }
       edges.push({
         from: jspPath,
         to: `unresolved:tag:${tag.prefix}:${tag.name}:${index}`,
@@ -144,6 +183,63 @@ export function buildJspGraph(
   return edges;
 }
 
+export function buildJavaImportGraph(
+  references: GraphJavaClassReferenceRecord[],
+  classes: GraphClassRecord[]
+): GraphEdge[] {
+  return buildJavaReferenceGraph(references, classes, "import");
+}
+
+export function buildJavaTypeReferenceGraph(
+  references: GraphJavaClassReferenceRecord[],
+  classes: GraphClassRecord[]
+): GraphEdge[] {
+  return buildJavaReferenceGraph(references, classes, "type");
+}
+
+export function buildJavaNewGraph(
+  references: GraphJavaClassReferenceRecord[],
+  classes: GraphClassRecord[]
+): GraphEdge[] {
+  return buildJavaReferenceGraph(references, classes, "new");
+}
+
+function buildJavaReferenceGraph(
+  references: GraphJavaClassReferenceRecord[],
+  classes: GraphClassRecord[],
+  category: "import" | "type" | "new"
+): GraphEdge[] {
+  const classLookup = buildClassLookup(classes);
+  const edges = new Map<string, GraphEdge>();
+
+  for (const reference of references) {
+    if (!matchesJavaReferenceCategory(reference.kind, category)) {
+      continue;
+    }
+
+    const sourceFile = normalizeOptionalPath(reference.file);
+    const target = resolveJavaReferenceTarget(reference, classLookup);
+
+    if (!sourceFile || !target || sourceFile === target.file) {
+      continue;
+    }
+
+    const edge: GraphEdge = {
+      from: sourceFile,
+      to: target.id,
+      type: javaReferenceEdgeType(category),
+      confidence: target.confidence,
+      fromFile: sourceFile,
+      toFile: target.file,
+      fromSymbol: reference.snippet ?? sourceFile,
+      toSymbol: target.symbol
+    };
+    edges.set(edgeSignature(edge), edge);
+  }
+
+  return [...edges.values()].sort(compareEdge);
+}
+
 export function buildGraphs(
   calls: JavaCallRecord[],
   docs: GraphJspRecord[],
@@ -151,12 +247,21 @@ export function buildGraphs(
   options: GraphBuildOptions = {}
 ): GraphBuildResult {
   const javaCallEdges = buildJavaCallGraph(calls, classes);
+  const javaImportEdges = buildJavaImportGraph(options.javaClassReferences ?? [], classes);
+  const javaTypeReferenceEdges = buildJavaTypeReferenceGraph(options.javaClassReferences ?? [], classes);
+  const javaNewEdges = buildJavaNewGraph(options.javaClassReferences ?? [], classes);
   const jspJavaEdges = buildJspGraph(docs, classes);
   const nodeTypes = buildNodeTypeLookup(classes, docs);
-  const fileEdges = buildFileEdges([...javaCallEdges, ...jspJavaEdges], nodeTypes);
+  const fileEdges = buildFileEdges(
+    [...javaCallEdges, ...javaImportEdges, ...javaTypeReferenceEdges, ...javaNewEdges, ...jspJavaEdges],
+    nodeTypes
+  );
 
   return {
     javaCallEdges,
+    javaImportEdges,
+    javaTypeReferenceEdges,
+    javaNewEdges,
     jspJavaEdges,
     fileEdges,
     fileDependencies: buildFileDependencyIndex(fileEdges, nodeTypes),
@@ -178,6 +283,18 @@ export async function writeGraphFiles(
   await fs.writeFile(
     path.join(outDir, "java-call.jsonl"),
     toJsonl(result.javaCallEdges)
+  );
+  await fs.writeFile(
+    path.join(outDir, "java-import.jsonl"),
+    toJsonl(result.javaImportEdges)
+  );
+  await fs.writeFile(
+    path.join(outDir, "java-type-reference.jsonl"),
+    toJsonl(result.javaTypeReferenceEdges)
+  );
+  await fs.writeFile(
+    path.join(outDir, "java-new.jsonl"),
+    toJsonl(result.javaNewEdges)
   );
   await fs.writeFile(
     path.join(outDir, "jsp-java.jsonl"),
@@ -219,6 +336,55 @@ function buildClassLookup(classes: GraphClassRecord[]): Map<string, GraphClassRe
   return lookup;
 }
 
+function matchesJavaReferenceCategory(
+  kind: string | undefined,
+  category: "import" | "type" | "new"
+): boolean {
+  if (category === "import") {
+    return kind === "import";
+  }
+  if (category === "new") {
+    return kind === "new";
+  }
+  return kind === "type" || kind === "extends" || kind === "implements" || kind === "catch";
+}
+
+function javaReferenceEdgeType(category: "import" | "type" | "new"): GraphEdgeType {
+  if (category === "import") {
+    return "JAVA_IMPORT";
+  }
+  if (category === "new") {
+    return "JAVA_NEW";
+  }
+  return "JAVA_TYPE_REFERENCE";
+}
+
+function resolveJavaReferenceTarget(
+  reference: GraphJavaClassReferenceRecord,
+  classLookup: Map<string, GraphClassRecord>
+): { id: string; file?: string; symbol: string; confidence: GraphConfidence } | undefined {
+  const candidates = [
+    normalizeReferenceTargetId(reference.classPath),
+    normalizeReferenceTargetId(reference.qualifiedName),
+    normalizeReferenceTargetId(reference.className)
+  ].filter((value): value is string => Boolean(value));
+  const targetClass = candidates
+    .map((candidate) => classLookup.get(candidate))
+    .find((candidate): candidate is GraphClassRecord => candidate !== undefined);
+  const targetId = targetClass?.id ?? candidates[0];
+
+  if (!targetId || !isLikelyTypeReferenceId(targetId)) {
+    return undefined;
+  }
+
+  return {
+    id: targetId,
+    file: normalizeOptionalPath(targetClass?.file),
+    symbol: targetClass?.id ?? targetId,
+    confidence: targetClass || reference.classPath || reference.qualifiedName ? "high" : "low"
+  };
+}
+
 function resolveScriptletClass(
   code: string,
   classLookup: Map<string, GraphClassRecord>
@@ -231,6 +397,28 @@ function resolveScriptletClass(
   }
 
   return undefined;
+}
+
+function isStandardTaglibUri(uri?: string): boolean {
+  if (!uri) {
+    return false;
+  }
+
+  return STANDARD_TAGLIB_URIS.has(uri.trim());
+}
+
+function isStandardTagReference(prefix?: string, uri?: string, handlerClass?: string): boolean {
+  if (handlerClass) {
+    return false;
+  }
+  if (isStandardTaglibUri(uri)) {
+    return true;
+  }
+  if (!prefix) {
+    return false;
+  }
+
+  return STANDARD_JSTL_PREFIXES.has(prefix);
 }
 
 function buildNodeTypeLookup(
@@ -679,6 +867,43 @@ function normalizeOptionalPath(value?: string): string | undefined {
 
 function normalizePath(value: string): string {
   return value.replace(/\\/g, "/");
+}
+
+function normalizeReferenceTargetId(value?: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const normalized = stripReferenceTypeDecorators(value).trim();
+  if (!normalized || normalized.endsWith(".*")) {
+    return undefined;
+  }
+  return normalized;
+}
+
+function stripReferenceTypeDecorators(value: string): string {
+  let depth = 0;
+  let stripped = "";
+  for (const character of value) {
+    if (character === "<") {
+      depth += 1;
+      continue;
+    }
+    if (character === ">") {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+    if (depth === 0) {
+      stripped += character;
+    }
+  }
+  return stripped.replace(/\[\]/g, "").replace(/\.\.\.$/, "").replace(/\s+/g, "");
+}
+
+function isLikelyTypeReferenceId(value: string): boolean {
+  const normalized = stripReferenceTypeDecorators(value);
+  const simpleName = normalized.split(".").at(-1)?.split("$").at(-1) ?? normalized;
+  return /^[A-Z]/.test(simpleName);
 }
 
 function toJsonl(items: unknown[]): string {

@@ -25,6 +25,8 @@ export type LeflectLogicalEdgeType =
   | "JSP_TO_JAVA"
   | "JAVA_IMPORT"
   | "JAVA_CALL"
+  | "JAVA_TYPE_REFERENCE"
+  | "JAVA_NEW"
   | "JAVA_TO_DYNAMIC"
   | "JAVA_TO_QUERY_DYNAMIC"
   | "JAVA_TO_INTERFACE_DYNAMIC"

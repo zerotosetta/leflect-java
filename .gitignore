@@ -3,6 +3,7 @@ dist/
 coverage/
 .examples/
 .artifacts/
+analysis/
 target/
 .next/
 *.log

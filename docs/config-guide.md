@@ -156,6 +156,17 @@ node bin/leflect dashboard-server \
   --port 3210
 ```
 
+For local dashboard development, use `dashboard-dev` to start the API server and
+Vite dev server together:
+
+```bash
+node bin/leflect dashboard-dev \
+  --root /path/to/repo \
+  --config /path/to/repo/leflect.config.ts \
+  --port 3000 \
+  --dev-port 4173
+```
+
 Important behavior:
 
 - it does not call `scan`, `parse-*`, `build-index`, or `build-graph`
@@ -183,6 +194,7 @@ Useful dashboard-server options:
 
 - `--host`
 - `--port`
+- `--dev-port`
 - `--mode development|production`
 - `--dashboard-app <path>`
 

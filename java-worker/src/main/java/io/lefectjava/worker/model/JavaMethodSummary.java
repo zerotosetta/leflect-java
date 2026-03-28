@@ -9,6 +9,8 @@ public class JavaMethodSummary {
   public List<String> parameters;
   public List<String> calls;
   public SourceLocation location;
+  public LineRange lineRange;
+  public List<OrderedExecutionStep> orderedSteps;
 
   public JavaMethodSummary() {
   }
@@ -19,7 +21,9 @@ public class JavaMethodSummary {
       String returnType,
       List<String> parameters,
       List<String> calls,
-      SourceLocation location
+      SourceLocation location,
+      LineRange lineRange,
+      List<OrderedExecutionStep> orderedSteps
   ) {
     this.id = id;
     this.name = name;
@@ -27,5 +31,7 @@ public class JavaMethodSummary {
     this.parameters = parameters;
     this.calls = calls;
     this.location = location;
+    this.lineRange = lineRange;
+    this.orderedSteps = orderedSteps;
   }
 }

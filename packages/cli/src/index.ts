@@ -64,9 +64,11 @@ import {
   queryJspImpact,
   queryTagUsages,
   readReporterInput,
+  ReporterArtifacts,
   writeReports
 } from "@leflect-java/reporter";
-import { scanWorkspace } from "@leflect-java/scanner";
+import { scanWorkspace, ScanResult } from "@leflect-java/scanner";
+import { LeflectConfig, SummaryReport } from "@leflect-java/schema";
 
 import {
   discoverSystemClasspathEntries,
@@ -78,6 +80,7 @@ import {
   resolveSystemClasspathMaxRetries,
   resolveSystemClasspathSearchRoots
 } from "./auto-classpath";
+import { runDashboardDev } from "./dashboard-dev";
 import { ConfigFileFormat, runInitCommand } from "./init";
 import { createJavaDependencyCacheInput, resolveJavaClasspathEntries } from "./java-classpath";
 import { createJspDependencyCacheInput, resolveJspClasspathEntries } from "./jsp-classpath";
@@ -87,7 +90,7 @@ import { resolveJavaWorkerJar } from "./worker-jar";
 
 type OutputFormat = "json" | "text";
 type StageName = "java-parse" | "jsp-parse" | "tld-parse";
-type CliConfig = Awaited<ReturnType<typeof loadCliConfig>>;
+type CliConfig = LeflectConfig;
 type PreparedStageContext<TEntry = never> = {
   cacheKey: string;
   statePath: string;
@@ -100,19 +103,91 @@ type PreparedStageContext<TEntry = never> = {
     unchangedFiles: string[];
   };
 };
+type AnalyzeStageName =
+  | "scan"
+  | "parse-tld"
+  | "parse-jsp"
+  | "parse-java"
+  | "build-index"
+  | "build-graph"
+  | "report-summary";
+type CommandOutput = {
+  status(message: string): void;
+  text(message: string): void;
+  json(payload: unknown): void;
+  error(message: string): void;
+};
+type StageRuntime = {
+  output: CommandOutput;
+  onEvent?: (event: AnalyzeEvent) => void;
+};
+type ScanStageExecution = {
+  scan: ScanResult;
+  stage: AnalyzeStageResult;
+};
+type ReportStageExecution = {
+  reports: ReporterArtifacts;
+  stage: AnalyzeStageResult;
+};
 
 const PIPELINE_VERSION = "0.1.0";
 
+export type AnalyzeEvent = {
+  stage: AnalyzeStageName;
+  status: "start" | "completed" | "skipped";
+  message: string;
+  detail?: Record<string, unknown>;
+};
+
+export type AnalyzeStageResult = {
+  stage: AnalyzeStageName;
+  status: "completed" | "skipped";
+  outputPath?: string;
+  reason?: string;
+  totalFiles?: number;
+  processedFiles?: number;
+  changedFiles?: number;
+  removedFiles?: number;
+};
+
+export type AnalyzeWorkspaceOptions = {
+  root?: string;
+  configPath?: string;
+  analysisOut?: string;
+  ignoreFile?: string;
+  labelsOut?: string;
+  incremental?: boolean;
+  jspAstMode?: "jasper" | "lightweight";
+  classpathDiscovery?: LeflectConfig["classpathDiscovery"];
+  onEvent?: (event: AnalyzeEvent) => void;
+};
+
+export type AnalyzeWorkspaceResult = {
+  analysisOut: string;
+  config: LeflectConfig;
+  worker: {
+    requested: boolean;
+    resolvedJar?: string;
+    ran: boolean;
+    skipReason?: string;
+  };
+  stages: AnalyzeStageResult[];
+  reports: {
+    summary: SummaryReport;
+  };
+};
+
 export async function run(argv: string[]): Promise<void> {
   const [command, ...rest] = argv;
+  const output = createCommandOutput();
 
   if (!command || command === "help" || command === "--help" || command === "-h") {
-    printHelp();
+    printHelp(output);
     return;
   }
 
   if (command === "--version" || command === "-v") {
-    console.log(PIPELINE_VERSION);
+    output.text(PIPELINE_VERSION);
     return;
   }
 
@@ -153,30 +228,180 @@ export async function run(argv: string[]): Promise<void> {
     case "dashboard-server":
       await runDashboardServer(rest);
       return;
+    case "dashboard-dev":
+      await runDashboardDevCommand(rest);
+      return;
     default:
-      console.error(`Unknown command: ${command}`);
-      printHelp();
+      output.error(`Unknown command: ${command}`);
+      printHelp(output);
       process.exitCode = 1;
   }
 }
 
-async function runScan(args: string[]): Promise<void> {
-  const parsed = parseArgs(args);
-  const config = await loadCliConfig(parsed);
-  const incremental = parsed["incremental"] === "true";
+export async function analyzeWorkspace(
+  options: AnalyzeWorkspaceOptions
+): Promise<AnalyzeWorkspaceResult> {
+  return analyzeWorkspaceInternal(options, {
+    output: createSilentOutput(),
+    onEvent: options.onEvent
+  });
+}
 
-  const result = await scanWorkspace({
+function createCommandOutput(options: { quiet?: boolean } = {}): CommandOutput {
+  return {
+    status(message) {
+      if (!options.quiet) {
+        console.log(message);
+      }
+    },
+    text(message) {
+      console.log(message);
+    },
+    json(payload) {
+      console.log(JSON.stringify(payload, null, 2));
+    },
+    error(message) {
+      console.error(message);
+    }
+  };
+}
+
+function createSilentOutput(): CommandOutput {
+  return {
+    status() {
+    },
+    text() {
+    },
+    json() {
+    },
+    error() {
+    }
+  };
+}
+
+function emitAnalyzeEvent(runtime: StageRuntime, event: AnalyzeEvent): void {
+  runtime.onEvent?.(event);
+}
+
+async function analyzeWorkspaceInternal(
+  options: AnalyzeWorkspaceOptions,
+  runtime: StageRuntime
+): Promise<AnalyzeWorkspaceResult> {
+  const config = await loadExecutionConfig({
+    root: options.root,
+    configPath: options.configPath,
+    analysisOut: options.analysisOut,
+    ignoreFile: options.ignoreFile,
+    labelsOut: options.labelsOut,
+    classpathDiscovery: options.classpathDiscovery,
+    jspAstMode: options.jspAstMode
+  });
+  const incremental = options.incremental === true;
+  const stages: AnalyzeStageResult[] = [];
+  const workerJar = await resolveJavaWorkerJar(config.java?.workerJar);
+  const worker = {
+    requested: true,
+    resolvedJar: workerJar,
+    ran: false,
+    skipReason: workerJar ? undefined : "Java worker JAR could not be resolved."
+  };
+
+  stages.push((await executeScanStage(config, incremental, runtime)).stage);
+  stages.push((await executeParseTldStage(config, incremental, runtime)).stage);
+  stages.push((await executeParseJspStage(config, incremental, runtime)).stage);
+
+  if (workerJar) {
+    const javaStage = await executeParseJavaStage(config, incremental, workerJar, runtime);
+    worker.ran = javaStage.ranWorker;
+    stages.push(javaStage.stage);
+  } else {
+    const message = "Java parse skipped. Java worker JAR could not be resolved.";
+    runtime.output.status(message);
+    emitAnalyzeEvent(runtime, {
+      stage: "parse-java",
+      status: "skipped",
+      message,
+      detail: { reason: "worker-jar-unresolved" }
+    });
+    stages.push({
+      stage: "parse-java",
+      status: "skipped",
+      reason: "worker-jar-unresolved"
+    });
+  }
+
+  stages.push((await executeBuildIndexStage(config, runtime)).stage);
+  stages.push((await executeBuildGraphStage(config, runtime)).stage);
+  const reportExecution = await executeReportSummaryStage(config, runtime);
+  stages.push(reportExecution.stage);
+
+  return {
+    analysisOut: config.analysisOut,
+    config,
+    worker,
+    stages,
+    reports: {
+      summary: reportExecution.reports.summary
+    }
+  };
+}
+
+async function executeScanStage(
+  config: CliConfig,
+  incremental: boolean,
+  runtime: StageRuntime
+): Promise<ScanStageExecution> {
+  emitAnalyzeEvent(runtime, {
+    stage: "scan",
+    status: "start",
+    message: `Scanning workspace: ${config.root}`,
+    detail: { root: config.root, analysisOut: config.analysisOut }
+  });
+
+  const scan = await scanWorkspace({
     root: config.root,
     analysisOut: config.analysisOut,
     ignoreFile: config.ignoreFile
   });
 
-  console.log(`Scan complete. Output: ${config.analysisOut}`);
+  runtime.output.status(`Scan complete. Output: ${config.analysisOut}`);
   if (incremental) {
-    console.log(
-      `Changed: ${result.changedFiles.length}, Removed: ${result.removedFiles.length}`
+    runtime.output.status(
+      `Changed: ${scan.changedFiles.length}, Removed: ${scan.removedFiles.length}`
     );
   }
+
+  const stage: AnalyzeStageResult = {
+    stage: "scan",
+    status: "completed",
+    outputPath: path.join(config.analysisOut, "files"),
+    totalFiles: scan.totalFiles,
+    changedFiles: incremental ? scan.changedFiles.length : undefined,
+    removedFiles: incremental ? scan.removedFiles.length : undefined
+  };
+
+  emitAnalyzeEvent(runtime, {
+    stage: "scan",
+    status: "completed",
+    message: `Scan complete. Output: ${config.analysisOut}`,
+    detail: {
+      totalFiles: scan.totalFiles,
+      changedFiles: scan.changedFiles.length,
+      removedFiles: scan.removedFiles.length
+    }
+  });
+
+  return { scan, stage };
+}
+
+async function runScan(args: string[]): Promise<AnalyzeStageResult> {
+  const parsed = parseArgs(args);
+  const config = await loadCliConfig(parsed);
+  return (await executeScanStage(
+    config,
+    parsed["incremental"] === "true",
+    { output: createCommandOutput({ quiet: parsed["quiet"] === "true" }) }
+  )).stage;
 }
 
 async function runInit(args: string[]): Promise<void> {
@@ -200,6 +425,7 @@ async function runInit(args: string[]): Promise<void> {
 
 async function runScaffoldPlugin(args: string[]): Promise<void> {
   const parsed = parseArgs(args);
+  const output = createCommandOutput();
   const root = parsed["root"] ? path.resolve(parsed["root"]) : process.cwd();
   const configPath = parsed["config"]
     ? path.resolve(parsed["config"])
@@ -219,28 +445,28 @@ async function runScaffoldPlugin(args: string[]): Promise<void> {
     configPath
   });
 
-  console.log(`Plugin scaffold written: ${result.filePath}`);
-  console.log(`Factory: ${result.factoryName}`);
-  console.log(`Plugin name: ${result.pluginName}`);
+  output.text(`Plugin scaffold written: ${result.filePath}`);
+  output.text(`Factory: ${result.factoryName}`);
+  output.text(`Plugin name: ${result.pluginName}`);
   if (result.importPath && result.configPath) {
-    console.log(`Add to ${result.configPath}:`);
-    console.log(`  import { ${result.factoryName} } from "${result.importPath}";`);
-    console.log(`  plugins: [${result.factoryName}()]`);
+    output.text(`Add to ${result.configPath}:`);
+    output.text(`  import { ${result.factoryName} } from "${result.importPath}";`);
+    output.text(`  plugins: [${result.factoryName}()]`);
   }
 }
 
-async function runParseJava(args: string[]): Promise<void> {
-  const parsed = parseArgs(args);
-  const config = await loadCliConfig(parsed);
-  const incremental = parsed["incremental"] === "true";
-  const workerJar = await resolveJavaWorkerJar(config.java?.workerJar);
-
-  if (!workerJar) {
-    throw new Error(
-      "Java worker JAR could not be resolved. Set 'java.workerJar' or LEFLECT_JAVA_WORKER_JAR."
-    );
-  }
-
+async function executeParseJavaStage(
+  config: CliConfig,
+  incremental: boolean,
+  workerJar: string,
+  runtime: StageRuntime
+): Promise<{ stage: AnalyzeStageResult; ranWorker: boolean }> {
+  emitAnalyzeEvent(runtime, {
+    stage: "parse-java",
+    status: "start",
+    message: `Parsing Java sources under ${config.root}`,
+    detail: { analysisOut: config.analysisOut }
+  });
   const files = await readScannerManifest(path.join(config.analysisOut, "manifests", "java-files.json"));
   const stage = await prepareStageContext(
     "java-parse",
@@ -256,8 +482,23 @@ async function runParseJava(args: string[]): Promise<void> {
   );
 
   if (stage.plan.reason === "cache-hit") {
-    console.log("Java AST parse skipped (cache hit).");
-    return;
+    const message = "Java AST parse skipped (cache hit).";
+    runtime.output.status(message);
+    emitAnalyzeEvent(runtime, {
+      stage: "parse-java",
+      status: "skipped",
+      message,
+      detail: { reason: "cache-hit" }
+    });
+    return {
+      stage: {
+        stage: "parse-java",
+        status: "skipped",
+        outputPath: path.join(config.analysisOut, "java-ast"),
+        reason: "cache-hit"
+      },
+      ranWorker: false
+    };
   }
 
   if (stage.plan.removedFiles.length > 0) {
@@ -266,8 +507,24 @@ async function runParseJava(args: string[]): Promise<void> {
 
   if (stage.plan.selectedFiles.length === 0) {
     await persistStageState("java-parse", stage, files);
-    console.log(`Java AST parse complete. Removed: ${stage.plan.removedFiles.length}`);
-    return;
+    const message = `Java AST parse complete. Removed: ${stage.plan.removedFiles.length}`;
+    runtime.output.status(message);
+    emitAnalyzeEvent(runtime, {
+      stage: "parse-java",
+      status: "completed",
+      message,
+      detail: { processedFiles: 0, removedFiles: stage.plan.removedFiles.length }
+    });
+    return {
+      stage: {
+        stage: "parse-java",
+        status: "completed",
+        outputPath: path.join(config.analysisOut, "java-ast"),
+        processedFiles: 0,
+        removedFiles: stage.plan.removedFiles.length
+      },
+      ranWorker: false
+    };
   }
 
   let classpathEntries = await resolveJavaClasspathEntries(config, stage.plan.selectedFiles);
@@ -278,8 +535,10 @@ async function runParseJava(args: string[]): Promise<void> {
   const maxRetries = isSystemClasspathDiscoveryEnabled(config)
     ? resolveSystemClasspathMaxRetries(config)
     : 0;
+  let ranWorker = false;
 
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    ranWorker = true;
     const result = await runJavaWorker({
       jreHome: config.java?.jreHome,
       javaHome: config.java?.javaHome,
@@ -312,25 +571,60 @@ async function runParseJava(args: string[]): Promise<void> {
   }
 
   await persistStageState("java-parse", stage, files);
-  console.log(
-    `Java AST parse complete. Processed: ${stage.plan.selectedFiles.length}, Removed: ${stage.plan.removedFiles.length}`
-  );
+  const message = `Java AST parse complete. Processed: ${stage.plan.selectedFiles.length}, Removed: ${stage.plan.removedFiles.length}`;
+  runtime.output.status(message);
+  emitAnalyzeEvent(runtime, {
+    stage: "parse-java",
+    status: "completed",
+    message,
+    detail: {
+      processedFiles: stage.plan.selectedFiles.length,
+      removedFiles: stage.plan.removedFiles.length
+    }
+  });
+
+  return {
+    stage: {
+      stage: "parse-java",
+      status: "completed",
+      outputPath: path.join(config.analysisOut, "java-ast"),
+      processedFiles: stage.plan.selectedFiles.length,
+      removedFiles: stage.plan.removedFiles.length
+    },
+    ranWorker
+  };
 }
 
-async function runParseJsp(args: string[]): Promise<void> {
+async function runParseJava(args: string[]): Promise<AnalyzeStageResult> {
   const parsed = parseArgs(args);
-  const baseConfig = await loadCliConfig(parsed);
-  const incremental = parsed["incremental"] === "true";
-  const astModeOption = parsed["jsp-ast-mode"];
+  const config = await loadCliConfig(parsed);
+  const workerJar = await resolveJavaWorkerJar(config.java?.workerJar);
 
-  if (astModeOption && !isJspAstMode(astModeOption)) {
-    throw new Error("Option '--jsp-ast-mode' must be 'lightweight' or 'jasper'");
+  if (!workerJar) {
+    throw new Error(
+      "Java worker JAR could not be resolved. Set 'java.workerJar' or LEFLECT_JAVA_WORKER_JAR."
+    );
   }
 
-  const astModeOverride = astModeOption && isJspAstMode(astModeOption) ? astModeOption : undefined;
+  return (await executeParseJavaStage(
+    config,
+    parsed["incremental"] === "true",
+    workerJar,
+    { output: createCommandOutput({ quiet: parsed["quiet"] === "true" }) }
+  )).stage;
+}
 
-  const config = astModeOverride ? overrideJspAstMode(baseConfig, astModeOverride) : baseConfig;
-
+async function executeParseJspStage(
+  config: CliConfig,
+  incremental: boolean,
+  runtime: StageRuntime
+): Promise<{ stage: AnalyzeStageResult }> {
+  emitAnalyzeEvent(runtime, {
+    stage: "parse-jsp",
+    status: "start",
+    message: `Parsing JSP sources under ${config.root}`,
+    detail: { astMode: config.jsp?.astMode ?? "jasper" }
+  });
   const files = await readScannerManifest(path.join(config.analysisOut, "manifests", "jsp-files.json"));
   const astMode = config.jsp?.astMode ?? "jasper";
   const metaDir = path.join(config.analysisOut, "jsp-meta");
@@ -353,8 +647,22 @@ async function runParseJsp(args: string[]): Promise<void> {
   );
 
   if (stage.plan.reason === "cache-hit") {
-    console.log("JSP parse skipped (cache hit).");
-    return;
+    const message = "JSP parse skipped (cache hit).";
+    runtime.output.status(message);
+    emitAnalyzeEvent(runtime, {
+      stage: "parse-jsp",
+      status: "skipped",
+      message,
+      detail: { reason: "cache-hit" }
+    });
+    return {
+      stage: {
+        stage: "parse-jsp",
+        status: "skipped",
+        outputPath: metaDir,
+        reason: "cache-hit"
+      }
+    };
   }
 
   if (stage.plan.removedFiles.length > 0) {
@@ -441,15 +749,49 @@ async function runParseJsp(args: string[]): Promise<void> {
   }
 
   await persistStageState("jsp-parse", stage, files);
-  console.log(
-    `JSP parse complete. Processed: ${stage.plan.selectedFiles.length}, Removed: ${stage.plan.removedFiles.length}`
-  );
+  const message = `JSP parse complete. Processed: ${stage.plan.selectedFiles.length}, Removed: ${stage.plan.removedFiles.length}`;
+  runtime.output.status(message);
+  emitAnalyzeEvent(runtime, {
+    stage: "parse-jsp",
+    status: "completed",
+    message,
+    detail: {
+      processedFiles: stage.plan.selectedFiles.length,
+      removedFiles: stage.plan.removedFiles.length
+    }
+  });
+
+  return {
+    stage: {
+      stage: "parse-jsp",
+      status: "completed",
+      outputPath: metaDir,
+      processedFiles: stage.plan.selectedFiles.length,
+      removedFiles: stage.plan.removedFiles.length
+    }
+  };
 }
 
-async function runParseTld(args: string[]): Promise<void> {
+async function runParseJsp(args: string[]): Promise<AnalyzeStageResult> {
   const parsed = parseArgs(args);
   const config = await loadCliConfig(parsed);
-  const incremental = parsed["incremental"] === "true";
+  return (await executeParseJspStage(
+    config,
+    parsed["incremental"] === "true",
+    { output: createCommandOutput({ quiet: parsed["quiet"] === "true" }) }
+  )).stage;
+}
+
+async function executeParseTldStage(
+  config: CliConfig,
+  incremental: boolean,
+  runtime: StageRuntime
+): Promise<{ stage: AnalyzeStageResult }> {
+  emitAnalyzeEvent(runtime, {
+    stage: "parse-tld",
+    status: "start",
+    message: `Parsing TLD sources under ${config.root}`
+  });
   const files = await readScannerManifest(path.join(config.analysisOut, "manifests", "tld-files.json"));
   const stage = await prepareStageContext<TldIndex>(
     "tld-parse",
@@ -463,8 +805,22 @@ async function runParseTld(args: string[]): Promise<void> {
   );
 
   if (stage.plan.reason === "cache-hit") {
-    console.log("TLD parse skipped (cache hit).");
-    return;
+    const message = "TLD parse skipped (cache hit).";
+    runtime.output.status(message);
+    emitAnalyzeEvent(runtime, {
+      stage: "parse-tld",
+      status: "skipped",
+      message,
+      detail: { reason: "cache-hit" }
+    });
+    return {
+      stage: {
+        stage: "parse-tld",
+        status: "skipped",
+        outputPath: path.join(config.analysisOut, "index", "taglibs.json"),
+        reason: "cache-hit"
+      }
+    };
   }
 
   const entries: Record<string, TldIndex> =
@@ -488,17 +844,49 @@ async function runParseTld(args: string[]): Promise<void> {
 
   await writeRawTaglibIndex(config.analysisOut, taglibs);
   await persistStageState("tld-parse", stage, files, entries);
-  console.log(
-    `TLD parse complete. Processed: ${stage.plan.selectedFiles.length}, Removed: ${stage.plan.removedFiles.length}`
-  );
-}
 
-async function runBuildGraph(args: string[]): Promise<void> {
-  const parsed = parseArgs(args);
-  const config = await loadCliConfig(parsed, {
-    analysisOut: parsed["analysis"] ? path.resolve(parsed["analysis"]) : undefined
+  const message = `TLD parse complete. Processed: ${stage.plan.selectedFiles.length}, Removed: ${stage.plan.removedFiles.length}`;
+  runtime.output.status(message);
+  emitAnalyzeEvent(runtime, {
+    stage: "parse-tld",
+    status: "completed",
+    message,
+    detail: {
+      processedFiles: stage.plan.selectedFiles.length,
+      removedFiles: stage.plan.removedFiles.length
+    }
   });
 
+  return {
+    stage: {
+      stage: "parse-tld",
+      status: "completed",
+      outputPath: path.join(config.analysisOut, "index", "taglibs.json"),
+      processedFiles: stage.plan.selectedFiles.length,
+      removedFiles: stage.plan.removedFiles.length
+    }
+  };
+}
+
+async function runParseTld(args: string[]): Promise<AnalyzeStageResult> {
+  const parsed = parseArgs(args);
+  const config = await loadCliConfig(parsed);
+  return (await executeParseTldStage(
+    config,
+    parsed["incremental"] === "true",
+    { output: createCommandOutput({ quiet: parsed["quiet"] === "true" }) }
+  )).stage;
+}
+
+async function executeBuildGraphStage(
+  config: CliConfig,
+  runtime: StageRuntime
+): Promise<{ stage: AnalyzeStageResult }> {
+  emitAnalyzeEvent(runtime, {
+    stage: "build-graph",
+    status: "start",
+    message: `Building graph artifacts for ${config.analysisOut}`
+  });
   const indexDir = path.join(config.analysisOut, "index");
   const javaMetadata = await readJavaFileMetadataDir(indexDir);
   const jspMetadata = await readJspFileMetadataDir(indexDir);
@@ -523,7 +911,8 @@ async function runBuildGraph(args: string[]): Promise<void> {
 
   const graphs = buildGraphs(calls, jspDocs, classes, {
     entryFiles: config.entryFiles,
-    entries: config.entries
+    entries: config.entries,
+    javaClassReferences: javaIndex?.classReferences
   });
   await writeGraphFiles(config.analysisOut, graphs);
   await writeConfigRegistryArtifacts(config);
@@ -535,15 +924,45 @@ async function runBuildGraph(args: string[]): Promise<void> {
   });
   await writeLabelsIndex(config.labelsOut ?? path.join(indexDir, "labels.json"), labels);
 
-  console.log(`Graph build complete. Output: ${path.join(config.analysisOut, "graph")}`);
+  const outputPath = path.join(config.analysisOut, "graph");
+  const message = `Graph build complete. Output: ${outputPath}`;
+  runtime.output.status(message);
+  emitAnalyzeEvent(runtime, {
+    stage: "build-graph",
+    status: "completed",
+    message,
+    detail: { outputPath }
+  });
+
+  return {
+    stage: {
+      stage: "build-graph",
+      status: "completed",
+      outputPath
+    }
+  };
 }
 
-async function runBuildIndex(args: string[]): Promise<void> {
+async function runBuildGraph(args: string[]): Promise<AnalyzeStageResult> {
   const parsed = parseArgs(args);
   const config = await loadCliConfig(parsed, {
     analysisOut: parsed["analysis"] ? path.resolve(parsed["analysis"]) : undefined
   });
+  return (await executeBuildGraphStage(
+    config,
+    { output: createCommandOutput({ quiet: parsed["quiet"] === "true" }) }
+  )).stage;
+}
 
+async function executeBuildIndexStage(
+  config: CliConfig,
+  runtime: StageRuntime
+): Promise<{ stage: AnalyzeStageResult }> {
+  emitAnalyzeEvent(runtime, {
+    stage: "build-index",
+    status: "start",
+    message: `Building index artifacts for ${config.analysisOut}`
+  });
   const indexDir = path.join(config.analysisOut, "index");
   const javaFiles = await readScannerManifest(path.join(config.analysisOut, "manifests", "java-files.json"));
   const tldFiles = await readScannerManifest(path.join(config.analysisOut, "manifests", "tld-files.json"));
@@ -582,49 +1001,109 @@ async function runBuildIndex(args: string[]): Promise<void> {
     })
   );
 
-  console.log(`Index build complete. Output: ${indexDir}`);
+  const message = `Index build complete. Output: ${indexDir}`;
+  runtime.output.status(message);
+  emitAnalyzeEvent(runtime, {
+    stage: "build-index",
+    status: "completed",
+    message,
+    detail: { outputPath: indexDir }
+  });
+
+  return {
+    stage: {
+      stage: "build-index",
+      status: "completed",
+      outputPath: indexDir
+    }
+  };
+}
+
+async function runBuildIndex(args: string[]): Promise<AnalyzeStageResult> {
+  const parsed = parseArgs(args);
+  const config = await loadCliConfig(parsed, {
+    analysisOut: parsed["analysis"] ? path.resolve(parsed["analysis"]) : undefined
+  });
+  return (await executeBuildIndexStage(
+    config,
+    { output: createCommandOutput({ quiet: parsed["quiet"] === "true" }) }
+  )).stage;
+}
+
+async function buildReportsForConfig(config: CliConfig): Promise<ReporterArtifacts> {
+  const input = await readReporterInput(config.analysisOut, config.labelsOut);
+  const reports = buildReports(input);
+  await writeReports(config.analysisOut, reports);
+  return reports;
+}
+
+async function executeReportSummaryStage(
+  config: CliConfig,
+  runtime: StageRuntime
+): Promise<ReportStageExecution> {
+  emitAnalyzeEvent(runtime, {
+    stage: "report-summary",
+    status: "start",
+    message: `Writing report artifacts for ${config.analysisOut}`
+  });
+  const reports = await buildReportsForConfig(config);
+  const outputPath = path.join(config.analysisOut, "report");
+  const message = `Report build complete. Output: ${outputPath}`;
+  runtime.output.status(message);
+  emitAnalyzeEvent(runtime, {
+    stage: "report-summary",
+    status: "completed",
+    message,
+    detail: { outputPath }
+  });
+
+  return {
+    reports,
+    stage: {
+      stage: "report-summary",
+      status: "completed",
+      outputPath
+    }
+  };
 }
 
 async function runAnalyze(args: string[]): Promise<void> {
   const parsed = parseArgs(args);
-  const config = await loadCliConfig(parsed);
-  const workerJar = await resolveJavaWorkerJar(config.java?.workerJar);
+  const format = resolveFormat(parsed["format"]);
+  const output = createCommandOutput({
+    quiet: parsed["quiet"] === "true" || format === "json"
+  });
+  const result = await analyzeWorkspaceInternal(buildAnalyzeOptionsFromArgs(parsed), {
+    output
+  });
 
-  await runScan(args);
-  await runParseTld(args);
-  await runParseJsp(args);
-
-  if (workerJar) {
-    await runParseJava(args);
-  } else {
-    console.log("Java parse skipped. Java worker JAR could not be resolved.");
+  if (format === "json") {
+    output.json(result);
+    return;
   }
 
-  await runBuildIndex(args);
-  await runBuildGraph(args);
-  await runReport(["summary", ...args]);
+  output.json(result.reports.summary);
 }
 
 async function runReport(args: string[]): Promise<void> {
   const [subcommand, ...rest] = args;
   const parsed = parseArgs(rest);
+  const output = createCommandOutput();
   const config = await loadCliConfig(parsed, {
     analysisOut: parsed["analysis"] ? path.resolve(parsed["analysis"]) : undefined
   });
 
-  const input = await readReporterInput(config.analysisOut, config.labelsOut);
-  const reports = buildReports(input);
-  await writeReports(config.analysisOut, reports);
+  const reports = await buildReportsForConfig(config);
 
   switch (subcommand) {
     case "summary":
-      console.log(JSON.stringify(reports.summary, null, 2));
+      output.json(reports.summary);
       return;
     case "unresolved":
-      console.log(JSON.stringify(reports.unresolved, null, 2));
+      output.json(reports.unresolved);
       return;
     case "impact":
-      console.log(reports.impactMarkdown);
+      output.text(reports.impactMarkdown);
       return;
     default:
       throw new Error("Report command requires one of: summary | unresolved | impact");
@@ -634,6 +1113,7 @@ async function runReport(args: string[]): Promise<void> {
 async function runQuery(args: string[]): Promise<void> {
   const [subcommand, ...rest] = args;
   const parsed = parseArgs(rest);
+  const output = createCommandOutput();
   const config = await loadCliConfig(parsed, {
     analysisOut: parsed["analysis"] ? path.resolve(parsed["analysis"]) : undefined
   });
@@ -648,7 +1128,7 @@ async function runQuery(args: string[]): Promise<void> {
       }
 
       const result = queryJspImpact(input, targetFile);
-      printResult(result, format, formatJspImpactResult(result));
+      printResult(output, result, format, formatJspImpactResult(result));
       return;
     }
     case "java-usages": {
@@ -658,7 +1138,7 @@ async function runQuery(args: string[]): Promise<void> {
       }
 
       const result = queryJavaUsages(input, targetClass);
-      printResult(result, format, formatJavaUsagesResult(result));
+      printResult(output, result, format, formatJavaUsagesResult(result));
       return;
     }
     case "tag-usages": {
@@ -668,7 +1148,7 @@ async function runQuery(args: string[]): Promise<void> {
       }
 
       const result = queryTagUsages(input, targetClass);
-      printResult(result, format, formatTagUsagesResult(result));
+      printResult(output, result, format, formatTagUsagesResult(result));
       return;
     }
     default:
@@ -715,6 +1195,50 @@ async function runDashboardServer(args: string[]): Promise<void> {
   });
 }
 
+async function runDashboardDevCommand(args: string[]): Promise<void> {
+  const parsed = parseArgs(args);
+  const root = parsed["root"] ? path.resolve(parsed["root"]) : process.cwd();
+  const configPath = parsed["config"]
+    ? path.resolve(parsed["config"])
+    : await resolveDefaultConfigPath(root) ?? path.join(root, "leflect.config.json");
+  const config = await loadCliConfig(parsed, {
+    analysisOut: parsed["analysis"] ? path.resolve(parsed["analysis"]) : undefined
+  });
+  const appDir = await resolveDashboardAppDir(parsed["dashboard-app"]);
+  if (!appDir) {
+    throw new Error(
+      "Dashboard app could not be resolved. Run inside the LeflectJava workspace or set LEFLECT_DASHBOARD_APP_DIR."
+    );
+  }
+
+  await ensureDashboardArtifacts(config.analysisOut);
+
+  const host = parsed["host"] ?? process.env.LEFLECT_DASHBOARD_HOST ?? "127.0.0.1";
+  const apiPort = parsed["port"]
+    ? Number.parseInt(parsed["port"], 10)
+    : Number.parseInt(process.env.LEFLECT_DASHBOARD_PORT ?? "3000", 10);
+  const frontendPort = parsed["dev-port"]
+    ? Number.parseInt(parsed["dev-port"], 10)
+    : Number.parseInt(process.env.LEFLECT_DASHBOARD_DEV_PORT ?? "4173", 10);
+
+  if (!Number.isInteger(apiPort) || apiPort <= 0) {
+    throw new Error("Option '--port' must be a positive integer");
+  }
+
+  if (!Number.isInteger(frontendPort) || frontendPort <= 0) {
+    throw new Error("Option '--dev-port' must be a positive integer");
+  }
+
+  await runDashboardDev({
+    appDir,
+    config,
+    configPath,
+    host,
+    apiPort,
+    frontendPort
+  });
+}
+
 function parseArgs(args: string[]): Record<string, string> {
   const result: Record<string, string> = {};
 
@@ -744,97 +1268,106 @@ function isJspAstMode(value: string): value is "jasper" | "lightweight" {
   return value === "jasper" || value === "lightweight";
 }
 
-function overrideJspAstMode(
-  config: CliConfig,
-  astMode: "jasper" | "lightweight"
-): CliConfig {
-  return {
-    ...config,
-    jsp: {
-      ...(config.jsp ?? {}),
-      astMode
-    }
-  };
+function resolveJspAstMode(value?: string): "jasper" | "lightweight" | undefined {
+  if (!value) {
+    return undefined;
+  }
+  if (!isJspAstMode(value)) {
+    throw new Error("Option '--jsp-ast-mode' must be 'lightweight' or 'jasper'");
+  }
+  return value;
 }
 
-function printHelp(): void {
-  console.log("LeflectJava CLI (scaffold)");
-  console.log("\nUsage:\n  leflect <command> [options]\n");
-  console.log("Commands:");
-  console.log("  init                Create leflect.config.ts or leflect.config.json with an interactive wizard");
-  console.log("  scaffold-plugin     Generate a TypeScript plugin scaffold for leflect.config.ts projects");
-  console.log("  scan                Scan repository and build file inventory");
-  console.log("  parse-java          Convert Java source files to JavaParser AST JSON");
-  console.log("  parse-jsp           Parse JSP metadata and Jasper->JavaParser AST by default");
-  console.log("  parse-tld           Parse TLD files and write taglibs.json");
-  console.log("  build-index         Build analysis indexes from manifests and parsed outputs");
-  console.log("  build-graph         Build graph outputs and labels.json from analysis indexes");
-  console.log("  analyze             Run the end-to-end analysis pipeline");
-  console.log("  report <subcommand> Generate report artifacts and print one result");
-  console.log("  query <subcommand>  Query analysis outputs");
-  console.log("  dashboard-server    Start the Lit projection app against existing analysis outputs");
-  console.log("\nReport Subcommands:");
-  console.log("  summary             Write report files and print summary.json");
-  console.log("  unresolved          Write report files and print unresolved.json");
-  console.log("  impact              Write report files and print impact.md");
-  console.log("\nQuery Subcommands:");
-  console.log("  jsp-impact          Query JSP -> Java / TagHandler impact");
-  console.log("  java-usages         Query callers/usages for a Java class");
-  console.log("  tag-usages          Query JSP usages for a tag handler");
-  console.log("\nOptions:");
-  console.log("  --root <path>        Repository root");
-  console.log("  --analysis <path>    Analysis directory (for build-graph/report/query)");
-  console.log("  --out <path>         Analysis output directory");
-  console.log("  --config <path>      Config file path (default: discovered leflect.config.* or <root>/leflect.config.json)");
-  console.log("  --config-format <f>  Config format for init: json | ts");
-  console.log("  --name <value>       Plugin scaffold name");
-  console.log("  --target <value>     Plugin hook target for scaffold-plugin: java | jsp | common");
-  console.log("  --plugin-out <path>  Output path for scaffold-plugin (default: <root>/leflect/plugins/<name>-plugin.ts)");
-  console.log("  --yes                Accept detected defaults for init");
-  console.log("  --force              Overwrite an existing config during init");
-  console.log("  --auto-system-classpath  Enable system classpath discovery");
-  console.log("  --system-classpath-roots <p> Search roots for auto classpath discovery");
-  console.log("  --system-classpath-max-retries <n> Retry count for auto classpath augmentation");
-  console.log("  --ignore-file <path> Ignore rules file (.gitignore syntax)");
-  console.log("  --jsp-ast-mode <m>   JSP AST mode override: jasper | lightweight");
-  console.log("  --worker-jar <path>  Worker JAR path to write during init");
-  console.log("  --jre-home <path>    JRE home to write during init");
-  console.log("  --java-home <path>   JAVA_HOME to write during init");
-  console.log("  --java-classpath <p> Extra Java classpath entries (path separator list)");
-  console.log("  --jsp-classpath <p>  Extra JSP classpath entries (path separator list)");
-  console.log("  --java-maven-command <cmd>  Maven command for Java classpath discovery");
-  console.log("  --jsp-maven-command <cmd>   Maven command for JSP classpath discovery");
-  console.log("  --jsp-webapp-root <path>    JSP webapp root to write during init");
-  console.log("  --entry-java <regexes>      Comma-separated Java entry file regexes");
-  console.log("  --entry-jsp <regexes>       Comma-separated JSP entry file regexes");
-  console.log("  --labels-out <path>  Label output path (default: analysisOut/index/labels.json)");
-  console.log("  --host <value>       Host for dashboard-server (default: 127.0.0.1)");
-  console.log("  --port <value>       Port for dashboard-server (default: 3000)");
-  console.log("  --mode <value>       dashboard-server mode: development | production");
-  console.log("  --dashboard-app <path> Dashboard app directory override");
-  console.log("  --file <path>        Target JSP path for query jsp-impact");
-  console.log("  --class <name>       Target Java/tag handler class for queries");
-  console.log("  --format <type>      Query output format: text | json");
-  console.log("  --incremental        Use cache state and process only changed files");
-  console.log("  -h, --help           Show help");
-  console.log("  -v, --version        Show version");
+function printHelp(output: CommandOutput): void {
+  output.text("LeflectJava CLI (scaffold)");
+  output.text("\nUsage:\n  leflect <command> [options]\n");
+  output.text("Commands:");
+  output.text("  init                Create leflect.config.ts or leflect.config.json with an interactive wizard");
+  output.text("  scaffold-plugin     Generate a TypeScript plugin scaffold for leflect.config.ts projects");
+  output.text("  scan                Scan repository and build file inventory");
+  output.text("  parse-java          Convert Java source files to JavaParser AST JSON");
+  output.text("  parse-jsp           Parse JSP metadata and Jasper->JavaParser AST by default");
+  output.text("  parse-tld           Parse TLD files and write taglibs.json");
+  output.text("  build-index         Build analysis indexes from manifests and parsed outputs");
+  output.text("  build-graph         Build graph outputs and labels.json from analysis indexes");
+  output.text("  analyze             Run the end-to-end analysis pipeline");
+  output.text("  report <subcommand> Generate report artifacts and print one result");
+  output.text("  query <subcommand>  Query analysis outputs");
+  output.text("  dashboard-server    Start the Lit projection app against existing analysis outputs");
+  output.text("  dashboard-dev       Start the API server and Vite dev server together");
+  output.text("\nReport Subcommands:");
+  output.text("  summary             Write report files and print summary.json");
+  output.text("  unresolved          Write report files and print unresolved.json");
+  output.text("  impact              Write report files and print impact.md");
+  output.text("\nQuery Subcommands:");
+  output.text("  jsp-impact          Query JSP -> Java / TagHandler impact");
+  output.text("  java-usages         Query callers/usages for a Java class");
+  output.text("  tag-usages          Query JSP usages for a tag handler");
+  output.text("\nOptions:");
+  output.text("  --root <path>        Repository root");
+  output.text("  --analysis <path>    Analysis directory (for build-graph/report/query)");
+  output.text("  --out <path>         Analysis output directory");
+  output.text("  --config <path>      Config file path (default: discovered leflect.config.* or <root>/leflect.config.json)");
+  output.text("  --config-format <f>  Config format for init: json | ts");
+  output.text("  --name <value>       Plugin scaffold name");
+  output.text("  --target <value>     Plugin hook target for scaffold-plugin: java | jsp | common");
+  output.text("  --plugin-out <path>  Output path for scaffold-plugin (default: <root>/leflect/plugins/<name>-plugin.ts)");
+  output.text("  --yes                Accept detected defaults for init");
+  output.text("  --force              Overwrite an existing config during init");
+  output.text("  --auto-system-classpath  Enable system classpath discovery");
+  output.text("  --system-classpath-roots <p> Search roots for auto classpath discovery");
+  output.text("  --system-classpath-max-retries <n> Retry count for auto classpath augmentation");
+  output.text("  --ignore-file <path> Ignore rules file (.gitignore syntax)");
+  output.text("  --jsp-ast-mode <m>   JSP AST mode override: jasper | lightweight");
+  output.text("  --worker-jar <path>  Worker JAR path to write during init");
+  output.text("  --jre-home <path>    JRE home to write during init");
+  output.text("  --java-home <path>   JAVA_HOME to write during init");
+  output.text("  --java-classpath <p> Extra Java classpath entries (path separator list)");
+  output.text("  --jsp-classpath <p>  Extra JSP classpath entries (path separator list)");
+  output.text("  --java-maven-command <cmd>  Maven command for Java classpath discovery");
+  output.text("  --jsp-maven-command <cmd>   Maven command for JSP classpath discovery");
+  output.text("  --jsp-webapp-root <path>    JSP webapp root to write during init");
+  output.text("  --entry-java <regexes>      Comma-separated Java entry file regexes");
+  output.text("  --entry-jsp <regexes>       Comma-separated JSP entry file regexes");
+  output.text("  --labels-out <path>  Label output path (default: analysisOut/index/labels.json)");
+  output.text("  --host <value>       Host for dashboard-server/dashboard-dev (default: 127.0.0.1)");
+  output.text("  --port <value>       API port for dashboard-server/dashboard-dev (default: 3000)");
+  output.text("  --dev-port <value>   Frontend port for dashboard-dev (default: 4173)");
+  output.text("  --mode <value>       dashboard-server mode: development | production");
+  output.text("  --dashboard-app <path> Dashboard app directory override");
+  output.text("  --file <path>        Target JSP path for query jsp-impact");
+  output.text("  --class <name>       Target Java/tag handler class for queries");
+  output.text("  --format <type>      Output format for analyze/query: text | json");
+  output.text("  --incremental        Use cache state and process only changed files");
+  output.text("  --quiet              Suppress progress output for scan/build/analyze commands");
+  output.text("  -h, --help           Show help");
+  output.text("  -v, --version        Show version");
 }
 
 async function loadCliConfig(
   parsed: Record<string, string>,
   directOverrides: Partial<{ analysisOut: string; labelsOut: string }> = {}
 ) {
-  const root = parsed["root"] ? path.resolve(parsed["root"]) : process.cwd();
-  const configPath = parsed["config"] ? path.resolve(parsed["config"]) : undefined;
-  const ignoreFile = parsed["ignore-file"] ? path.resolve(parsed["ignore-file"]) : undefined;
-  const analysisOut =
-    directOverrides.analysisOut ??
-    (parsed["analysis"] ? path.resolve(parsed["analysis"]) : undefined) ??
-    (parsed["out"] ? path.resolve(parsed["out"]) : undefined);
-  const labelsOut =
-    directOverrides.labelsOut ??
-    (parsed["labels-out"] ? path.resolve(parsed["labels-out"]) : undefined);
-  const classpathDiscovery = buildOverrides({
+  return loadExecutionConfig({
+    root: parsed["root"] ? path.resolve(parsed["root"]) : process.cwd(),
+    configPath: parsed["config"] ? path.resolve(parsed["config"]) : undefined,
+    ignoreFile: parsed["ignore-file"] ? path.resolve(parsed["ignore-file"]) : undefined,
+    analysisOut:
+      directOverrides.analysisOut ??
+      (parsed["analysis"] ? path.resolve(parsed["analysis"]) : undefined) ??
+      (parsed["out"] ? path.resolve(parsed["out"]) : undefined),
+    labelsOut:
+      directOverrides.labelsOut ??
+      (parsed["labels-out"] ? path.resolve(parsed["labels-out"]) : undefined),
+    classpathDiscovery: buildClasspathDiscoveryOverride(parsed),
+    jspAstMode: resolveJspAstMode(parsed["jsp-ast-mode"])
+  });
+}
+
+function buildClasspathDiscoveryOverride(
+  parsed: Record<string, string>
+): LeflectConfig["classpathDiscovery"] | undefined {
+  return buildOverrides({
     enabled:
       parsed["auto-system-classpath"] !== undefined
         ? parsed["auto-system-classpath"] === "true"
@@ -849,19 +1382,48 @@ async function loadCliConfig(
           .filter(Boolean)
       : undefined
   });
+}
 
+async function loadExecutionConfig(options: {
+  root?: string;
+  configPath?: string;
+  analysisOut?: string;
+  ignoreFile?: string;
+  labelsOut?: string;
+  classpathDiscovery?: LeflectConfig["classpathDiscovery"];
+  jspAstMode?: "jasper" | "lightweight";
+}): Promise<CliConfig> {
   const { config } = await loadConfig({
-    root,
-    configPath,
+    root: options.root,
+    configPath: options.configPath,
     overrides: buildOverrides({
-      analysisOut,
-      ignoreFile,
-      labelsOut,
-      classpathDiscovery
+      analysisOut: options.analysisOut,
+      ignoreFile: options.ignoreFile,
+      labelsOut: options.labelsOut,
+      classpathDiscovery: options.classpathDiscovery,
+      jsp: options.jspAstMode
+        ? buildOverrides({ astMode: options.jspAstMode })
+        : undefined
     })
   });
 
   return config;
+}
+
+function buildAnalyzeOptionsFromArgs(parsed: Record<string, string>): AnalyzeWorkspaceOptions {
+  return {
+    root: parsed["root"] ? path.resolve(parsed["root"]) : process.cwd(),
+    configPath: parsed["config"] ? path.resolve(parsed["config"]) : undefined,
+    analysisOut:
+      parsed["out"] ? path.resolve(parsed["out"]) : (
+        parsed["analysis"] ? path.resolve(parsed["analysis"]) : undefined
+      ),
+    ignoreFile: parsed["ignore-file"] ? path.resolve(parsed["ignore-file"]) : undefined,
+    labelsOut: parsed["labels-out"] ? path.resolve(parsed["labels-out"]) : undefined,
+    incremental: parsed["incremental"] === "true",
+    jspAstMode: resolveJspAstMode(parsed["jsp-ast-mode"]),
+    classpathDiscovery: buildClasspathDiscoveryOverride(parsed)
+  };
 }
 
 function resolveConfigFormat(value: string | undefined, configPath: string): ConfigFileFormat {
@@ -998,16 +1560,27 @@ function buildOverrides<T extends Record<string, unknown>>(overrides: T): Partia
 }
 
 function resolveFormat(value?: string): OutputFormat {
-  return value === "json" ? "json" : "text";
+  if (!value || value === "text") {
+    return "text";
+  }
+  if (value === "json") {
+    return "json";
+  }
+  throw new Error("Option '--format' must be 'text' or 'json'");
 }
 
-function printResult(payload: unknown, format: OutputFormat, textOutput: string): void {
+function printResult(
+  output: CommandOutput,
+  payload: unknown,
+  format: OutputFormat,
+  textOutput: string
+): void {
   if (format === "json") {
-    console.log(JSON.stringify(payload, null, 2));
+    output.json(payload);
     return;
   }
 
-  console.log(textOutput);
+  output.text(textOutput);
 }
 
 async function readScannerManifest(manifestPath: string): Promise<string[]> {

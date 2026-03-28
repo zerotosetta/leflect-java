@@ -22,7 +22,10 @@ describe("graph", () => {
         {
           path: "view/index.jsp",
           scriptlets: [{ kind: "scriptlet", code: "new UserService().findUser();" }],
-          resolvedTags: [{ prefix: "c", name: "form", handlerClass: "com.example.FormTag" }]
+          resolvedTags: [
+            { prefix: "c", name: "if", uri: "http://java.sun.com/jsp/jstl/core" },
+            { prefix: "c", name: "form", handlerClass: "com.example.FormTag" }
+          ]
         }
       ],
       [
@@ -396,11 +399,269 @@ describe("graph", () => {
     ]);
   });
 
+  it("skips JSTL tags but keeps unresolved custom tags", () => {
+    const result = buildGraphs(
+      [],
+      [
+        {
+          path: "view/index.jsp",
+          scriptlets: [],
+          resolvedTags: [
+            { prefix: "c", name: "if", uri: "http://java.sun.com/jsp/jstl/core" },
+            { prefix: "fmt", name: "formatNumber", uri: "jakarta.tags.fmt" },
+            { prefix: "app", name: "widget", uri: "/WEB-INF/app.tld" }
+          ]
+        }
+      ],
+      []
+    );
+
+    expect(result.jspJavaEdges).toHaveLength(1);
+    expect(result.jspJavaEdges[0]).toMatchObject({
+      from: "view/index.jsp",
+      to: "unresolved:tag:app:widget",
+      type: "JSP_USES_TAG",
+      confidence: "unresolved",
+      fromFile: "view/index.jsp"
+    });
+  });
+
+  it("skips JSTL tags in raw tag fallback mode", () => {
+    const result = buildGraphs(
+      [],
+      [
+        {
+          path: "view/legacy.jsp",
+          scriptlets: [],
+          tags: [
+            { prefix: "c", name: "if" },
+            { prefix: "fmt", name: "message" },
+            { prefix: "app", name: "widget" }
+          ]
+        }
+      ],
+      []
+    );
+
+    expect(result.jspJavaEdges).toEqual([
+      {
+        from: "view/legacy.jsp",
+        to: "unresolved:tag:app:widget:2",
+        type: "JSP_USES_TAG",
+        confidence: "unresolved",
+        fromFile: "view/legacy.jsp"
+      }
+    ]);
+  });
+
+  it("builds local java import edges into file dependencies", () => {
+    const result = buildGraphs(
+      [],
+      [],
+      [
+        { id: "org.example.Constants", name: "Constants", file: "src/main/java/org/example/Constants.java" },
+        { id: "org.example.App", name: "App", file: "src/main/java/org/example/App.java" }
+      ],
+      {
+        javaClassReferences: [
+          {
+            file: "src/main/java/org/example/App.java",
+            className: "org.example.Constants",
+            qualifiedName: "org.example.Constants",
+            classPath: "org.example.Constants",
+            kind: "import",
+            snippet: "import org.example.Constants;"
+          },
+          {
+            file: "src/main/java/org/example/App.java",
+            className: "java.util.List",
+            qualifiedName: "java.util.List",
+            classPath: "java.util.List",
+            kind: "import",
+            snippet: "import java.util.List;"
+          }
+        ]
+      }
+    );
+
+    expect(result.javaImportEdges).toEqual([
+      {
+        from: "src/main/java/org/example/App.java",
+        to: "java.util.List",
+        type: "JAVA_IMPORT",
+        confidence: "high",
+        fromFile: "src/main/java/org/example/App.java",
+        fromSymbol: "import java.util.List;",
+        toSymbol: "java.util.List"
+      },
+      {
+        from: "src/main/java/org/example/App.java",
+        to: "org.example.Constants",
+        type: "JAVA_IMPORT",
+        confidence: "high",
+        fromFile: "src/main/java/org/example/App.java",
+        toFile: "src/main/java/org/example/Constants.java",
+        fromSymbol: "import org.example.Constants;",
+        toSymbol: "org.example.Constants"
+      }
+    ]);
+    expect(result.fileDependencies.files).toEqual([
+      {
+        path: "src/main/java/org/example/App.java",
+        nodeType: "java",
+        referenceCount: 2,
+        dependantCount: 0,
+        references: [
+          {
+            path: "java.util.List",
+            nodeType: "unresolved",
+            edgeTypes: ["JAVA_IMPORT"],
+            symbols: ["java.util.List"]
+          },
+          {
+            path: "src/main/java/org/example/Constants.java",
+            nodeType: "java",
+            edgeTypes: ["JAVA_IMPORT"],
+            symbols: ["org.example.Constants"]
+          }
+        ],
+        referencedBy: []
+      },
+      {
+        path: "src/main/java/org/example/Constants.java",
+        nodeType: "java",
+        referenceCount: 0,
+        dependantCount: 1,
+        references: [],
+        referencedBy: [
+          {
+            path: "src/main/java/org/example/App.java",
+            nodeType: "java",
+            edgeTypes: ["JAVA_IMPORT"],
+            symbols: ["import org.example.Constants;"]
+          }
+        ]
+      }
+    ]);
+  });
+
+  it("builds external imports and type/new references into dependency edges", () => {
+    const result = buildGraphs(
+      [],
+      [],
+      [
+        { id: "org.example.App", name: "App", file: "src/main/java/org/example/App.java" }
+      ],
+      {
+        javaClassReferences: [
+          {
+            file: "src/main/java/org/example/App.java",
+            className: "java.util.List",
+            qualifiedName: "java.util.List",
+            classPath: "java.util.List",
+            kind: "import",
+            snippet: "import java.util.List;"
+          },
+          {
+            file: "src/main/java/org/example/App.java",
+            className: "IOException",
+            qualifiedName: "java.io.IOException",
+            classPath: "java.io.IOException",
+            kind: "type",
+            snippet: "IOException"
+          },
+          {
+            file: "src/main/java/org/example/App.java",
+            className: "ArrayList",
+            qualifiedName: "java.util.ArrayList<java.lang.String>",
+            classPath: "java.util.ArrayList<java.lang.String>",
+            kind: "new",
+            snippet: "new ArrayList<String>()"
+          },
+          {
+            file: "src/main/java/org/example/App.java",
+            className: "log4j",
+            qualifiedName: "org.apache.log4j",
+            classPath: "org.apache.log4j",
+            kind: "type",
+            snippet: "org.apache.log4j"
+          }
+        ]
+      }
+    );
+
+    expect(result.javaImportEdges).toEqual([
+      {
+        from: "src/main/java/org/example/App.java",
+        to: "java.util.List",
+        type: "JAVA_IMPORT",
+        confidence: "high",
+        fromFile: "src/main/java/org/example/App.java",
+        fromSymbol: "import java.util.List;",
+        toSymbol: "java.util.List"
+      }
+    ]);
+    expect(result.javaTypeReferenceEdges).toEqual([
+      {
+        from: "src/main/java/org/example/App.java",
+        to: "java.io.IOException",
+        type: "JAVA_TYPE_REFERENCE",
+        confidence: "high",
+        fromFile: "src/main/java/org/example/App.java",
+        fromSymbol: "IOException",
+        toSymbol: "java.io.IOException"
+      }
+    ]);
+    expect(result.javaNewEdges).toEqual([
+      {
+        from: "src/main/java/org/example/App.java",
+        to: "java.util.ArrayList",
+        type: "JAVA_NEW",
+        confidence: "high",
+        fromFile: "src/main/java/org/example/App.java",
+        fromSymbol: "new ArrayList<String>()",
+        toSymbol: "java.util.ArrayList"
+      }
+    ]);
+    expect(result.fileDependencies.files).toEqual([
+      {
+        path: "src/main/java/org/example/App.java",
+        nodeType: "java",
+        referenceCount: 3,
+        dependantCount: 0,
+        references: [
+          {
+            path: "java.io.IOException",
+            nodeType: "unresolved",
+            edgeTypes: ["JAVA_TYPE_REFERENCE"],
+            symbols: ["java.io.IOException"]
+          },
+          {
+            path: "java.util.ArrayList",
+            nodeType: "unresolved",
+            edgeTypes: ["JAVA_NEW"],
+            symbols: ["java.util.ArrayList"]
+          },
+          {
+            path: "java.util.List",
+            nodeType: "unresolved",
+            edgeTypes: ["JAVA_IMPORT"],
+            symbols: ["java.util.List"]
+          }
+        ],
+        referencedBy: []
+      }
+    ]);
+  });
+
   it("writes graph jsonl files", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "leflect-graph-"));
 
     await writeGraphFiles(root, {
       javaCallEdges: [{ from: "a", to: "b", type: "JAVA_CALL", confidence: "high" }],
+      javaImportEdges: [{ from: "src/A.java", to: "demo.B", type: "JAVA_IMPORT", confidence: "high" }],
+      javaTypeReferenceEdges: [{ from: "src/A.java", to: "java.util.List", type: "JAVA_TYPE_REFERENCE", confidence: "high" }],
+      javaNewEdges: [{ from: "src/A.java", to: "java.util.ArrayList", type: "JAVA_NEW", confidence: "high" }],
       jspJavaEdges: [{ from: "jsp", to: "handler", type: "JSP_USES_TAG", confidence: "high" }],
       fileEdges: [{ from: "src/A.java", to: "src/B.java", type: "JAVA_CALL", confidence: "high" }],
       fileDependencies: {
@@ -420,12 +681,18 @@ describe("graph", () => {
     });
 
     const javaCall = await readFile(path.join(root, "graph", "java-call.jsonl"), "utf8");
+    const javaImport = await readFile(path.join(root, "graph", "java-import.jsonl"), "utf8");
+    const javaTypeReference = await readFile(path.join(root, "graph", "java-type-reference.jsonl"), "utf8");
+    const javaNew = await readFile(path.join(root, "graph", "java-new.jsonl"), "utf8");
     const jspJava = await readFile(path.join(root, "graph", "jsp-java.jsonl"), "utf8");
     const fileDependency = await readFile(path.join(root, "graph", "file-dependency.jsonl"), "utf8");
     const fileDependencies = await readFile(path.join(root, "graph", "file-dependencies.json"), "utf8");
     const entryDependencies = await readFile(path.join(root, "graph", "entry-dependencies.json"), "utf8");
 
     expect(javaCall).toContain("\"JAVA_CALL\"");
+    expect(javaImport).toContain("\"JAVA_IMPORT\"");
+    expect(javaTypeReference).toContain("\"JAVA_TYPE_REFERENCE\"");
+    expect(javaNew).toContain("\"JAVA_NEW\"");
     expect(jspJava).toContain("\"JSP_USES_TAG\"");
     expect(fileDependency).toContain("\"src/A.java\"");
     expect(fileDependencies).toContain("\"schemaVersion\": \"1.0\"");

@@ -13,6 +13,15 @@ LeflectJava is a monorepo for Java/JSP static analysis focused on:
 - CLI package: `@leflect-java/cli`
 - CLI bin: `bin/leflect`
 
+## Package Guides
+
+- `@leflect-java/cli`: high-level CLI and programmatic orchestration API
+  - `packages/cli/README.md`
+- `@leflect-java/indexer`: sharded Java/JSP index builders and metadata schema
+  - `packages/indexer/README.md`
+- `@leflect-java/java-bridge`: low-level Java worker manifest/process helpers
+  - `packages/java-bridge/README.md`
+
 ## Quick Start
 
 ```bash
@@ -25,6 +34,7 @@ node bin/leflect --help
 
 - Config guide: `docs/config-guide.md`
 - Design adaptation notes: `docs/design/README.md`
+- Programmatic CLI usage: `packages/cli/README.md`
 
 ## NPX CLI
 
@@ -67,6 +77,18 @@ pnpm example:ts-config:run
 
 - Sample root: `examples/ts-config-account-flow`
 - Sample notes: `examples/ts-config-account-flow/README.md`
+
+The repository also includes a large real-world Kuali Financial System sample for
+stress-testing analysis and the dashboard against a multi-module legacy Maven codebase.
+
+```bash
+pnpm example:kuali-kfs:fetch
+pnpm example:kuali-kfs:run
+pnpm dashboard:dev:kuali-kfs
+```
+
+- Sample notes: `examples/kuali-kfs/README.md`
+- Prepared clone root: `.examples/kuali-kfs-master`
 
 ## TypeScript Config And Plugins
 
@@ -130,6 +152,8 @@ node bin/leflect build-graph --analysis ./analysis
 node bin/leflect report summary --analysis ./analysis
 node bin/leflect query tag-usages --analysis ./analysis --class FormTag
 node bin/leflect analyze --root ./repo --out ./analysis --incremental
+node bin/leflect analyze --root ./repo --out ./analysis --incremental --quiet
+node bin/leflect analyze --root ./repo --out ./analysis --incremental --format json
 node bin/leflect dashboard-server --root ./repo --config ./repo/leflect.config.ts --mode production --port 3210
 ```
 
@@ -188,6 +212,22 @@ node bin/leflect dashboard-server \
   --config ./repo/leflect.config.ts \
   --mode production \
   --port 3210
+```
+
+For local UI work, run the API server and Vite dev server together:
+
+```bash
+node bin/leflect dashboard-dev \
+  --root ./repo \
+  --config ./repo/leflect.config.ts \
+  --port 3000 \
+  --dev-port 4173
+```
+
+This repository also exposes a ready-to-run sample command:
+
+```bash
+pnpm dashboard:dev
 ```
 
 What it uses:
@@ -251,14 +291,16 @@ analysis/
   - designed for large codebases: source metadata is sharded per `.java` / `.jsp` file instead of one giant aggregate file
   - top-level manifests include `java-files.json`, `jsp-files.json`, `reverse-index.json`, `taglibs.json`, `labels.json`
   - Java-specific metadata:
-    - `java-files.json`: per-source manifest with `metadataPath`, class/method/call counts
-    - `java/**/*.json`: one metadata file per `.java` source, containing imports, classes, methods, calls, class references
+    - `java-files.json`: per-source manifest with `metadataPath`, class/field/method/call counts
+    - `java/**/*.json`: one metadata file per `.java` source, containing imports, classes, fields, methods, calls, class references
   - JSP-specific metadata:
     - `jsp-files.json`: per-source manifest with `metadataPath` and per-file counts
     - `jsp/**/*.json`: one metadata file per `.jsp` source, containing imports, taglibs, tags, scriptlets, references, method calls
   - import records include stable `id` values and simple-name metadata for cross-reference matching
-  - method call records include `classPath`, `importId`, `inputParameters`, `responseType`
-  - Java/JSP reference and call records include `line`, `column`, `endLine`, `endColumn` when available
+  - field records include `declaredType`, normalized `type`, `modifiers`, `initializerSnippet`, `lifetime`, `location`, and `lineRange`
+  - method records can include `orderedSteps[]` with `branchPath`, `lineRange`, and call metadata for execution-order reconstruction
+  - method call records include legacy `rawTarget` plus normalized `targetText`, `resolvedClassId`, `resolvedMethodId`, `classPath`, `importId`, `inputParameters`, and `responseType`
+  - Java/JSP reference and call records include `line`, `column`, `endLine`, `endColumn`, and normalized `lineRange` when available
   - if you want to integrate LeflectJava with another tool, this is usually the best starting point
 - `analysis/graph/`
   - edge-oriented graph outputs such as Java call edges and JSP-to-Java links

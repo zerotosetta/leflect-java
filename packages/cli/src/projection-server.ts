@@ -3,7 +3,17 @@ import http from "http";
 import path from "path";
 import { spawn } from "child_process";
 
-import { buildProjectionGraph, loadProjectionFileDetail, loadProjectionSnapshot } from "./projection";
+import {
+  buildProjectionGraph,
+  loadProjectionEntry,
+  loadProjectionSnapshot,
+  loadProjectionFileDetail,
+  loadProjectionTreeAncestors,
+  queryProjectionEntries,
+  queryProjectionFiles,
+  queryProjectionTreeChildren
+} from "./projection";
+import { loadProjectionAstGraph } from "./projection-ast";
 
 export async function runProjectionServer(options: {
   appDir: string;
@@ -15,14 +25,16 @@ export async function runProjectionServer(options: {
   host: string;
   port: number;
   mode: "development" | "production";
+  serveUi?: boolean;
 }): Promise<void> {
   const { appDir, config, host, port, mode } = options;
+  const serveUi = options.serveUi ?? true;
   const distDir = path.join(appDir, "dist");
-  if (mode === "development" || !(await pathExists(path.join(distDir, "index.html")))) {
+  if (serveUi && (mode === "development" || !(await pathExists(path.join(distDir, "index.html"))))) {
     await runViteBuild(appDir, config.root, config.analysisOut, options.configPath);
   }
 
-  const snapshot = await loadProjectionSnapshot(config.analysisOut, path.basename(config.root));
+  const snapshot = await loadProjectionSnapshot(config.analysisOut, path.basename(config.root), config.root);
   const server = http.createServer(async (request, response) => {
     try {
       if (!request.url) {
@@ -51,6 +63,7 @@ export async function runProjectionServer(options: {
             snapshot.files[0]?.path,
           tabs: [
             { id: "dependency-tree", label: "Dependency Tree" },
+            { id: "tree-view", label: "Tree View" },
             { id: "entries", label: "Entries" }
           ]
         });
@@ -58,12 +71,84 @@ export async function runProjectionServer(options: {
       }
 
       if (url.pathname === "/api/entries") {
-        sendJson(response, 200, { entries: snapshot.entries });
+        const offset = Number.parseInt(url.searchParams.get("offset") ?? "0", 10);
+        const limit = Number.parseInt(url.searchParams.get("limit") ?? "100", 10);
+        sendJson(
+          response,
+          200,
+          queryProjectionEntries(snapshot, {
+            offset: Number.isFinite(offset) ? offset : 0,
+            limit: Number.isFinite(limit) ? limit : 100,
+            search: url.searchParams.get("search") ?? undefined
+          })
+        );
+        return;
+      }
+
+      if (url.pathname === "/api/entry-detail") {
+        const entry = loadProjectionEntry(snapshot, {
+          id: url.searchParams.get("id") ?? undefined,
+          focusPath: url.searchParams.get("focusPath") ?? undefined
+        });
+        if (!entry) {
+          sendJson(response, 404, { error: "Entry not found" });
+          return;
+        }
+        sendJson(response, 200, { entry });
         return;
       }
 
       if (url.pathname === "/api/files") {
-        sendJson(response, 200, { files: snapshot.files });
+        const offset = Number.parseInt(url.searchParams.get("offset") ?? "0", 10);
+        const limit = Number.parseInt(url.searchParams.get("limit") ?? "200", 10);
+        const nodeType = url.searchParams.get("nodeType");
+        sendJson(
+          response,
+          200,
+          queryProjectionFiles(snapshot, {
+            offset: Number.isFinite(offset) ? offset : 0,
+            limit: Number.isFinite(limit) ? limit : 200,
+            nodeType: nodeType === "java" || nodeType === "jsp" ? nodeType : "all",
+            search: url.searchParams.get("search") ?? undefined,
+            classpathPrefix: url.searchParams.get("classpathPrefix") ?? undefined
+          })
+        );
+        return;
+      }
+
+      if (url.pathname === "/api/tree") {
+        const mode = url.searchParams.get("mode");
+        if (mode !== "classpath" && mode !== "directory") {
+          sendJson(response, 400, { error: "Query parameter 'mode' must be 'classpath' or 'directory'" });
+          return;
+        }
+
+        const nodeType = url.searchParams.get("nodeType");
+        sendJson(
+          response,
+          200,
+          queryProjectionTreeChildren(snapshot, {
+            mode,
+            parentId: url.searchParams.get("parentId") ?? undefined,
+            nodeType: nodeType === "java" || nodeType === "jsp" ? nodeType : "all",
+            search: url.searchParams.get("search") ?? undefined
+          })
+        );
+        return;
+      }
+
+      if (url.pathname === "/api/tree-ancestors") {
+        const mode = url.searchParams.get("mode");
+        const targetPath = url.searchParams.get("path");
+        if (mode !== "classpath" && mode !== "directory") {
+          sendJson(response, 400, { error: "Query parameter 'mode' must be 'classpath' or 'directory'" });
+          return;
+        }
+        if (!targetPath) {
+          sendJson(response, 400, { error: "Query parameter 'path' is required" });
+          return;
+        }
+        sendJson(response, 200, loadProjectionTreeAncestors(snapshot, { mode, path: targetPath }));
         return;
       }
 
@@ -74,14 +159,40 @@ export async function runProjectionServer(options: {
           sendJson(response, 400, { error: "Query parameter 'path' or 'entryId' is required" });
           return;
         }
-        const depth = Number.parseInt(url.searchParams.get("depth") ?? "2", 10);
+        const rawDepth = url.searchParams.get("depth");
+        const parsedDepth = rawDepth ? Number.parseInt(rawDepth, 10) : Number.NaN;
+        const rawMaxNodes = url.searchParams.get("maxNodes");
+        const parsedMaxNodes = rawMaxNodes ? Number.parseInt(rawMaxNodes, 10) : Number.NaN;
+        const edgeKinds = (url.searchParams.get("edgeKinds") ?? "")
+          .split(",")
+          .map((value) => value.trim())
+          .filter(Boolean);
         sendJson(
           response,
           200,
           buildProjectionGraph(snapshot, {
             focusPath: targetPath ?? undefined,
             entryId,
-            depth: Number.isFinite(depth) ? depth : 2
+            depth: Number.isFinite(parsedDepth) ? parsedDepth : undefined,
+            maxNodes: Number.isFinite(parsedMaxNodes) ? parsedMaxNodes : undefined,
+            edgeKinds: edgeKinds.length > 0 ? edgeKinds as Array<"call" | "import" | "type" | "tag"> : undefined
+          })
+        );
+        return;
+      }
+
+      if (url.pathname === "/api/ast-graph") {
+        const targetPath = url.searchParams.get("path");
+        if (!targetPath) {
+          sendJson(response, 400, { error: "Query parameter 'path' is required" });
+          return;
+        }
+        sendJson(
+          response,
+          200,
+          await loadProjectionAstGraph(snapshot, {
+            focusPath: targetPath,
+            includeExternal: url.searchParams.get("includeExternal") === "true"
           })
         );
         return;
@@ -97,6 +208,12 @@ export async function runProjectionServer(options: {
         return;
       }
 
+      if (!serveUi) {
+        response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+        response.end("Not found");
+        return;
+      }
+
       await serveStatic(distDir, url.pathname, response);
     } catch (error) {
       sendJson(response, 500, { error: error instanceof Error ? error.message : String(error) });
@@ -106,9 +223,16 @@ export async function runProjectionServer(options: {
   await new Promise<void>((resolve, reject) => {
     server.on("error", reject);
     server.listen(port, host, () => {
-      console.log(`Projection server using analysis output: ${config.analysisOut}`);
-      console.log(`Projection app: ${appDir}`);
-      console.log(`Open http://${host}:${port}`);
+      if (serveUi) {
+        console.log(`Projection server using analysis output: ${config.analysisOut}`);
+        console.log(`Projection app: ${appDir}`);
+        console.log(`Open http://${host}:${port}`);
+        return;
+      }
+
+      console.log(`Projection API server using analysis output: ${config.analysisOut}`);
+      console.log(`Projection app source: ${appDir}`);
+      console.log(`API endpoint http://${host}:${port}`);
     });
 
     const shutdown = () => {
@@ -177,7 +301,8 @@ function sendJson(response: http.ServerResponse, statusCode: number, payload: un
 }
 
 function resolveViteCliEntrypoint(appDir: string): string {
-  return require.resolve("vite/bin/vite.js", { paths: [appDir] });
+  const vitePackagePath = require.resolve("vite/package.json", { paths: [appDir] });
+  return path.join(path.dirname(vitePackagePath), "bin", "vite.js");
 }
 
 function contentType(filePath: string): string {

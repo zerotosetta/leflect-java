@@ -255,4 +255,72 @@ describe("indexer", () => {
       }
     ]);
   });
+
+  it("marks JSTL tags as standard even without an explicit taglib directive", () => {
+    const index = buildJspIndex([
+      {
+        path: "view/legacy.jsp",
+        directives: [],
+        imports: [],
+        includes: ["common/kfsTldHeader.jsp"],
+        taglibs: [],
+        tags: [
+          {
+            prefix: "c",
+            name: "if",
+            raw: "<c:if ",
+            location: { line: 1, column: 1, endLine: 1, endColumn: 6 }
+          },
+          {
+            prefix: "fmt",
+            name: "message",
+            raw: "<fmt:message ",
+            location: { line: 2, column: 1, endLine: 2, endColumn: 13 }
+          },
+          {
+            prefix: "app",
+            name: "widget",
+            raw: "<app:widget ",
+            location: { line: 3, column: 1, endLine: 3, endColumn: 12 }
+          }
+        ],
+        scriptlets: []
+      }
+    ]);
+
+    expect(index.tags).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        file: "view/legacy.jsp",
+        prefix: "c",
+        name: "if",
+        uri: "http://java.sun.com/jsp/jstl/core"
+      }),
+      expect.objectContaining({
+        file: "view/legacy.jsp",
+        prefix: "fmt",
+        name: "message",
+        uri: "http://java.sun.com/jsp/jstl/fmt"
+      }),
+      expect.objectContaining({
+        file: "view/legacy.jsp",
+        prefix: "app",
+        name: "widget",
+        uri: undefined
+      })
+    ]));
+    expect(index.docs[0].resolvedTags).toEqual([
+      {
+        prefix: "c",
+        name: "if",
+        uri: "http://java.sun.com/jsp/jstl/core",
+        handlerClass: undefined
+      },
+      {
+        prefix: "fmt",
+        name: "message",
+        uri: "http://java.sun.com/jsp/jstl/fmt",
+        handlerClass: undefined
+      }
+    ]);
+  });
 });
