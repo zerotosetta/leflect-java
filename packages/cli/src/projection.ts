@@ -9,11 +9,14 @@ import {
   FileDependencyRecord,
   FileDependencyReference,
   GraphEdge,
+  GraphEdgeType,
   GraphNodeType,
   SummaryReport
 } from "@leflect-java/schema";
 
 export type ProjectionDirection = "outbound";
+export type ProjectionTreeMode = "classpath" | "directory";
+export type ProjectionGraphEdgeKind = "call" | "import" | "type" | "tag";
 
 export type ProjectionFileManifestEntry = {
   path: string;
@@ -74,11 +77,15 @@ type ProjectionEntryGraph = {
 export type ProjectionSnapshot = {
   projectName: string;
   analysisOut: string;
+  rootDir: string;
   summary: SummaryReport;
   files: ProjectionFileEntry[];
   filesByPath: Map<string, ProjectionFileEntry>;
   entries: ProjectionEntry[];
+  entriesById: Map<string, ProjectionEntry>;
+  entryIdsByFocusPath: Map<string, string[]>;
   entryGraphsById: Map<string, ProjectionEntryGraph>;
+  treeIndexes: Record<ProjectionTreeMode, ProjectionTreeIndex>;
   defaultEntryId?: string;
   adjacency: Map<string, GraphEdge[]>;
   reverseAdjacency: Map<string, GraphEdge[]>;
@@ -100,6 +107,15 @@ export type ProjectionGraphNode = {
   symbols: string[];
 };
 
+export type ProjectionGraphEdge = {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  type: string;
+  confidence: string[];
+  symbols: string[];
+};
+
 export type ProjectionGraphResponse = {
   focusPath: string;
   direction: ProjectionDirection;
@@ -110,9 +126,89 @@ export type ProjectionGraphResponse = {
     edges: number;
   };
   nodes: ProjectionGraphNode[];
+  edges: ProjectionGraphEdge[];
 };
 
-export async function loadProjectionSnapshot(analysisOut: string, projectName: string): Promise<ProjectionSnapshot> {
+export type ProjectionFileSummary = Omit<ProjectionFileEntry, "references" | "referencedBy">;
+
+export type ProjectionSourceLanguage = "java" | "jsp" | "plain";
+
+export type ProjectionFileSource = {
+  path: string;
+  language: ProjectionSourceLanguage;
+  content: string;
+  truncated: boolean;
+};
+
+export type ProjectionFilesPageResponse = {
+  files: ProjectionFileSummary[];
+  total: number;
+  offset: number;
+  limit: number;
+  hasMore: boolean;
+};
+
+export type ProjectionEntriesPageResponse = {
+  entries: ProjectionEntry[];
+  total: number;
+  offset: number;
+  limit: number;
+  hasMore: boolean;
+};
+
+export type ProjectionTreeNode = {
+  id: string;
+  label: string;
+  kind: "branch" | "file";
+  fileCount: number;
+  hasChildren: boolean;
+  file?: ProjectionFileSummary;
+};
+
+export type ProjectionTreeChildrenResponse = {
+  mode: ProjectionTreeMode;
+  parentId?: string;
+  totalFiles: number;
+  nodes: ProjectionTreeNode[];
+};
+
+export type ProjectionTreeAncestorsResponse = {
+  mode: ProjectionTreeMode;
+  path: string;
+  branchIds: string[];
+};
+
+type ProjectionCountByNodeType = {
+  all: number;
+  java: number;
+  jsp: number;
+};
+
+type ProjectionTreeIndexNode = {
+  id: string;
+  label: string;
+  kind: "branch" | "file";
+  children: string[];
+  counts: ProjectionCountByNodeType;
+  file?: ProjectionFileSummary;
+};
+
+type ProjectionTreeIndex = {
+  rootChildIds: string[];
+  totalFiles: ProjectionCountByNodeType;
+  nodesById: Map<string, ProjectionTreeIndexNode>;
+};
+
+const SOURCE_PREVIEW_MAX_CHARS = 200_000;
+const UNBOUNDED_GRAPH_DEPTH = 0;
+const DEFAULT_GRAPH_MAX_NODES = 240;
+const DEFAULT_GRAPH_EDGE_KINDS: ProjectionGraphEdgeKind[] = ["call", "import", "type", "tag"];
+
+export async function loadProjectionSnapshot(
+  analysisOut: string,
+  projectName: string,
+  rootDir: string
+): Promise<ProjectionSnapshot> {
   const [summary, fileIndex, edges, javaManifest, jspManifest, entryIndex] = await Promise.all([
     readJsonFile<SummaryReport>(path.join(analysisOut, "report", "summary.json"), {
       schemaVersion: "1.0",
@@ -216,16 +312,33 @@ export async function loadProjectionSnapshot(analysisOut: string, projectName: s
 
   const files = [...filesByPath.values()].sort(compareFiles);
   const { entries, entryGraphsById } = buildProjectionEntries(entryIndex);
+  const entriesById = new Map(entries.map((entry) => [entry.id, entry]));
+  const entryIdsByFocusPath = new Map<string, string[]>();
+  for (const entry of entries) {
+    if (!entry.focusPath) {
+      continue;
+    }
+    const existing = entryIdsByFocusPath.get(entry.focusPath) ?? [];
+    existing.push(entry.id);
+    entryIdsByFocusPath.set(entry.focusPath, existing);
+  }
   const defaultEntryId = entries.find((entry) => !entry.disabled)?.id ?? entries[0]?.id;
 
   return {
     projectName,
     analysisOut,
+    rootDir: path.resolve(rootDir),
     summary,
     files,
     filesByPath,
     entries,
+    entriesById,
+    entryIdsByFocusPath,
     entryGraphsById,
+    treeIndexes: {
+      classpath: buildProjectionTreeIndex(files, "classpath"),
+      directory: buildProjectionTreeIndex(files, "directory")
+    },
     defaultEntryId,
     adjacency,
     reverseAdjacency,
@@ -233,67 +346,334 @@ export async function loadProjectionSnapshot(analysisOut: string, projectName: s
   };
 }
 
+export function queryProjectionFiles(
+  snapshot: ProjectionSnapshot,
+  options: {
+    offset?: number;
+    limit?: number;
+    nodeType?: Exclude<GraphNodeType, "unresolved" | "entry"> | "all";
+    search?: string;
+    classpathPrefix?: string;
+  }
+): ProjectionFilesPageResponse {
+  const offset = Math.max(0, options.offset ?? 0);
+  const limit = clamp(options.limit ?? 200, 1, 500);
+  const filtered = snapshot.files.filter((file) => matchesProjectionFileFilters(file, options));
+  return {
+    files: filtered.slice(offset, offset + limit).map(toProjectionFileSummary),
+    total: filtered.length,
+    offset,
+    limit,
+    hasMore: offset + limit < filtered.length
+  };
+}
+
+export function queryProjectionEntries(
+  snapshot: ProjectionSnapshot,
+  options: {
+    offset?: number;
+    limit?: number;
+    search?: string;
+  }
+): ProjectionEntriesPageResponse {
+  const offset = Math.max(0, options.offset ?? 0);
+  const limit = clamp(options.limit ?? 100, 1, 500);
+  const search = options.search?.trim().toLowerCase();
+  const filtered = search
+    ? snapshot.entries.filter((entry) => matchesProjectionEntryFilters(entry, search))
+    : snapshot.entries;
+
+  return {
+    entries: filtered.slice(offset, offset + limit),
+    total: filtered.length,
+    offset,
+    limit,
+    hasMore: offset + limit < filtered.length
+  };
+}
+
+export function loadProjectionEntry(
+  snapshot: ProjectionSnapshot,
+  options: {
+    id?: string;
+    focusPath?: string;
+  }
+): ProjectionEntry | undefined {
+  if (options.id) {
+    return snapshot.entriesById.get(options.id);
+  }
+  if (options.focusPath) {
+    const entryIds = snapshot.entryIdsByFocusPath.get(normalizePath(options.focusPath)) ?? [];
+    return entryIds
+      .map((entryId) => snapshot.entriesById.get(entryId))
+      .find((entry): entry is ProjectionEntry => Boolean(entry));
+  }
+  return undefined;
+}
+
+export function queryProjectionTreeChildren(
+  snapshot: ProjectionSnapshot,
+  options: {
+    mode: ProjectionTreeMode;
+    parentId?: string;
+    nodeType?: Exclude<GraphNodeType, "unresolved" | "entry"> | "all";
+    search?: string;
+  }
+): ProjectionTreeChildrenResponse {
+  const search = options.search?.trim();
+  if (!search) {
+    return queryProjectionTreeChildrenFromIndex(snapshot, options);
+  }
+
+  const filteredFiles = snapshot.files.filter((file) =>
+    matchesProjectionFileFilters(file, {
+      nodeType: options.nodeType,
+      search
+    })
+  );
+  const parentSegments = parseTreeParentId(options.parentId, options.mode);
+  const children = new Map<string, ProjectionTreeNode>();
+
+  for (const file of filteredFiles) {
+    const segments = treeSegmentsForFile(file, options.mode);
+    if (segments.length <= parentSegments.length || !startsWithSegments(segments, parentSegments)) {
+      continue;
+    }
+
+    const nextIndex = parentSegments.length;
+    const isLeaf = nextIndex === segments.length - 1;
+    const childSegments = segments.slice(0, nextIndex + 1);
+    const childId = isLeaf ? treeFileNodeId(options.mode, file.path) : treeBranchNodeId(options.mode, childSegments);
+    const existing = children.get(childId);
+
+    if (existing) {
+      existing.fileCount += 1;
+      continue;
+    }
+
+    children.set(childId, {
+      id: childId,
+      label: isLeaf ? (file.path.split("/").at(-1) ?? file.path) : childSegments.at(-1) ?? "",
+      kind: isLeaf ? "file" : "branch",
+      fileCount: 1,
+      hasChildren: !isLeaf,
+      file: isLeaf ? toProjectionFileSummary(file) : undefined
+    });
+  }
+
+  return {
+    mode: options.mode,
+    parentId: options.parentId,
+    totalFiles: filteredFiles.length,
+    nodes: [...children.values()].sort(compareTreeNodes)
+  };
+}
+
+export function loadProjectionTreeAncestors(
+  snapshot: ProjectionSnapshot,
+  options: {
+    mode: ProjectionTreeMode;
+    path: string;
+  }
+): ProjectionTreeAncestorsResponse {
+  const normalizedPath = normalizePath(options.path);
+  const file = snapshot.filesByPath.get(normalizedPath);
+  if (!file) {
+    return {
+      mode: options.mode,
+      path: normalizedPath,
+      branchIds: []
+    };
+  }
+
+  const segments = treeSegmentsForFile(file, options.mode);
+  return {
+    mode: options.mode,
+    path: normalizedPath,
+    branchIds: segments
+      .slice(0, -1)
+      .map((_, index) => treeBranchNodeId(options.mode, segments.slice(0, index + 1)))
+  };
+}
+
+function queryProjectionTreeChildrenFromIndex(
+  snapshot: ProjectionSnapshot,
+  options: {
+    mode: ProjectionTreeMode;
+    parentId?: string;
+    nodeType?: Exclude<GraphNodeType, "unresolved" | "entry"> | "all";
+  }
+): ProjectionTreeChildrenResponse {
+  const treeIndex = snapshot.treeIndexes[options.mode];
+  const nodeType = options.nodeType ?? "all";
+  const childIds = options.parentId
+    ? treeIndex.nodesById.get(options.parentId)?.children ?? []
+    : treeIndex.rootChildIds;
+
+  return {
+    mode: options.mode,
+    parentId: options.parentId,
+    totalFiles: countByNodeType(treeIndex.totalFiles, nodeType),
+    nodes: childIds
+      .map((childId) => treeIndex.nodesById.get(childId))
+      .filter((node): node is ProjectionTreeIndexNode => Boolean(node))
+      .filter((node) => countByNodeType(node.counts, nodeType) > 0)
+      .map((node) => ({
+        id: node.id,
+        label: node.label,
+        kind: node.kind,
+        fileCount: countByNodeType(node.counts, nodeType),
+        hasChildren: node.kind === "branch",
+        file: node.file
+      }))
+  };
+}
+
+function buildProjectionTreeIndex(files: ProjectionFileEntry[], mode: ProjectionTreeMode): ProjectionTreeIndex {
+  const nodesById = new Map<string, ProjectionTreeIndexNode>();
+  const rootChildren = new Set<string>();
+  const totalFiles = createNodeTypeCount();
+
+  for (const file of files) {
+    const fileCount = countForFile(file);
+    incrementNodeTypeCount(totalFiles, fileCount);
+    const segments = treeSegmentsForFile(file, mode);
+    let parentNode: ProjectionTreeIndexNode | undefined;
+
+    for (let index = 0; index < segments.length - 1; index += 1) {
+      const childSegments = segments.slice(0, index + 1);
+      const branchId = treeBranchNodeId(mode, childSegments);
+      const branchNode = getOrCreateTreeIndexNode(nodesById, branchId, {
+        id: branchId,
+        label: childSegments.at(-1) ?? "",
+        kind: "branch"
+      });
+      incrementNodeTypeCount(branchNode.counts, fileCount);
+      if (parentNode) {
+        parentNode.children.push(branchId);
+      } else {
+        rootChildren.add(branchId);
+      }
+      parentNode = branchNode;
+    }
+
+    const fileId = treeFileNodeId(mode, file.path);
+    const fileNode = getOrCreateTreeIndexNode(nodesById, fileId, {
+      id: fileId,
+      label: file.path.split("/").at(-1) ?? file.path,
+      kind: "file",
+      file: toProjectionFileSummary(file)
+    });
+    incrementNodeTypeCount(fileNode.counts, fileCount);
+    if (parentNode) {
+      parentNode.children.push(fileId);
+    } else {
+      rootChildren.add(fileId);
+    }
+  }
+
+  for (const node of nodesById.values()) {
+    if (node.kind !== "branch") {
+      continue;
+    }
+    node.children = [...new Set(node.children)].sort((leftId, rightId) =>
+      compareTreeIndexNodes(
+        nodesById.get(leftId) ?? createMissingTreeIndexNode(leftId),
+        nodesById.get(rightId) ?? createMissingTreeIndexNode(rightId)
+      )
+    );
+  }
+
+  return {
+    rootChildIds: [...rootChildren].sort((leftId, rightId) =>
+      compareTreeIndexNodes(
+        nodesById.get(leftId) ?? createMissingTreeIndexNode(leftId),
+        nodesById.get(rightId) ?? createMissingTreeIndexNode(rightId)
+      )
+    ),
+    totalFiles,
+    nodesById
+  };
+}
+
 export function buildProjectionGraph(
   snapshot: ProjectionSnapshot,
   options: {
     focusPath?: string;
-    depth: number;
+    depth?: number;
     maxNodes?: number;
     entryId?: string;
+    edgeKinds?: ProjectionGraphEdgeKind[];
   }
 ): ProjectionGraphResponse {
+  const depthLimit = normalizeGraphDepthLimit(options.depth);
+  const maxNodes = normalizeGraphMaxNodes(options.maxNodes);
+  const edgeKinds = normalizeGraphEdgeKinds(options.edgeKinds);
   const entryGraph = options.entryId ? snapshot.entryGraphsById.get(options.entryId) : undefined;
   if (entryGraph?.source === "declared") {
-    return buildDeclaredEntryGraph(snapshot, entryGraph, options.depth, options.maxNodes ?? 80);
+    return buildDeclaredEntryGraph(snapshot, entryGraph, depthLimit, maxNodes, edgeKinds);
   }
   if (!options.focusPath) {
     return {
       focusPath: options.entryId ? entryNodeId(options.entryId) : "",
       direction: "outbound",
-      depth: options.depth,
+      depth: depthLimit ?? UNBOUNDED_GRAPH_DEPTH,
       truncated: false,
       stats: { nodes: 0, edges: 0 },
-      nodes: []
+      nodes: [],
+      edges: []
     };
   }
 
   const normalizedFocus = normalizePath(options.focusPath);
   const visited = new Set<string>([normalizedFocus]);
-  const queue: Array<{ path: string; depth: number; parentId?: string; edge?: AggregatedTreeEdge }> = [
+  const expanded = new Set<string>();
+  const queue: Array<{ path: string; depth: number }> = [
     { path: normalizedFocus, depth: 0 }
   ];
   const nodes = new Map<string, ProjectionGraphNode>([
     [
       normalizedFocus,
-      toGraphNode(snapshot, normalizedFocus, normalizedFocus, 0, undefined, undefined)
+        toGraphNode(snapshot, normalizedFocus, normalizedFocus, 0, undefined, undefined)
     ]
   ]);
+  const edges = new Map<string, ProjectionGraphEdge>();
   let truncated = false;
-  let edgeCount = 0;
 
   while (queue.length > 0) {
     const current = queue.shift()!;
-    if (current.depth >= options.depth) {
+    if (expanded.has(current.path)) {
+      continue;
+    }
+    expanded.add(current.path);
+    if (depthLimit !== undefined && current.depth >= depthLimit) {
       continue;
     }
 
-    const nextEdges = aggregateTreeEdges(snapshot.adjacency.get(current.path) ?? []);
+    const nextEdges = aggregateTreeEdges(
+      (snapshot.adjacency.get(current.path) ?? []).filter((edge) => matchesProjectionGraphEdgeKinds(edge, edgeKinds))
+    );
     for (const edge of nextEdges) {
-      if (visited.has(edge.target)) {
+      if (!visited.has(edge.target)) {
+        if (nodes.size >= maxNodes) {
+          truncated = true;
+          continue;
+        }
+        const childDepth = current.depth + 1;
+        visited.add(edge.target);
+        nodes.set(
+          edge.target,
+          toGraphNode(snapshot, edge.target, normalizedFocus, childDepth, current.path, edge)
+        );
+        queue.push({ path: edge.target, depth: childDepth });
+      }
+
+      if (!nodes.has(edge.target)) {
+        truncated = true;
         continue;
       }
-      if (nodes.size >= (options.maxNodes ?? 80)) {
-        truncated = true;
-        break;
-      }
-      visited.add(edge.target);
-      edgeCount += 1;
-      const childDepth = current.depth + 1;
-      nodes.set(
-        edge.target,
-        toGraphNode(snapshot, edge.target, normalizedFocus, childDepth, current.path, edge)
-      );
-      queue.push({ path: edge.target, depth: childDepth, parentId: current.path, edge });
+      const graphEdge = toProjectionGraphEdge(current.path, edge.target, edge);
+      edges.set(graphEdge.id, graphEdge);
     }
   }
 
@@ -312,21 +692,23 @@ export function buildProjectionGraph(
   return {
     focusPath: normalizedFocus,
     direction: "outbound",
-    depth: options.depth,
+    depth: depthLimit ?? UNBOUNDED_GRAPH_DEPTH,
     truncated,
     stats: {
       nodes: orderedNodes.length,
-      edges: edgeCount
+      edges: edges.size
     },
-    nodes: orderedNodes
+    nodes: orderedNodes,
+    edges: [...edges.values()].sort(compareGraphEdges)
   };
 }
 
 export async function loadProjectionFileDetail(snapshot: ProjectionSnapshot, targetPath: string): Promise<{
-  file: ProjectionFileEntry;
+  file: ProjectionFileSummary;
   metadata?: Record<string, unknown>;
   references: FileDependencyReference[];
   referencedBy: FileDependencyReference[];
+  source?: ProjectionFileSource;
 }> {
   const normalizedPath = normalizePath(targetPath);
   const existing = snapshot.filesByPath.get(normalizedPath) ?? {
@@ -346,11 +728,14 @@ export async function loadProjectionFileDetail(snapshot: ProjectionSnapshot, tar
     );
   }
 
+  const source = await readProjectionFileSource(snapshot, existing.path, existing.nodeType);
+
   return {
-    file: existing,
+    file: toProjectionFileSummary(existing),
     metadata,
     references: existing.references,
-    referencedBy: existing.referencedBy
+    referencedBy: existing.referencedBy,
+    source
   };
 }
 
@@ -376,6 +761,35 @@ async function readJsonlFile<T>(filePath: string): Promise<T[]> {
   }
 }
 
+async function readProjectionFileSource(
+  snapshot: ProjectionSnapshot,
+  relativePath: string,
+  nodeType: GraphNodeType
+): Promise<ProjectionFileSource | undefined> {
+  if (nodeType !== "java" && nodeType !== "jsp") {
+    return undefined;
+  }
+
+  const resolvedRoot = path.resolve(snapshot.rootDir);
+  const resolvedPath = path.resolve(resolvedRoot, relativePath);
+  if (resolvedPath !== resolvedRoot && !resolvedPath.startsWith(`${resolvedRoot}${path.sep}`)) {
+    return undefined;
+  }
+
+  try {
+    const content = await fs.readFile(resolvedPath, "utf8");
+    const truncated = content.length > SOURCE_PREVIEW_MAX_CHARS;
+    return {
+      path: relativePath,
+      language: nodeType === "java" ? "java" : "jsp",
+      content: truncated ? content.slice(0, SOURCE_PREVIEW_MAX_CHARS) : content,
+      truncated
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 function normalizeReferences(entries: FileDependencyReference[]): FileDependencyReference[] {
   return entries
     .map((entry) => ({
@@ -391,6 +805,92 @@ function compareFiles(left: ProjectionFileEntry, right: ProjectionFileEntry): nu
     return left.nodeType.localeCompare(right.nodeType);
   }
   return left.path.localeCompare(right.path);
+}
+
+function compareTreeNodes(left: ProjectionTreeNode, right: ProjectionTreeNode): number {
+  if (left.kind !== right.kind) {
+    return left.kind === "branch" ? -1 : 1;
+  }
+  return left.label.localeCompare(right.label);
+}
+
+function compareTreeIndexNodes(left: ProjectionTreeIndexNode, right: ProjectionTreeIndexNode): number {
+  if (left.kind !== right.kind) {
+    return left.kind === "branch" ? -1 : 1;
+  }
+  return left.label.localeCompare(right.label);
+}
+
+function createNodeTypeCount(): ProjectionCountByNodeType {
+  return {
+    all: 0,
+    java: 0,
+    jsp: 0
+  };
+}
+
+function countForFile(file: ProjectionFileEntry): ProjectionCountByNodeType {
+  return {
+    all: 1,
+    java: file.nodeType === "java" ? 1 : 0,
+    jsp: file.nodeType === "jsp" ? 1 : 0
+  };
+}
+
+function incrementNodeTypeCount(target: ProjectionCountByNodeType, value: ProjectionCountByNodeType): void {
+  target.all += value.all;
+  target.java += value.java;
+  target.jsp += value.jsp;
+}
+
+function countByNodeType(
+  counts: ProjectionCountByNodeType,
+  nodeType: Exclude<GraphNodeType, "unresolved" | "entry"> | "all"
+): number {
+  if (nodeType === "java") {
+    return counts.java;
+  }
+  if (nodeType === "jsp") {
+    return counts.jsp;
+  }
+  return counts.all;
+}
+
+function getOrCreateTreeIndexNode(
+  nodesById: Map<string, ProjectionTreeIndexNode>,
+  id: string,
+  options: {
+    id: string;
+    label: string;
+    kind: "branch" | "file";
+    file?: ProjectionFileSummary;
+  }
+): ProjectionTreeIndexNode {
+  const existing = nodesById.get(id);
+  if (existing) {
+    return existing;
+  }
+
+  const node: ProjectionTreeIndexNode = {
+    id: options.id,
+    label: options.label,
+    kind: options.kind,
+    children: [],
+    counts: createNodeTypeCount(),
+    file: options.file
+  };
+  nodesById.set(id, node);
+  return node;
+}
+
+function createMissingTreeIndexNode(id: string): ProjectionTreeIndexNode {
+  return {
+    id,
+    label: id,
+    kind: "branch",
+    children: [],
+    counts: createNodeTypeCount()
+  };
 }
 
 function buildProjectionEntries(entryIndex: EntryDependencyIndex): {
@@ -480,8 +980,9 @@ function buildProjectionEntries(entryIndex: EntryDependencyIndex): {
 function buildDeclaredEntryGraph(
   snapshot: ProjectionSnapshot,
   entryGraph: ProjectionEntryGraph,
-  depth: number,
-  maxNodes: number
+  depthLimit: number | undefined,
+  maxNodes: number,
+  edgeKinds: Set<ProjectionGraphEdgeKind>
 ): ProjectionGraphResponse {
   const rootId = entryNodeId(entryGraph.id);
   const nodes = new Map<string, ProjectionGraphNode>([
@@ -502,11 +1003,12 @@ function buildDeclaredEntryGraph(
     ]
   ]);
   const visited = new Set<string>([rootId]);
+  const expanded = new Set<string>();
   const queue: Array<{ path: string; depth: number }> = [];
+  const edges = new Map<string, ProjectionGraphEdge>();
   let truncated = false;
-  let edgeCount = 0;
 
-  if (depth >= 1) {
+  if (depthLimit === undefined || depthLimit >= 1) {
     for (const seedPath of entryGraph.seedPaths) {
       if (visited.has(seedPath)) {
         continue;
@@ -526,30 +1028,48 @@ function buildDeclaredEntryGraph(
         })
       );
       queue.push({ path: seedPath, depth: 1 });
-      edgeCount += 1;
+      edges.set(rootId + "->" + seedPath, {
+        id: rootId + "->" + seedPath,
+        sourceId: rootId,
+        targetId: seedPath,
+        type: "ENTRY_SEED",
+        confidence: [],
+        symbols: []
+      });
     }
   }
 
   while (queue.length > 0) {
     const current = queue.shift()!;
-    if (current.depth >= depth) {
+    if (expanded.has(current.path)) {
+      continue;
+    }
+    expanded.add(current.path);
+    if (depthLimit !== undefined && current.depth >= depthLimit) {
       continue;
     }
 
-    const nextEdges = aggregateTreeEdges(entryGraph.adjacency.get(current.path) ?? []);
+    const nextEdges = aggregateTreeEdges(
+      (entryGraph.adjacency.get(current.path) ?? []).filter((edge) => matchesProjectionGraphEdgeKinds(edge, edgeKinds))
+    );
     for (const edge of nextEdges) {
-      if (visited.has(edge.target)) {
+      if (!visited.has(edge.target)) {
+        if (nodes.size >= maxNodes) {
+          truncated = true;
+          continue;
+        }
+        visited.add(edge.target);
+        const childDepth = current.depth + 1;
+        nodes.set(edge.target, toGraphNode(snapshot, edge.target, rootId, childDepth, current.path, edge));
+        queue.push({ path: edge.target, depth: childDepth });
+      }
+
+      if (!nodes.has(edge.target)) {
+        truncated = true;
         continue;
       }
-      if (nodes.size >= maxNodes) {
-        truncated = true;
-        break;
-      }
-      visited.add(edge.target);
-      edgeCount += 1;
-      const childDepth = current.depth + 1;
-      nodes.set(edge.target, toGraphNode(snapshot, edge.target, rootId, childDepth, current.path, edge));
-      queue.push({ path: edge.target, depth: childDepth });
+      const graphEdge = toProjectionGraphEdge(current.path, edge.target, edge);
+      edges.set(graphEdge.id, graphEdge);
     }
   }
 
@@ -558,13 +1078,14 @@ function buildDeclaredEntryGraph(
   return {
     focusPath: rootId,
     direction: "outbound",
-    depth,
+    depth: depthLimit ?? UNBOUNDED_GRAPH_DEPTH,
     truncated,
     stats: {
       nodes: orderedNodes.length,
-      edges: edgeCount
+      edges: edges.size
     },
-    nodes: orderedNodes
+    nodes: orderedNodes,
+    edges: [...edges.values()].sort(compareGraphEdges)
   };
 }
 
@@ -638,6 +1159,16 @@ function compareGraphNodes(left: ProjectionGraphNode, right: ProjectionGraphNode
     return left.nodeType.localeCompare(right.nodeType);
   }
   return left.path.localeCompare(right.path);
+}
+
+function compareGraphEdges(left: ProjectionGraphEdge, right: ProjectionGraphEdge): number {
+  if (left.sourceId !== right.sourceId) {
+    return left.sourceId.localeCompare(right.sourceId);
+  }
+  if (left.targetId !== right.targetId) {
+    return left.targetId.localeCompare(right.targetId);
+  }
+  return left.type.localeCompare(right.type);
 }
 
 function buildAdjacency(edges: GraphEdge[]): Map<string, GraphEdge[]> {
@@ -716,4 +1247,168 @@ function pushMap(map: Map<string, GraphEdge[]>, key: string, edge: GraphEdge): v
 
 function normalizePath(targetPath: string): string {
   return targetPath.replace(/\\/g, "/");
+}
+
+function matchesProjectionEntryFilters(entry: ProjectionEntry, search: string): boolean {
+  return [
+    entry.id,
+    entry.label,
+    entry.entryType ?? "",
+    entry.focusPath ?? "",
+    entry.variantOf ?? "",
+    ...entry.tags,
+    ...entry.seedPaths,
+    ...entry.matchedBy
+  ]
+    .join(" ")
+    .toLowerCase()
+    .includes(search);
+}
+
+function matchesProjectionFileFilters(
+  file: ProjectionFileEntry,
+  options: {
+    nodeType?: Exclude<GraphNodeType, "unresolved" | "entry"> | "all";
+    search?: string;
+    classpathPrefix?: string;
+  }
+): boolean {
+  if (options.nodeType && options.nodeType !== "all" && file.nodeType !== options.nodeType) {
+    return false;
+  }
+
+  const classpath = projectionClasspathForFile(file).toLowerCase();
+  const classpathPrefix = options.classpathPrefix?.trim().toLowerCase();
+  if (classpathPrefix && !classpath.startsWith(classpathPrefix)) {
+    return false;
+  }
+
+  const search = options.search?.trim().toLowerCase();
+  if (!search) {
+    return true;
+  }
+
+  return `${file.path} ${file.packageName ?? ""} ${classpath}`.toLowerCase().includes(search);
+}
+
+function projectionClasspathForFile(file: ProjectionFileEntry): string {
+  if (file.packageName) {
+    return file.packageName;
+  }
+  const parts = file.path.split("/");
+  return parts.length > 1 ? parts.slice(0, -1).join("/") : file.path;
+}
+
+function treeSegmentsForFile(file: ProjectionFileEntry, mode: ProjectionTreeMode): string[] {
+  if (mode === "directory") {
+    return file.path.split("/").filter(Boolean);
+  }
+
+  if (file.packageName) {
+    return [...file.packageName.split(".").filter(Boolean), file.path.split("/").at(-1) ?? file.path];
+  }
+
+  return file.path.split("/").filter(Boolean);
+}
+
+function parseTreeParentId(parentId: string | undefined, mode: ProjectionTreeMode): string[] {
+  if (!parentId) {
+    return [];
+  }
+  const prefix = `${mode}:branch:`;
+  if (!parentId.startsWith(prefix)) {
+    return [];
+  }
+  return parentId.slice(prefix.length).split("/").filter(Boolean);
+}
+
+function startsWithSegments(segments: string[], prefix: string[]): boolean {
+  if (prefix.length > segments.length) {
+    return false;
+  }
+  return prefix.every((segment, index) => segments[index] === segment);
+}
+
+function treeBranchNodeId(mode: ProjectionTreeMode, segments: string[]): string {
+  return `${mode}:branch:${segments.join("/")}`;
+}
+
+function treeFileNodeId(mode: ProjectionTreeMode, targetPath: string): string {
+  return `${mode}:file:${normalizePath(targetPath)}`;
+}
+
+function toProjectionFileSummary(file: ProjectionFileEntry): ProjectionFileSummary {
+  const { references, referencedBy, ...summary } = file;
+  return summary;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function normalizeGraphDepthLimit(depth: number | undefined): number | undefined {
+  if (depth === undefined || !Number.isFinite(depth)) {
+    return undefined;
+  }
+  if (depth < 1) {
+    return undefined;
+  }
+  return Math.floor(depth);
+}
+
+function normalizeGraphMaxNodes(maxNodes: number | undefined): number {
+  if (maxNodes === undefined || !Number.isFinite(maxNodes) || maxNodes < 1) {
+    return DEFAULT_GRAPH_MAX_NODES;
+  }
+  return Math.floor(maxNodes);
+}
+
+function normalizeGraphEdgeKinds(edgeKinds: ProjectionGraphEdgeKind[] | undefined): Set<ProjectionGraphEdgeKind> {
+  if (!edgeKinds || edgeKinds.length === 0) {
+    return new Set(DEFAULT_GRAPH_EDGE_KINDS);
+  }
+
+  const normalized = edgeKinds.filter((value): value is ProjectionGraphEdgeKind =>
+    DEFAULT_GRAPH_EDGE_KINDS.includes(value)
+  );
+  return new Set(normalized.length > 0 ? normalized : DEFAULT_GRAPH_EDGE_KINDS);
+}
+
+function matchesProjectionGraphEdgeKinds(
+  edge: GraphEdge,
+  edgeKinds: Set<ProjectionGraphEdgeKind>
+): boolean {
+  const kind = projectionGraphEdgeKind(edge.type);
+  return kind ? edgeKinds.has(kind) : true;
+}
+
+function projectionGraphEdgeKind(edgeType: GraphEdgeType): ProjectionGraphEdgeKind | undefined {
+  if (edgeType === "JAVA_CALL" || edgeType === "JSP_SCRIPTLET_CALL") {
+    return "call";
+  }
+  if (edgeType === "JAVA_IMPORT") {
+    return "import";
+  }
+  if (edgeType === "JAVA_TYPE_REFERENCE" || edgeType === "JAVA_NEW") {
+    return "type";
+  }
+  if (edgeType === "JSP_USES_TAG") {
+    return "tag";
+  }
+  return undefined;
+}
+
+function toProjectionGraphEdge(
+  sourceId: string,
+  targetId: string,
+  edge: AggregatedTreeEdge
+): ProjectionGraphEdge {
+  return {
+    id: `${sourceId}->${targetId}`,
+    sourceId,
+    targetId,
+    type: edge.type,
+    confidence: [...edge.confidence],
+    symbols: [...edge.symbols]
+  };
 }

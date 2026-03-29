@@ -135,8 +135,21 @@ type JspRawMethodCall = {
   snippet?: string;
 };
 
+const STANDARD_JSTL_TAGLIB_BY_PREFIX: Record<string, string> = {
+  c: "http://java.sun.com/jsp/jstl/core",
+  fmt: "http://java.sun.com/jsp/jstl/fmt",
+  fn: "http://java.sun.com/jsp/jstl/functions",
+  sql: "http://java.sun.com/jsp/jstl/sql",
+  x: "http://java.sun.com/jsp/jstl/xml"
+};
+
 export function buildJspIndex(entries: JspDocIndexEntry[], options: JspIndexOptions = {}): JspIndex {
-  const docs = [...entries].sort((left, right) => left.path.localeCompare(right.path));
+  const docs = [...entries]
+    .sort((left, right) => left.path.localeCompare(right.path))
+    .map((entry) => ({
+      ...entry,
+      resolvedTags: entry.resolvedTags ? [...entry.resolvedTags] : undefined
+    }));
   const files: JspFileIndexEntry[] = [];
   const imports: JspImportIndexEntry[] = [];
   const taglibs: JspTaglibUsageIndexEntry[] = [];
@@ -149,6 +162,8 @@ export function buildJspIndex(entries: JspDocIndexEntry[], options: JspIndexOpti
   for (const entry of docs) {
     const normalizedPath = normalizePath(entry.path);
     const resolvedByTag = new Map<string, JspResolvedTag>();
+    const taglibUriByPrefix = new Map(entry.taglibs.map((taglib) => [taglib.prefix, taglib.uri]));
+    const inferredResolvedTags: JspResolvedTag[] = [];
     for (const resolved of entry.resolvedTags ?? []) {
       resolvedByTag.set(`${resolved.prefix}:${resolved.name}`, resolved);
     }
@@ -202,7 +217,12 @@ export function buildJspIndex(entries: JspDocIndexEntry[], options: JspIndexOpti
     }
 
     for (const tag of entry.tags) {
-      const resolved = resolvedByTag.get(`${tag.prefix}:${tag.name}`);
+      const resolved =
+        resolvedByTag.get(`${tag.prefix}:${tag.name}`) ??
+        inferStandardJstlTag(tag.prefix, tag.name, taglibUriByPrefix.get(tag.prefix));
+      if (resolved?.uri || resolved?.handlerClass) {
+        inferredResolvedTags.push(resolved);
+      }
       tags.push({
         file: normalizedPath,
         prefix: tag.prefix,
@@ -284,6 +304,7 @@ export function buildJspIndex(entries: JspDocIndexEntry[], options: JspIndexOpti
       resolvedTagCount: (entry.resolvedTags ?? []).filter((tag) => Boolean(tag.handlerClass)).length,
       ast: entry.ast
     });
+    entry.resolvedTags = inferredResolvedTags.length > 0 ? inferredResolvedTags : entry.resolvedTags;
   }
 
   imports.sort((left, right) => `${left.file}:${left.import}`.localeCompare(`${right.file}:${right.import}`));
@@ -430,6 +451,21 @@ function toJspFileMetadata(index: JspIndex): JspFileMetadata[] {
 
 function normalizePath(value: string): string {
   return value.replace(/\\/g, "/");
+}
+
+function inferStandardJstlTag(prefix: string, name: string, explicitUri?: string): JspResolvedTag | undefined {
+  const standardUri = STANDARD_JSTL_TAGLIB_BY_PREFIX[prefix];
+  if (!standardUri) {
+    return undefined;
+  }
+  if (explicitUri && explicitUri !== standardUri) {
+    return undefined;
+  }
+  return {
+    prefix,
+    name,
+    uri: standardUri
+  };
 }
 
 function locateWithinDirective(directive: JspDocIndexEntry["directives"][number], value: string): SourceLocation | undefined {

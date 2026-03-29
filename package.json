@@ -1,6 +1,6 @@
 {
   "name": "@leflect-java/workspace",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "packageManager": "pnpm@9.0.0",
   "bin": {
@@ -17,10 +17,13 @@
     "projection:dev": "pnpm --dir apps/leflect-java-projection dev",
     "projection:typecheck": "pnpm --dir apps/leflect-java-projection typecheck",
     "dashboard:build": "pnpm projection:build",
-    "dashboard:dev": "pnpm projection:dev",
+    "dashboard:dev": "node bin/leflect dashboard-dev --root examples/ts-config-account-flow --config examples/ts-config-account-flow/leflect.config.ts",
+    "dashboard:dev:kuali-kfs": "node bin/leflect dashboard-dev --root .examples/kuali-kfs-master --config .examples/kuali-kfs-master/leflect.config.ts",
     "dashboard:typecheck": "pnpm projection:typecheck",
     "example:legacy-java8:fetch": "bash examples/legacy-java8-petclinic/fetch.sh",
     "example:legacy-java8:run": "bash examples/legacy-java8-petclinic/run.sh",
+    "example:kuali-kfs:fetch": "bash examples/kuali-kfs/fetch.sh",
+    "example:kuali-kfs:run": "bash examples/kuali-kfs/run.sh",
     "example:ts-config:run": "node bin/leflect analyze --root examples/ts-config-account-flow --config examples/ts-config-account-flow/leflect.config.ts",
     "java-worker:build": "node scripts/java-worker.mjs build",
     "java-worker:package": "node scripts/java-worker.mjs package",

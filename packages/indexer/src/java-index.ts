@@ -1,5 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
+import { createReadStream } from "fs";
+import readline from "readline";
 
 import { readSourceMetadataTree, removeFiles, writeSourceMetadataTree } from "./file-tree";
 
@@ -13,6 +15,7 @@ export type ClassIndexEntry = {
   extendsTypes?: string[];
   implementsTypes?: string[];
   location?: JavaSourceLocation;
+  lineRange?: JavaLineRange;
 };
 
 export type MethodIndexEntry = {
@@ -24,6 +27,22 @@ export type MethodIndexEntry = {
   parameters?: string[];
   callTargets?: string[];
   location?: JavaSourceLocation;
+  lineRange?: JavaLineRange;
+  orderedSteps?: OrderedExecutionStepEntry[];
+};
+
+export type FieldIndexEntry = {
+  id: string;
+  name: string;
+  classId?: string;
+  file?: string;
+  declaredType?: string;
+  type?: string;
+  modifiers?: string[];
+  lifetime?: "class" | "instance";
+  initializerSnippet?: string;
+  location?: JavaSourceLocation;
+  lineRange?: JavaLineRange;
 };
 
 export type MethodCallParameterEntry = {
@@ -42,12 +61,16 @@ export type CallIndexEntry = {
   fromFile?: string;
   toFile?: string;
   rawTarget?: string;
+  targetText?: string;
   methodName?: string;
   classPath?: string;
+  resolvedClassId?: string;
+  resolvedMethodId?: string;
   importId?: string;
   inputParameters?: MethodCallParameterEntry[];
   responseType?: string;
   location?: JavaSourceLocation;
+  lineRange?: JavaLineRange;
   snippet?: string;
 };
 
@@ -63,6 +86,7 @@ export type JavaFileIndexEntry = {
   callTargets: string[];
   importCount?: number;
   classCount?: number;
+  fieldCount?: number;
   methodCount?: number;
   callCount?: number;
   classReferenceCount?: number;
@@ -79,17 +103,21 @@ export type JavaImportIndexEntry = {
 export type JavaClassReferenceIndexEntry = {
   file: string;
   className: string;
+  name?: string;
   qualifiedName?: string;
   classPath?: string;
+  resolvedClassId?: string;
   importId?: string;
   kind?: string;
   location?: JavaSourceLocation;
+  lineRange?: JavaLineRange;
   snippet?: string;
 };
 
 export type JavaFileMetadata = JavaFileIndexEntry & {
   importEntries: JavaImportIndexEntry[];
   classes: ClassIndexEntry[];
+  fields: FieldIndexEntry[];
   methods: MethodIndexEntry[];
   calls: CallIndexEntry[];
   classReferences: JavaClassReferenceIndexEntry[];
@@ -99,6 +127,7 @@ export type JavaIndex = {
   files: JavaFileIndexEntry[];
   imports: JavaImportIndexEntry[];
   classes: ClassIndexEntry[];
+  fields: FieldIndexEntry[];
   methods: MethodIndexEntry[];
   calls: CallIndexEntry[];
   classReferences: JavaClassReferenceIndexEntry[];
@@ -111,6 +140,29 @@ export type JavaSourceLocation = {
   endColumn?: number;
 };
 
+export type JavaLineRange = {
+  startLine?: number;
+  startColumn?: number;
+  endLine?: number;
+  endColumn?: number;
+};
+
+export type OrderedStepCallEntry = {
+  targetText?: string;
+  resolvedMethodId?: string;
+  resolvedClassId?: string;
+  methodName?: string;
+};
+
+export type OrderedExecutionStepEntry = {
+  id: string;
+  kind: string;
+  snippet?: string;
+  branchPath?: string[];
+  lineRange?: JavaLineRange;
+  call?: OrderedStepCallEntry;
+};
+
 export type JavaSummaryMethod = {
   id: string;
   name: string;
@@ -118,6 +170,20 @@ export type JavaSummaryMethod = {
   parameters?: string[];
   calls?: string[];
   location?: JavaSourceLocation;
+  lineRange?: JavaLineRange;
+  orderedSteps?: OrderedExecutionStepEntry[];
+};
+
+export type JavaSummaryField = {
+  id: string;
+  name: string;
+  declaredType?: string;
+  type?: string;
+  modifiers?: string[];
+  lifetime?: "class" | "instance";
+  initializerSnippet?: string;
+  location?: JavaSourceLocation;
+  lineRange?: JavaLineRange;
 };
 
 export type JavaSummaryType = {
@@ -126,24 +192,32 @@ export type JavaSummaryType = {
   kind?: string;
   extendsTypes?: string[];
   implementsTypes?: string[];
+  fields?: JavaSummaryField[];
   methods?: JavaSummaryMethod[];
   location?: JavaSourceLocation;
+  lineRange?: JavaLineRange;
 };
 
 export type JavaSummaryClassReference = {
   symbol: string;
+  name?: string;
   qualifiedName?: string;
+  resolvedClassId?: string;
   kind?: string;
   snippet?: string;
   location?: JavaSourceLocation;
+  lineRange?: JavaLineRange;
 };
 
 export type JavaSummaryMethodCall = {
   callerMethodId?: string;
   callerClassId?: string;
   target: string;
+  targetText?: string;
   targetClassId?: string;
+  resolvedClassId?: string;
   targetMethodId?: string;
+  resolvedMethodId?: string;
   targetMethodName?: string;
   classPath?: string;
   parameterTypes?: string[];
@@ -151,6 +225,7 @@ export type JavaSummaryMethodCall = {
   responseType?: string;
   snippet?: string;
   location?: JavaSourceLocation;
+  lineRange?: JavaLineRange;
 };
 
 export type JavaSummaryRecord = {
@@ -189,11 +264,13 @@ export function buildJavaIndex(workerIndex: WorkerIndex): JavaIndex {
   const files: JavaFileIndexEntry[] = [];
   const imports: JavaImportIndexEntry[] = [];
   const classes: ClassIndexEntry[] = [];
+  const fields: FieldIndexEntry[] = [];
   const methods: MethodIndexEntry[] = [];
   const calls: CallIndexEntry[] = [];
   const classReferences: JavaClassReferenceIndexEntry[] = [];
 
   const classIds = new Set<string>();
+  const fieldIds = new Set<string>();
   const methodIds = new Set<string>();
   const callKeys = new Set<string>();
   const pendingCalls: PendingJavaCall[] = [];
@@ -223,15 +300,20 @@ export function buildJavaIndex(workerIndex: WorkerIndex): JavaIndex {
     imports.push(...fileImportEntries);
 
     for (const reference of summary.classReferences ?? []) {
-      const classPath = reference.qualifiedName ?? resolveClassPath(reference.symbol, lookup);
+      const classPath = reference.qualifiedName
+        ?? reference.resolvedClassId
+        ?? resolveClassPath(reference.name ?? reference.symbol, lookup);
       classReferences.push({
         file,
         className: reference.symbol,
+        name: reference.name ?? reference.symbol,
         qualifiedName: reference.qualifiedName,
         classPath,
+        resolvedClassId: reference.resolvedClassId ?? classPath,
         importId: resolveImportId(lookup, classPath, reference.symbol),
         kind: reference.kind,
         location: reference.location,
+        lineRange: normalizeLineRange(reference.lineRange, reference.location),
         snippet: reference.snippet
       });
     }
@@ -249,9 +331,31 @@ export function buildJavaIndex(workerIndex: WorkerIndex): JavaIndex {
           kind: type.kind,
           extendsTypes: type.extendsTypes ?? [],
           implementsTypes: type.implementsTypes ?? [],
-          location: type.location
+          location: type.location,
+          lineRange: normalizeLineRange(type.lineRange, type.location)
         });
         classIds.add(type.fqn);
+      }
+
+      for (const field of type.fields ?? []) {
+        if (fieldIds.has(field.id)) {
+          continue;
+        }
+
+        fields.push({
+          id: field.id,
+          name: field.name,
+          classId: type.fqn,
+          file,
+          declaredType: field.declaredType,
+          type: field.type ?? field.declaredType,
+          modifiers: field.modifiers ?? [],
+          lifetime: field.lifetime,
+          initializerSnippet: field.initializerSnippet,
+          location: field.location,
+          lineRange: normalizeLineRange(field.lineRange, field.location)
+        });
+        fieldIds.add(field.id);
       }
 
       for (const method of type.methods ?? []) {
@@ -266,7 +370,9 @@ export function buildJavaIndex(workerIndex: WorkerIndex): JavaIndex {
             returnType: method.returnType,
             parameters: method.parameters ?? [],
             callTargets: collectUnique(method.calls ?? []),
-            location: method.location
+            location: method.location,
+            lineRange: normalizeLineRange(method.lineRange, method.location),
+            orderedSteps: normalizeOrderedSteps(method.orderedSteps)
           });
           methodIds.add(method.id);
         }
@@ -312,7 +418,8 @@ export function buildJavaIndex(workerIndex: WorkerIndex): JavaIndex {
       call.toMethodId ?? "",
       call.to ?? "",
       call.rawTarget ?? "",
-      serializeLocation(call.location)
+      serializeLocation(call.location),
+      serializeLineRange(call.lineRange)
     ].join("|");
     if (callKeys.has(key)) {
       continue;
@@ -324,15 +431,16 @@ export function buildJavaIndex(workerIndex: WorkerIndex): JavaIndex {
   files.sort((left, right) => left.path.localeCompare(right.path));
   imports.sort((left, right) => `${left.file}:${left.import}`.localeCompare(`${right.file}:${right.import}`));
   classes.sort((left, right) => left.id.localeCompare(right.id));
+  fields.sort(compareFields);
   methods.sort((left, right) => left.id.localeCompare(right.id));
   calls.sort(compareCalls);
   classReferences.sort((left, right) =>
-    `${left.file}:${left.classPath ?? left.className}:${serializeLocation(left.location)}`.localeCompare(
-      `${right.file}:${right.classPath ?? right.className}:${serializeLocation(right.location)}`
+    `${left.file}:${left.classPath ?? left.className}:${serializeLocation(left.location)}:${serializeLineRange(left.lineRange)}`.localeCompare(
+      `${right.file}:${right.classPath ?? right.className}:${serializeLocation(right.location)}:${serializeLineRange(right.lineRange)}`
     )
   );
 
-  return { files, imports, classes, methods, calls, classReferences };
+  return { files, imports, classes, fields, methods, calls, classReferences };
 }
 
 export async function readWorkerIndex(workerIndexPath: string): Promise<WorkerIndex> {
@@ -346,12 +454,22 @@ export async function readWorkerIndex(workerIndexPath: string): Promise<WorkerIn
 
 export async function readJavaSummaryIndex(summaryPath: string): Promise<JavaSummaryRecord[]> {
   try {
-    const raw = await fs.readFile(summaryPath, "utf8");
-    return raw
-      .split("\n")
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0)
-      .map((line) => JSON.parse(line) as JavaSummaryRecord);
+    const records: JavaSummaryRecord[] = [];
+    const stream = createReadStream(summaryPath, { encoding: "utf8" });
+    const lines = readline.createInterface({
+      input: stream,
+      crlfDelay: Infinity
+    });
+
+    for await (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        continue;
+      }
+      records.push(JSON.parse(trimmed) as JavaSummaryRecord);
+    }
+
+    return records;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       return [];
@@ -373,6 +491,7 @@ export async function writeJavaIndex(outDir: string, index: JavaIndex): Promise<
     metadataPath: metadataPaths.get(entry.path),
     importCount: metadataByPath.get(entry.path)?.importEntries.length ?? 0,
     classCount: metadataByPath.get(entry.path)?.classes.length ?? 0,
+    fieldCount: metadataByPath.get(entry.path)?.fields.length ?? 0,
     methodCount: metadataByPath.get(entry.path)?.methods.length ?? 0,
     callCount: metadataByPath.get(entry.path)?.calls.length ?? 0,
     classReferenceCount: metadataByPath.get(entry.path)?.classReferences.length ?? 0
@@ -401,12 +520,14 @@ export function flattenJavaFileMetadata(files: JavaFileMetadata[]): JavaIndex {
     files: [],
     imports: [],
     classes: [],
+    fields: [],
     methods: [],
     calls: [],
     classReferences: []
   };
 
   for (const file of files) {
+    const fileFields = file.fields ?? [];
     index.files.push({
       path: file.path,
       sourceKind: file.sourceKind,
@@ -419,12 +540,14 @@ export function flattenJavaFileMetadata(files: JavaFileMetadata[]): JavaIndex {
       callTargets: [...file.callTargets],
       importCount: file.importEntries.length,
       classCount: file.classes.length,
+      fieldCount: fileFields.length,
       methodCount: file.methods.length,
       callCount: file.calls.length,
       classReferenceCount: file.classReferences.length
     });
     index.imports.push(...file.importEntries);
     index.classes.push(...file.classes);
+    index.fields.push(...fileFields);
     index.methods.push(...file.methods);
     index.calls.push(...file.calls);
     index.classReferences.push(...file.classReferences);
@@ -433,11 +556,12 @@ export function flattenJavaFileMetadata(files: JavaFileMetadata[]): JavaIndex {
   index.files.sort((left, right) => left.path.localeCompare(right.path));
   index.imports.sort((left, right) => `${left.file}:${left.import}`.localeCompare(`${right.file}:${right.import}`));
   index.classes.sort((left, right) => left.id.localeCompare(right.id));
+  index.fields.sort(compareFields);
   index.methods.sort((left, right) => left.id.localeCompare(right.id));
   index.calls.sort(compareCalls);
   index.classReferences.sort((left, right) =>
-    `${left.file}:${left.classPath ?? left.className}:${serializeLocation(left.location)}`.localeCompare(
-      `${right.file}:${right.classPath ?? right.className}:${serializeLocation(right.location)}`
+    `${left.file}:${left.classPath ?? left.className}:${serializeLocation(left.location)}:${serializeLineRange(left.lineRange)}`.localeCompare(
+      `${right.file}:${right.classPath ?? right.className}:${serializeLocation(right.location)}:${serializeLineRange(right.lineRange)}`
     )
   );
 
@@ -465,6 +589,7 @@ function buildFallbackJavaIndex(files: string[]): JavaIndex {
       callTargets: [],
       importCount: 0,
       classCount: 1,
+      fieldCount: 0,
       methodCount: 0,
       callCount: 0,
       classReferenceCount: 0
@@ -475,6 +600,7 @@ function buildFallbackJavaIndex(files: string[]): JavaIndex {
     files: fileEntries,
     imports: [],
     classes,
+    fields: [],
     methods: [],
     calls: [],
     classReferences: []
@@ -486,12 +612,14 @@ function toJavaFileMetadata(index: JavaIndex): JavaFileMetadata[] {
     ...file,
     importCount: undefined,
     classCount: undefined,
+    fieldCount: undefined,
     methodCount: undefined,
     callCount: undefined,
     classReferenceCount: undefined,
     metadataPath: undefined,
     importEntries: index.imports.filter((entry) => entry.file === file.path),
     classes: index.classes.filter((entry) => entry.file === file.path),
+    fields: index.fields.filter((entry) => entry.file === file.path),
     methods: index.methods.filter((entry) => entry.file === file.path),
     calls: index.calls.filter((entry) => entry.fromFile === file.path),
     classReferences: index.classReferences.filter((entry) => entry.file === file.path)
@@ -536,8 +664,11 @@ function buildCallIndexEntry(
     fromFile: pending.file,
     toFile: inferredMethod?.file,
     rawTarget: normalizedTarget,
+    targetText: pending.record.targetText ?? normalizedTarget,
     methodName: targetMethodName,
     classPath,
+    resolvedClassId: pending.record.resolvedClassId ?? classPath,
+    resolvedMethodId: pending.record.resolvedMethodId ?? toMethodId,
     importId: resolveImportId(pending.lookup, classPath, extractSimpleName(classPath)),
     inputParameters: buildMethodCallParameters(
       pending.record.parameterTypes ?? inferredMethod?.parameters,
@@ -545,6 +676,7 @@ function buildCallIndexEntry(
     ),
     responseType: pending.record.responseType ?? inferredMethod?.returnType,
     location: pending.record.location,
+    lineRange: normalizeLineRange(pending.record.lineRange, pending.record.location),
     snippet: pending.record.snippet
   };
 }
@@ -708,7 +840,17 @@ function compareCalls(left: CallIndexEntry, right: CallIndexEntry): number {
     (left.fromMethodId ?? left.from ?? "").localeCompare(right.fromMethodId ?? right.from ?? "") ||
     (left.toMethodId ?? left.to ?? "").localeCompare(right.toMethodId ?? right.to ?? "") ||
     (left.rawTarget ?? "").localeCompare(right.rawTarget ?? "") ||
-    serializeLocation(left.location).localeCompare(serializeLocation(right.location))
+    serializeLocation(left.location).localeCompare(serializeLocation(right.location)) ||
+    serializeLineRange(left.lineRange).localeCompare(serializeLineRange(right.lineRange))
+  );
+}
+
+function compareFields(left: FieldIndexEntry, right: FieldIndexEntry): number {
+  return (
+    left.id.localeCompare(right.id) ||
+    (left.file ?? "").localeCompare(right.file ?? "") ||
+    serializeLocation(left.location).localeCompare(serializeLocation(right.location)) ||
+    serializeLineRange(left.lineRange).localeCompare(serializeLineRange(right.lineRange))
   );
 }
 
@@ -723,7 +865,10 @@ function flattenMethodCalls(types: JavaSummaryType[]): JavaSummaryMethodCall[] {
         callerMethodId: method.id,
         callerClassId: type.fqn,
         target,
-        targetMethodName: extractMethodName(target)
+        targetText: target,
+        targetMethodName: extractMethodName(target),
+        resolvedClassId: extractClassId(target),
+        resolvedMethodId: target.includes("#") ? target : undefined
       }))
     )
   );
@@ -748,6 +893,65 @@ function extractSimpleName(value?: string): string | undefined {
   const normalized = value.endsWith(".*") ? value.slice(0, -2) : value;
   const segments = normalized.split(".");
   return segments.at(-1);
+}
+
+function normalizeLineRange(
+  lineRange?: JavaLineRange,
+  location?: JavaSourceLocation
+): JavaLineRange | undefined {
+  if (lineRange) {
+    return {
+      startLine: lineRange.startLine,
+      startColumn: lineRange.startColumn,
+      endLine: lineRange.endLine,
+      endColumn: lineRange.endColumn
+    };
+  }
+  if (!location) {
+    return undefined;
+  }
+  return {
+    startLine: location.line,
+    startColumn: location.column,
+    endLine: location.endLine,
+    endColumn: location.endColumn
+  };
+}
+
+function normalizeOrderedSteps(
+  steps?: OrderedExecutionStepEntry[]
+): OrderedExecutionStepEntry[] | undefined {
+  if (!steps?.length) {
+    return undefined;
+  }
+
+  return steps.map((step) => ({
+    id: step.id,
+    kind: step.kind,
+    snippet: step.snippet,
+    branchPath: [...(step.branchPath ?? [])],
+    lineRange: normalizeLineRange(step.lineRange),
+    call: step.call
+      ? {
+          targetText: step.call.targetText,
+          resolvedMethodId: step.call.resolvedMethodId,
+          resolvedClassId: step.call.resolvedClassId,
+          methodName: step.call.methodName
+        }
+      : undefined
+  }));
+}
+
+function serializeLineRange(lineRange?: JavaLineRange): string {
+  if (!lineRange) {
+    return "";
+  }
+  return [
+    lineRange.startLine ?? "",
+    lineRange.startColumn ?? "",
+    lineRange.endLine ?? "",
+    lineRange.endColumn ?? ""
+  ].join(":");
 }
 
 function normalizePath(value: string): string {
