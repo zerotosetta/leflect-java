@@ -3,6 +3,10 @@
   "version": "0.1.5",
   "private": true,
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zerotosetta/leflect-java.git"
+  },
   "packageManager": "pnpm@9.0.0",
   "bin": {
     "leflect": "bin/leflect"

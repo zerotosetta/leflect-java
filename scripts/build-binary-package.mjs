@@ -85,6 +85,11 @@ await writeJson(path.join(workDir, "package.json"), {
   description: "Standalone LeflectJava CLI binary",
   bin: "index.js",
   license: "MIT",
+  repository: {
+    type: "git",
+    url: "git+https://github.com/zerotosetta/leflect-java.git",
+    directory: "packages/cli"
+  },
   pkg: {
     assets: ["java/*.jar", "java/worker-jar.json"]
   }
@@ -114,6 +119,11 @@ await writeJson(path.join(packageDir, "package.json"), {
   version,
   description: "Standalone LeflectJava CLI binary with bundled java-worker",
   license: "MIT",
+  repository: {
+    type: "git",
+    url: "git+https://github.com/zerotosetta/leflect-java.git",
+    directory: "packages/cli"
+  },
   os: [platform],
   cpu: [arch],
   publishConfig: {
