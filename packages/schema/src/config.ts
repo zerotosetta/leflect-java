@@ -1,4 +1,5 @@
 import type { LeflectPlugin } from "./plugin";
+import type { JspTaglibResolver } from "./jsp";
 
 export type JspAstMode = "lightweight" | "jasper";
 
@@ -56,8 +57,15 @@ export type LeflectConfig = {
     webappRoot?: string;
     generatedJavaOut?: string;
     astOut?: string;
+    semanticAstOut?: string;
     classpath?: string[];
     mavenCommand?: string;
+    tld?: {
+      autoLoad?: boolean;
+      paths?: string[];
+      uriMap?: Record<string, string>;
+    };
+    taglibResolvers?: Record<string, JspTaglibResolver>;
   };
 };
 

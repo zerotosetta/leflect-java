@@ -9,8 +9,10 @@ type ParseProblemRecord = {
   category?: string;
   detail?: string;
   message?: string;
+  missingClasses?: string[];
   rawCause?: string;
   relatedUri?: string | null;
+  unresolvedTaglibUris?: string[];
 };
 
 type DiscoverSystemClasspathEntriesOptions = {
@@ -112,6 +114,12 @@ export function extractMissingClassQueries(problems: ParseProblemRecord[]): stri
   const classes = new Set<string>();
 
   for (const problem of problems) {
+    for (const entry of problem.missingClasses ?? []) {
+      const normalized = normalizeClassQuery(entry);
+      if (normalized) {
+        classes.add(normalized);
+      }
+    }
     const haystack = [problem.message, problem.detail, problem.rawCause].filter(Boolean).join("\n");
     for (const entry of extractMissingClassQueriesFromText(haystack)) {
       classes.add(entry);
@@ -125,9 +133,12 @@ export function extractMissingTaglibUriQueries(problems: ParseProblemRecord[]): 
   const uris = new Set<string>();
 
   for (const problem of problems) {
+    for (const entry of problem.unresolvedTaglibUris ?? []) {
+      uris.add(entry);
+    }
+
     if (problem.relatedUri) {
       uris.add(problem.relatedUri);
-      continue;
     }
 
     const haystack = [problem.message, problem.detail, problem.rawCause].filter(Boolean).join("\n");

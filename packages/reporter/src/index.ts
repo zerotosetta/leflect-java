@@ -4,6 +4,7 @@ import path from "path";
 import { flattenJavaFileMetadata, flattenJspFileMetadata, readJavaFileMetadataDir, readJspFileMetadataDir } from "@leflect-java/indexer";
 import {
   ClassLabel,
+  DiagnosticCauseGroup,
   DiagnosticPathGroup,
   DiagnosticRecord,
   GraphEdge,
@@ -172,7 +173,8 @@ export function buildUnresolvedReport(input: ReporterInput): UnresolvedReport {
     generatedAt: new Date().toISOString(),
     edges: collectUnresolvedEdges(input),
     diagnostics,
-    byPath: groupDiagnosticsByPath(diagnostics)
+    byPath: groupDiagnosticsByPath(diagnostics),
+    byCause: groupDiagnosticsByCause(diagnostics)
   };
 }
 
@@ -402,6 +404,78 @@ function groupDiagnosticsByPath(diagnostics: DiagnosticRecord[]): DiagnosticPath
     }));
 }
 
+function groupDiagnosticsByCause(diagnostics: DiagnosticRecord[]): DiagnosticCauseGroup[] {
+  const groups = new Map<
+    string,
+    {
+      stage: string;
+      category: string;
+      summary: string;
+      rootCauseClass?: string;
+      rootCauseMessage?: string;
+      relatedUri?: string;
+      paths: Set<string>;
+      missingClasses: Set<string>;
+      missingPaths: Set<string>;
+      unresolvedTaglibUris: Set<string>;
+      count: number;
+    }
+  >();
+
+  for (const diagnostic of diagnostics) {
+    const key = buildDiagnosticCauseKey(diagnostic);
+    const entry = groups.get(key) ?? {
+      stage: diagnostic.stage,
+      category: diagnostic.category,
+      summary: diagnostic.summary,
+      rootCauseClass: diagnostic.rootCauseClass,
+      rootCauseMessage: diagnostic.rootCauseMessage,
+      relatedUri: diagnostic.relatedUri,
+      paths: new Set<string>(),
+      missingClasses: new Set<string>(),
+      missingPaths: new Set<string>(),
+      unresolvedTaglibUris: new Set<string>(),
+      count: 0
+    };
+
+    entry.paths.add(normalizePath(diagnostic.path));
+    for (const value of diagnostic.missingClasses ?? []) {
+      entry.missingClasses.add(value);
+    }
+    for (const value of diagnostic.missingPaths ?? []) {
+      entry.missingPaths.add(normalizePath(value));
+    }
+    for (const value of diagnostic.unresolvedTaglibUris ?? []) {
+      entry.unresolvedTaglibUris.add(value);
+    }
+    entry.count += 1;
+    groups.set(key, entry);
+  }
+
+  return [...groups.entries()]
+    .sort((left, right) => {
+      const countDelta = right[1].count - left[1].count;
+      if (countDelta !== 0) {
+        return countDelta;
+      }
+      return left[0].localeCompare(right[0]);
+    })
+    .map(([key, entry]) => ({
+      key,
+      stage: entry.stage,
+      category: entry.category,
+      summary: entry.summary,
+      count: entry.count,
+      paths: [...entry.paths].sort(),
+      rootCauseClass: entry.rootCauseClass,
+      rootCauseMessage: entry.rootCauseMessage,
+      relatedUri: entry.relatedUri,
+      missingClasses: [...entry.missingClasses].sort(),
+      missingPaths: [...entry.missingPaths].sort(),
+      unresolvedTaglibUris: [...entry.unresolvedTaglibUris].sort()
+    }));
+}
+
 function toDiagnosticFromEdge(edge: GraphEdge): DiagnosticRecord {
   const parsed = parseUnresolvedTarget(edge.to);
   const base: DiagnosticRecord = {
@@ -582,6 +656,10 @@ function normalizeDiagnosticRecord(
       : undefined;
   const message = asString(payload["message"]) ?? "";
   const category = asString(payload["category"]) ?? defaultCategory(stage, message);
+  const causeChain = asStringArray(payload["causeChain"]);
+  const missingClasses = asStringArray(payload["missingClasses"]);
+  const missingPaths = asPathArray(payload["missingPaths"]);
+  const unresolvedTaglibUris = asStringArray(payload["unresolvedTaglibUris"]);
 
   return {
     stage: asString(payload["stage"]) ?? stage,
@@ -597,6 +675,15 @@ function normalizeDiagnosticRecord(
     generatedPath: normalizeOptionalPath(asString(payload["generatedPath"]) ?? asString(payload["generatedServletPath"])),
     snippet: asString(payload["snippet"]),
     rawCause: asString(payload["rawCause"]),
+    exceptionClass: asString(payload["exceptionClass"]),
+    rootCauseClass: asString(payload["rootCauseClass"]),
+    rootCauseMessage: asString(payload["rootCauseMessage"]),
+    stackTrace: asString(payload["stackTrace"]),
+    workerDiagnostics: asString(payload["workerDiagnostics"]),
+    causeChain: causeChain.length > 0 ? causeChain : undefined,
+    missingClasses: missingClasses.length > 0 ? missingClasses : undefined,
+    missingPaths: missingPaths.length > 0 ? missingPaths : undefined,
+    unresolvedTaglibUris: unresolvedTaglibUris.length > 0 ? unresolvedTaglibUris : undefined,
     location
   };
 }
@@ -659,6 +746,30 @@ function asSeverity(value: unknown): "error" | "warning" | undefined {
   return value === "error" || value === "warning" ? value : undefined;
 }
 
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((entry): entry is string => typeof entry === "string" && entry.length > 0);
+}
+
+function asPathArray(value: unknown): string[] {
+  return asStringArray(value).map((entry) => normalizePath(entry));
+}
+
 function normalizeOptionalPath(value?: string): string | undefined {
   return value ? normalizePath(value) : undefined;
+}
+
+function buildDiagnosticCauseKey(diagnostic: DiagnosticRecord): string {
+  return [
+    diagnostic.stage,
+    diagnostic.category,
+    diagnostic.rootCauseClass ?? "",
+    diagnostic.rootCauseMessage ?? "",
+    diagnostic.relatedUri ?? "",
+    [...(diagnostic.missingPaths ?? [])].sort().join(","),
+    [...(diagnostic.missingClasses ?? [])].sort().join(","),
+    [...(diagnostic.unresolvedTaglibUris ?? [])].sort().join(",")
+  ].join("|");
 }

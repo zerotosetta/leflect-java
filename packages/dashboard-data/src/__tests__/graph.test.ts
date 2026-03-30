@@ -53,7 +53,8 @@ const snapshot: LoadedDashboardSnapshot = {
     generatedAt: new Date().toISOString(),
     edges: [],
     diagnostics: [],
-    byPath: []
+    byPath: [],
+    byCause: []
   },
   labels: undefined,
   classes: [],

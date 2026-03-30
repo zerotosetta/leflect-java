@@ -34,6 +34,15 @@ describe("reporter", () => {
         (entry) => entry.path === "src/main/webapp/WEB-INF/jsp/owners/findOwners.jsp"
       )
     ).toBeDefined();
+    expect(
+      reports.unresolved.byCause.find(
+        (entry) => entry.category === "jsp.taglib.uri.unresolved"
+      )
+    ).toMatchObject({
+      count: 1,
+      rootCauseClass: "org.apache.jasper.JasperException",
+      unresolvedTaglibUris: ["http://www.springframework.org/tags"]
+    });
     expect(reports.unresolved.diagnostics.some((entry) => entry.category === "jsp.taglib.uri.unresolved")).toBe(true);
     expect(reports.impactMarkdown).toContain("## JSP Impact");
 
@@ -47,6 +56,8 @@ describe("reporter", () => {
     expect(summaryFile).toContain("\"jspImpacts\"");
     expect(unresolvedFile).toContain("\"confidence\": \"unresolved\"");
     expect(unresolvedFile).toContain("\"category\": \"jsp.taglib.uri.unresolved\"");
+    expect(unresolvedFile).toContain("\"byCause\"");
+    expect(unresolvedFile).toContain("\"rootCauseClass\": \"org.apache.jasper.JasperException\"");
     expect(impactFile).toContain("UserService");
   });
 
@@ -232,8 +243,20 @@ async function createAnalysisFixture(): Promise<string> {
       category: "jsp.taglib.uri.unresolved",
       summary: "Taglib URI could not be resolved",
       message: "The absolute uri: [http://www.springframework.org/tags] cannot be resolved in either web.xml or the jar files deployed with this application",
+      detail: "org.apache.jasper.JasperException: The absolute uri: [http://www.springframework.org/tags] cannot be resolved",
       hint: "Add the dependency JAR/TLD for this URI or declare the mapping in web.xml.",
       relatedUri: "http://www.springframework.org/tags",
+      rawCause: "org.apache.jasper.JasperException: The absolute uri: [http://www.springframework.org/tags] cannot be resolved",
+      exceptionClass: "io.lefectjava.worker.jsp.JasperJspCompiler$JspCompilationFailure",
+      rootCauseClass: "org.apache.jasper.JasperException",
+      rootCauseMessage: "The absolute uri: [http://www.springframework.org/tags] cannot be resolved in either web.xml or the jar files deployed with this application",
+      stackTrace: "org.apache.jasper.JasperException: The absolute uri: [http://www.springframework.org/tags] cannot be resolved",
+      workerDiagnostics: "SEVERE: org.apache.jasper.JasperException: The absolute uri: [http://www.springframework.org/tags] cannot be resolved",
+      causeChain: [
+        "io.lefectjava.worker.jsp.JasperJspCompiler$JspCompilationFailure: Jasper failed for src/main/webapp/WEB-INF/jsp/owners/findOwners.jsp",
+        "org.apache.jasper.JasperException: The absolute uri: [http://www.springframework.org/tags] cannot be resolved in either web.xml or the jar files deployed with this application"
+      ],
+      unresolvedTaglibUris: ["http://www.springframework.org/tags"],
       location: {
         line: 1,
         column: 15,
@@ -252,6 +275,7 @@ async function createAnalysisFixture(): Promise<string> {
       category: "java.parse.problem",
       summary: "Java parse problem",
       message: "Parse error. Found \"}\", expected one of  \";\" \"@\" ...",
+      detail: "Problem stack",
       hint: "Inspect the Java syntax near the reported location.",
       location: {
         line: 3,

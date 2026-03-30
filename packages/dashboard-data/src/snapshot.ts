@@ -128,7 +128,8 @@ export async function loadDashboardSnapshot(context: DashboardContext): Promise<
     generatedAt: new Date(0).toISOString(),
     edges: [],
     diagnostics: [],
-    byPath: []
+    byPath: [],
+    byCause: []
   });
   const labels = await readJsonFile<LabelsIndex | undefined>(path.join(analysisOut, "index", "labels.json"), undefined);
   const javaMetadata = await readJavaFileMetadataDir(path.join(analysisOut, "index"));

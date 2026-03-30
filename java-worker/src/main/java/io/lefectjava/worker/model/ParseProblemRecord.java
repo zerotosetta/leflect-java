@@ -1,5 +1,7 @@
 package io.lefectjava.worker.model;
 
+import java.util.List;
+
 public class ParseProblemRecord {
   public String stage;
   public String severity;
@@ -14,6 +16,15 @@ public class ParseProblemRecord {
   public String generatedPath;
   public String snippet;
   public String rawCause;
+  public String exceptionClass;
+  public String rootCauseClass;
+  public String rootCauseMessage;
+  public String stackTrace;
+  public String workerDiagnostics;
+  public List<String> causeChain;
+  public List<String> missingClasses;
+  public List<String> missingPaths;
+  public List<String> unresolvedTaglibUris;
   public SourceLocation location;
 
   public ParseProblemRecord() {

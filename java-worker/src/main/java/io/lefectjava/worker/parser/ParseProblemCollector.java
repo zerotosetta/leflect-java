@@ -4,6 +4,7 @@ import com.github.javaparser.ParseResult;
 import com.github.javaparser.Problem;
 import com.github.javaparser.Range;
 import io.lefectjava.worker.model.ParseProblemRecord;
+import io.lefectjava.worker.model.ParseProblemSupport;
 import io.lefectjava.worker.model.SourceLocation;
 
 import java.util.ArrayList;
@@ -23,13 +24,13 @@ public class ParseProblemCollector {
       );
       record.detail = problem.getMessage();
       record.hint = "Inspect the Java syntax near the reported location.";
-      record.rawCause = problem.getCause().map(Throwable::toString).orElse(null);
       record.location = problem
           .getLocation()
           .flatMap(location -> location.toRange())
           .map(this::toSourceLocation)
           .orElse(null);
-      record.snippet = buildSnippet(sourceContent, record.location);
+      record.snippet = ParseProblemSupport.buildSnippet(sourceContent, record.location);
+      problem.getCause().ifPresent(cause -> ParseProblemSupport.populateThrowableDetails(record, cause, null));
       records.add(record);
     }
     return records;
@@ -44,17 +45,4 @@ public class ParseProblemCollector {
     );
   }
 
-  private String buildSnippet(String sourceContent, SourceLocation location) {
-    if (location == null || location.line == null) {
-      return null;
-    }
-
-    String[] lines = sourceContent.split("\\R", -1);
-    int index = location.line - 1;
-    if (index < 0 || index >= lines.length) {
-      return null;
-    }
-
-    return lines[index].trim();
-  }
 }

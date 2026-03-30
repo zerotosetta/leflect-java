@@ -135,9 +135,14 @@ function resolveConfigPaths(config: LeflectConfig, root: string): LeflectConfig 
       jspConfig.webappRoot ||
       jspConfig.generatedJavaOut ||
       jspConfig.astOut ||
+      jspConfig.semanticAstOut ||
       jspConfig.classpath?.length ||
       jspConfig.mavenCommand ||
-      jspConfig.astMode
+      jspConfig.astMode ||
+      jspConfig.tld?.paths?.length ||
+      jspConfig.tld?.autoLoad !== undefined ||
+      jspConfig.tld?.uriMap ||
+      jspConfig.taglibResolvers
     )
       ? {
           ...jspConfig,
@@ -146,9 +151,26 @@ function resolveConfigPaths(config: LeflectConfig, root: string): LeflectConfig 
             ? resolvePath(root, jspConfig.generatedJavaOut)
             : undefined,
           astOut: jspConfig.astOut ? resolvePath(root, jspConfig.astOut) : undefined,
+          semanticAstOut: jspConfig.semanticAstOut
+            ? resolvePath(root, jspConfig.semanticAstOut)
+            : undefined,
           classpath: jspConfig.classpath?.map((entry) => resolvePath(root, entry)),
           mavenCommand: jspConfig.mavenCommand
             ? resolveCommand(root, jspConfig.mavenCommand)
+            : undefined,
+          tld: jspConfig.tld
+            ? {
+                ...jspConfig.tld,
+                paths: jspConfig.tld.paths?.map((entry) => resolvePath(root, entry)),
+                uriMap: jspConfig.tld.uriMap
+                  ? Object.fromEntries(
+                      Object.entries(jspConfig.tld.uriMap).map(([uri, target]) => [
+                        uri,
+                        resolveResourcePath(root, target)
+                      ])
+                    )
+                  : undefined
+              }
             : undefined
         }
       : jspConfig;
@@ -218,6 +240,17 @@ function resolveCommand(root: string, target: string): string {
     return path.resolve(root, target);
   }
   return target;
+}
+
+function resolveResourcePath(root: string, target: string): string {
+  const separator = target.indexOf("!/");
+  if (separator < 0) {
+    return resolvePath(root, target);
+  }
+
+  const archivePath = target.slice(0, separator);
+  const entryPath = target.slice(separator + 2);
+  return `${resolvePath(root, archivePath)}!/${entryPath}`;
 }
 
 function validateConfig(config: LeflectConfig): void {
@@ -341,6 +374,9 @@ function validateConfig(config: LeflectConfig): void {
     if (config.jsp.astOut && typeof config.jsp.astOut !== "string") {
       throw new Error("Config 'jsp.astOut' must be a string");
     }
+    if (config.jsp.semanticAstOut && typeof config.jsp.semanticAstOut !== "string") {
+      throw new Error("Config 'jsp.semanticAstOut' must be a string");
+    }
     if (config.jsp.classpath) {
       if (!Array.isArray(config.jsp.classpath)) {
         throw new Error("Config 'jsp.classpath' must be an array of strings");
@@ -351,6 +387,48 @@ function validateConfig(config: LeflectConfig): void {
     }
     if (config.jsp.mavenCommand && typeof config.jsp.mavenCommand !== "string") {
       throw new Error("Config 'jsp.mavenCommand' must be a string");
+    }
+    if (config.jsp.tld) {
+      if (typeof config.jsp.tld !== "object") {
+        throw new Error("Config 'jsp.tld' must be an object");
+      }
+      if (
+        config.jsp.tld.autoLoad !== undefined &&
+        typeof config.jsp.tld.autoLoad !== "boolean"
+      ) {
+        throw new Error("Config 'jsp.tld.autoLoad' must be a boolean");
+      }
+      if (config.jsp.tld.paths) {
+        if (!Array.isArray(config.jsp.tld.paths)) {
+          throw new Error("Config 'jsp.tld.paths' must be an array of strings");
+        }
+        if (!config.jsp.tld.paths.every((entry) => typeof entry === "string")) {
+          throw new Error("Config 'jsp.tld.paths' must be an array of strings");
+        }
+      }
+      if (config.jsp.tld.uriMap) {
+        if (typeof config.jsp.tld.uriMap !== "object" || Array.isArray(config.jsp.tld.uriMap)) {
+          throw new Error("Config 'jsp.tld.uriMap' must be an object");
+        }
+        for (const [key, value] of Object.entries(config.jsp.tld.uriMap)) {
+          if (!key || typeof value !== "string") {
+            throw new Error("Config 'jsp.tld.uriMap' must map string URIs to string paths");
+          }
+        }
+      }
+    }
+    if (config.jsp.taglibResolvers) {
+      if (
+        typeof config.jsp.taglibResolvers !== "object" ||
+        Array.isArray(config.jsp.taglibResolvers)
+      ) {
+        throw new Error("Config 'jsp.taglibResolvers' must be an object");
+      }
+      for (const [key, value] of Object.entries(config.jsp.taglibResolvers)) {
+        if (!key || typeof value !== "function") {
+          throw new Error("Config 'jsp.taglibResolvers' must map resolver keys to functions");
+        }
+      }
     }
   }
 }

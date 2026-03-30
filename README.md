@@ -3,7 +3,7 @@
 LeflectJava is a monorepo for Java/JSP static analysis focused on:
 
 - Java file inventory and optional JavaParser full AST JSON export
-- JSP/TLD parsing and tag-handler resolution
+- JSP/TLD parsing, tag-handler resolution, and semantic JSP AST generation
 - index, graph, label, report, and query generation
 - incremental analysis via `analysis/cache/*`
 
@@ -33,6 +33,7 @@ node bin/leflect --help
 ```
 
 - Config guide: `docs/config-guide.md`
+- JSP semantic AST guide: `docs/jsp-tld-semantic-guide.md`
 - Design adaptation notes: `docs/design/README.md`
 - Programmatic CLI usage: `packages/cli/README.md`
 
@@ -191,6 +192,8 @@ By default, `parse-jsp` writes:
 - Jasper resolves taglib dependencies from `jsp.classpath` and, when `pom.xml` is present,
   from Maven dependency classpath auto-discovery
 - use `--jsp-ast-mode lightweight` or `jsp.astMode = "lightweight"` to skip Jasper AST generation
+- regardless of `jsp.astMode`, `build-index` now writes semantic JSP AST files to `analysis/jsp-semantic/**/*.json`
+  using the structural JSP document plus TLD registry and optional `jsp.taglibResolvers`
 
 If `entryFiles.java` and/or `entryFiles.jsp` are configured, `build-graph` writes
 regex-matched entry subgraphs and per-file reference/dependant summaries.
@@ -285,22 +288,28 @@ analysis/
   - mainly for debugging JSP-to-Java conversion; not a final consumer artifact
 - `analysis/jsp-meta/`
   - lightweight JSP metadata used by indexing
-  - includes taglibs, custom tags, scriptlets, and optional AST references
+  - includes taglibs, custom tags, scriptlets, optional AST references, and a nested structural `document`
+- `analysis/jsp-semantic/`
+  - semantic JSP AST files written during `build-index`
+  - combines JSP structure, TLD registry data, EL parsing, and optional config-defined tag resolvers
 - `analysis/index/`
   - primary machine-readable analysis outputs
   - designed for large codebases: source metadata is sharded per `.java` / `.jsp` file instead of one giant aggregate file
-  - top-level manifests include `java-files.json`, `jsp-files.json`, `reverse-index.json`, `taglibs.json`, `labels.json`
+  - top-level manifests include `java-files.json`, `jsp-files.json`, `reverse-index.json`, `taglib-registry.json`, `taglibs.json`, `labels.json`
   - Java-specific metadata:
     - `java-files.json`: per-source manifest with `metadataPath`, class/field/method/call counts
     - `java/**/*.json`: one metadata file per `.java` source, containing imports, classes, fields, methods, calls, class references
   - JSP-specific metadata:
     - `jsp-files.json`: per-source manifest with `metadataPath` and per-file counts
-    - `jsp/**/*.json`: one metadata file per `.jsp` source, containing imports, taglibs, tags, scriptlets, references, method calls
+    - `jsp/**/*.json`: one metadata file per `.jsp` source, containing imports, taglibs, tags, scriptlets, references, method calls, and semantic summary pointers
+  - `taglib-registry.json` is the raw TLD registry collected by `parse-tld`
+  - `taglibs.json` is the usage-oriented taglib index written by `build-index`
   - import records include stable `id` values and simple-name metadata for cross-reference matching
   - field records include `declaredType`, normalized `type`, `modifiers`, `initializerSnippet`, `lifetime`, `location`, and `lineRange`
   - method records can include `orderedSteps[]` with `branchPath`, `lineRange`, and call metadata for execution-order reconstruction
   - method call records include legacy `rawTarget` plus normalized `targetText`, `resolvedClassId`, `resolvedMethodId`, `classPath`, `importId`, `inputParameters`, and `responseType`
   - Java/JSP reference and call records include `line`, `column`, `endLine`, `endColumn`, and normalized `lineRange` when available
+  - JSP manifests now include `semanticAstPath`, `semanticNodeCount`, `semanticControlCount`, `semanticQueryCount`, `semanticCustomTagCount`, and `semanticDiagnosticCount`
   - if you want to integrate LeflectJava with another tool, this is usually the best starting point
 - `analysis/graph/`
   - edge-oriented graph outputs such as Java call edges and JSP-to-Java links
@@ -315,8 +324,9 @@ analysis/
   - includes `summary.json`, `unresolved.json`, and `impact.md`
   - `unresolved.json` now includes:
     - `edges`: unresolved graph edges
-    - `diagnostics`: normalized problem records with `stage`, `severity`, `path`, `category`, `summary`, `message`, optional `hint`, `location`, `snippet`, and related metadata
+    - `diagnostics`: normalized problem records with `stage`, `severity`, `path`, `category`, `summary`, `message`, optional `hint`, `location`, `snippet`, and full-cause metadata such as `rootCauseClass`, `rootCauseMessage`, `causeChain`, `stackTrace`, `missingPaths`, and `missingClasses`
     - `byPath`: the same diagnostics grouped by source path so repository reviews can focus file-by-file
+    - `byCause`: the same diagnostics grouped by normalized root cause so repeated failures such as one missing include or TLD can be identified quickly
   - this is the best place to inspect what LeflectJava concluded about the repository
 - `analysis/cache/`
   - incremental execution state, file hashes, and per-stage cache metadata
@@ -324,6 +334,7 @@ analysis/
 - `analysis/logs/`
   - parse error logs from Java/JSP worker stages
   - `java-parse-errors.jsonl` and `jsp-parse-errors.jsonl` use the same diagnostic schema as `report/unresolved.json`
+  - each record can include `rootCauseClass`, `rootCauseMessage`, `causeChain`, `stackTrace`, `workerDiagnostics`, `missingPaths`, `missingClasses`, and `unresolvedTaglibUris`
   - when location is available, each record includes `line`, `column`, `endLine`, `endColumn`, and a source `snippet`
   - inspect this when AST output is missing or incomplete
 

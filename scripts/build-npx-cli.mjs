@@ -10,6 +10,7 @@ const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
 const cliPackagePath = path.join(repoRoot, "packages", "cli", "package.json");
 const rootReadmePath = path.join(repoRoot, "README.md");
+const rootLicensePath = path.join(repoRoot, "LICENSE");
 const cliDistEntry = path.join(repoRoot, "packages", "cli", "dist", "index.js");
 const cliTypesEntry = path.join(repoRoot, "packages", "cli", "dist", "index.d.ts");
 const artifactsDir = path.join(repoRoot, ".artifacts");
@@ -24,7 +25,7 @@ const publishedPackage = {
   name: "leflect-java",
   version: cliPackage.version,
   description: cliPackage.description,
-  license: "UNLICENSED",
+  license: "MIT",
   bin: {
     leflect: "index.js"
   },
@@ -33,6 +34,7 @@ const publishedPackage = {
     "index.js",
     "index.d.ts",
     "README.md",
+    "LICENSE",
     "java"
   ]
 };
@@ -54,6 +56,7 @@ await build({
 
 await fs.copyFile(cliTypesEntry, path.join(packageDir, "index.d.ts"));
 await fs.copyFile(rootReadmePath, path.join(packageDir, "README.md"));
+await fs.copyFile(rootLicensePath, path.join(packageDir, "LICENSE"));
 await copyOptionalWorkerJar();
 await fs.writeFile(
   path.join(packageDir, "package.json"),

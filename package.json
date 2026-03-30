@@ -1,7 +1,8 @@
 {
   "name": "@leflect-java/workspace",
-  "version": "0.1.2",
+  "version": "0.1.5",
   "private": true,
+  "license": "MIT",
   "packageManager": "pnpm@9.0.0",
   "bin": {
     "leflect": "bin/leflect"

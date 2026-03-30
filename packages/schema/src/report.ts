@@ -24,12 +24,36 @@ export type DiagnosticRecord = {
   generatedPath?: string;
   snippet?: string;
   rawCause?: string;
+  exceptionClass?: string;
+  rootCauseClass?: string;
+  rootCauseMessage?: string;
+  stackTrace?: string;
+  workerDiagnostics?: string;
+  causeChain?: string[];
+  missingClasses?: string[];
+  missingPaths?: string[];
+  unresolvedTaglibUris?: string[];
   location?: DiagnosticLocation;
 };
 
 export type DiagnosticPathGroup = {
   path: string;
   diagnostics: DiagnosticRecord[];
+};
+
+export type DiagnosticCauseGroup = {
+  key: string;
+  stage: string;
+  category: string;
+  summary: string;
+  count: number;
+  paths: string[];
+  rootCauseClass?: string;
+  rootCauseMessage?: string;
+  relatedUri?: string;
+  missingClasses: string[];
+  missingPaths: string[];
+  unresolvedTaglibUris: string[];
 };
 
 export type SummaryReport = {
@@ -64,6 +88,7 @@ export type UnresolvedReport = {
   edges: GraphEdge[];
   diagnostics: DiagnosticRecord[];
   byPath: DiagnosticPathGroup[];
+  byCause: DiagnosticCauseGroup[];
 };
 
 export type JspImpactQueryResult = {

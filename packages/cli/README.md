@@ -8,6 +8,7 @@ Use this package when you want:
 - a high-level programmatic entrypoint for end-to-end analysis
 - a stable place to run scan, parse, index, graph, and report stages together
 - analysis artifacts that downstream reimplementation workflows can consume without scraping CLI logs
+- config-first JSP semantic AST output driven by `leflect.config.ts`
 
 Use `@leflect-java/java-bridge` only when you need low-level control over worker manifests and process spawning.
 
@@ -50,6 +51,14 @@ console.log(result.reports.summary.counts);
 - final `reports.summary`
 
 Machine consumers should read the generated sharded metadata under `analysis/index/java/**/*.json` after `analyzeWorkspace()` completes. Those files now include ordered method steps, field initializer metadata, and normalized aliases such as `type`, `targetText`, and `lineRange`.
+
+For JSP integrations, the same analysis run now emits:
+
+- `analysis/index/taglib-registry.json` as the canonical raw TLD registry
+- `analysis/jsp-semantic/**/*.json` as full semantic JSP AST files
+- `analysis/index/jsp-files.json` semantic summary fields such as `semanticAstPath`, `semanticQueryCount`, and `semanticDiagnosticCount`
+
+`jsp.taglibResolvers` and `jsp.tld.*` are configured in `leflect.config.ts`, not through CLI-only flags. See [`docs/config-guide.md`](../../docs/config-guide.md) and [`docs/jsp-tld-semantic-guide.md`](../../docs/jsp-tld-semantic-guide.md).
 
 ## API Notes
 

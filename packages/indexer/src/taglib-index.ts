@@ -2,22 +2,28 @@ import fs from "fs/promises";
 import path from "path";
 
 import { TldIndex } from "@leflect-java/parser-tld";
+import { TldAttributeSchema, TldSourceKind } from "@leflect-java/schema";
 
 import { JspDocIndexEntry } from "./jsp-index";
 
 export type TaglibIndexSource = TldIndex & {
   sourcePath?: string;
+  sourceKind?: TldSourceKind;
 };
 
 export type TaglibTagUsageEntry = {
   name: string;
   handlerClass?: string;
+  attributes?: TldAttributeSchema[];
+  bodyContent?: string;
+  dynamicAttributes?: boolean;
   jspFiles: string[];
 };
 
 export type TaglibIndexEntry = {
   uri?: string;
   sourcePath?: string;
+  sourceKind?: TldSourceKind;
   prefixes: string[];
   jspFiles: string[];
   tags: TaglibTagUsageEntry[];
@@ -38,11 +44,15 @@ export function buildTaglibIndex(
     map.set(key, {
       uri: taglib.uri,
       sourcePath: normalizeOptionalPath(taglib.sourcePath),
+      sourceKind: taglib.sourceKind,
       prefixes: [],
       jspFiles: [],
       tags: (taglib.tags ?? []).map((tag) => ({
         name: tag.name,
         handlerClass: tag.handlerClass,
+        attributes: tag.attributes,
+        bodyContent: tag.bodyContent,
+        dynamicAttributes: tag.dynamicAttributes,
         jspFiles: []
       }))
     });
@@ -62,6 +72,7 @@ export function buildTaglibIndex(
       const key = buildKey(directive.uri);
       const entry = map.get(key) ?? {
         uri: directive.uri,
+        sourceKind: undefined,
         prefixes: [],
         jspFiles: [],
         tags: []

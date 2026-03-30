@@ -9,6 +9,7 @@ export const repoRoot = path.resolve(__dirname, "..");
 export const packagesRoot = path.join(repoRoot, "packages");
 export const artifactsRoot = path.join(repoRoot, ".artifacts");
 export const rootReadmePath = path.join(repoRoot, "README.md");
+export const rootLicensePath = path.join(repoRoot, "LICENSE");
 export const rootPackageJsonPath = path.join(repoRoot, "package.json");
 export const cliPackagePath = path.join(packagesRoot, "cli", "package.json");
 export const cliDistEntry = path.join(packagesRoot, "cli", "dist", "index.js");
