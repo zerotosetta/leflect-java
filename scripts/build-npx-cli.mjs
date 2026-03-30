@@ -26,6 +26,11 @@ const publishedPackage = {
   version: cliPackage.version,
   description: cliPackage.description,
   license: "MIT",
+  repository: {
+    type: "git",
+    url: "git+https://github.com/zerotosetta/leflect-java.git",
+    directory: "packages/cli"
+  },
   bin: {
     leflect: "index.js"
   },
