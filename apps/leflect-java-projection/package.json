@@ -1,6 +1,7 @@
 {
   "name": "leflect-java-projection",
-  "version": "0.1.2",
+  "version": "0.1.5",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "scripts": {

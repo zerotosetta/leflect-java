@@ -1,7 +1,8 @@
 import fs from "fs/promises";
 import path from "path";
 
-import { JspAstReference, JspDirective, JspTag, ScriptletBlock, SourceLocation, TaglibDirective } from "@leflect-java/parser-jsp";
+import { JspAstReference, JspDirective, JspDocumentRoot, JspTag, ScriptletBlock, SourceLocation, TaglibDirective } from "@leflect-java/parser-jsp";
+import { JspSemanticSummary } from "@leflect-java/schema";
 
 import { MethodCallParameterEntry, MethodIndexEntry } from "./java-index";
 import { readSourceMetadataTree, removeFiles, writeSourceMetadataTree } from "./file-tree";
@@ -21,8 +22,11 @@ export type JspDocIndexEntry = {
   taglibs: TaglibDirective[];
   tags: JspTag[];
   scriptlets: ScriptletBlock[];
+  document?: JspDocumentRoot;
   ast?: JspAstReference;
   resolvedTags?: JspResolvedTag[];
+  semanticAstPath?: string;
+  semanticSummary?: JspSemanticSummary;
 };
 
 export type JspFileIndexEntry = {
@@ -36,6 +40,8 @@ export type JspFileIndexEntry = {
   scriptletCount: number;
   resolvedTagCount: number;
   ast?: JspAstReference;
+  semanticAstPath?: string;
+  semanticSummary?: JspSemanticSummary;
 };
 
 export type JspImportIndexEntry = {
@@ -302,7 +308,9 @@ export function buildJspIndex(entries: JspDocIndexEntry[], options: JspIndexOpti
       tagCount: entry.tags.length,
       scriptletCount: entry.scriptlets.length,
       resolvedTagCount: (entry.resolvedTags ?? []).filter((tag) => Boolean(tag.handlerClass)).length,
-      ast: entry.ast
+      ast: entry.ast,
+      semanticAstPath: entry.semanticAstPath,
+      semanticSummary: entry.semanticSummary
     });
     entry.resolvedTags = inferredResolvedTags.length > 0 ? inferredResolvedTags : entry.resolvedTags;
   }
@@ -322,19 +330,25 @@ export async function writeJspIndex(outDir: string, index: JspIndex): Promise<vo
   const metadata = toJspFileMetadata(index);
   const metadataPaths = await writeSourceMetadataTree(path.join(outDir, "jsp"), metadata);
   const metadataByPath = new Map(metadata.map((entry) => [entry.path, entry]));
-  const manifest = index.files.map((entry) => ({
-    path: entry.path,
-    metadataPath: metadataPaths.get(entry.path),
-    importCount: metadataByPath.get(entry.path)?.importEntries.length ?? 0,
+    const manifest = index.files.map((entry) => ({
+      path: entry.path,
+      metadataPath: metadataPaths.get(entry.path),
+      importCount: metadataByPath.get(entry.path)?.importEntries.length ?? 0,
     includeCount: entry.includes.length,
     taglibCount: entry.taglibCount,
     tagCount: entry.tagCount,
     scriptletCount: entry.scriptletCount,
-    resolvedTagCount: entry.resolvedTagCount,
-    classReferenceCount: metadataByPath.get(entry.path)?.classReferences.length ?? 0,
-    methodCallCount: metadataByPath.get(entry.path)?.methodCalls.length ?? 0,
-    ast: entry.ast
-  }));
+      resolvedTagCount: entry.resolvedTagCount,
+      classReferenceCount: metadataByPath.get(entry.path)?.classReferences.length ?? 0,
+      methodCallCount: metadataByPath.get(entry.path)?.methodCalls.length ?? 0,
+      ast: entry.ast,
+      semanticAstPath: entry.semanticAstPath,
+      semanticNodeCount: entry.semanticSummary?.nodeCount ?? 0,
+      semanticControlCount: entry.semanticSummary?.controlCount ?? 0,
+      semanticQueryCount: entry.semanticSummary?.queryCount ?? 0,
+      semanticCustomTagCount: entry.semanticSummary?.customTagCount ?? 0,
+      semanticDiagnosticCount: entry.semanticSummary?.diagnosticCount ?? 0
+    }));
 
   await removeFiles(outDir, [
     "jsp-docs.json",
@@ -375,7 +389,9 @@ export function flattenJspFileMetadata(files: JspFileMetadata[]): JspIndex {
       tagCount: file.tagCount,
       scriptletCount: file.scriptletCount,
       resolvedTagCount: file.resolvedTagCount,
-      ast: file.ast
+      ast: file.ast,
+      semanticAstPath: file.semanticAstPath,
+      semanticSummary: file.semanticSummary
     });
     index.docs.push({
       path: file.path,
@@ -400,6 +416,8 @@ export function flattenJspFileMetadata(files: JspFileMetadata[]): JspIndex {
         codeOffset: scriptlet.codeOffset ?? 0
       })),
       ast: file.ast,
+      semanticAstPath: file.semanticAstPath,
+      semanticSummary: file.semanticSummary,
       resolvedTags: file.tags
         .map((tag) => ({
           prefix: tag.prefix,

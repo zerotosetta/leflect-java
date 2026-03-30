@@ -1,6 +1,7 @@
 {
   "name": "@leflect-java/dashboard-data",
-  "version": "0.1.2",
+  "version": "0.1.5",
+  "license": "MIT",
   "private": false,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

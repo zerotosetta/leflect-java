@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { parseJsp } from "@leflect-java/parser-jsp";
+
 import { buildJspIndex } from "../jsp-index";
+import { buildJspSemanticAsts } from "../jsp-semantic";
 import { buildReverseIndex } from "../reverse-index";
 import { buildTaglibIndex } from "../taglib-index";
 
@@ -243,17 +246,108 @@ describe("indexer", () => {
       {
         uri: "http://example.com/tags",
         sourcePath: "WEB-INF/example.tld",
+        sourceKind: undefined,
         prefixes: ["c"],
         jspFiles: ["view/index.jsp"],
         tags: [
           {
             name: "hello",
             handlerClass: "com.example.HelloTag",
+            attributes: undefined,
+            bodyContent: undefined,
+            dynamicAttributes: undefined,
             jspFiles: ["view/index.jsp"]
           }
         ]
       }
     ]);
+  });
+
+  it("builds semantic asts and supports custom tag resolvers", async () => {
+    const parsed = parseJsp([
+      `<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>`,
+      `<%@ taglib prefix="sql" uri="http://java.sun.com/jsp/jstl/sql" %>`,
+      `<%@ taglib prefix="my" uri="http://example.com/custom" %>`,
+      `<c:if test="\${user != null}">`,
+      `  <sql:query var="accounts">select * from account</sql:query>`,
+      `  <my:query id="account.find">`,
+      `    select * from account where id = \${accountId}`,
+      `  </my:query>`,
+      `</c:if>`
+    ].join("\n"));
+
+    const docs = [{
+      path: "view/index.jsp",
+      ...parsed,
+      resolvedTags: [
+        { prefix: "c", name: "if", uri: "http://java.sun.com/jsp/jstl/core" },
+        { prefix: "sql", name: "query", uri: "http://java.sun.com/jsp/jstl/sql" },
+        { prefix: "my", name: "query", uri: "http://example.com/custom", handlerClass: "com.example.QueryTag" }
+      ]
+    }];
+    const jspIndex = buildJspIndex(docs);
+    const semanticAsts = await buildJspSemanticAsts({
+      projectRoot: "/repo",
+      analysisOut: "/repo/analysis",
+      astMode: "lightweight",
+      docs,
+      files: jspIndex.files.map((file) => ({
+        ...file,
+        importEntries: jspIndex.imports.filter((entry) => entry.file === file.path),
+        taglibs: jspIndex.taglibs.filter((entry) => entry.file === file.path),
+        tags: jspIndex.tags.filter((entry) => entry.file === file.path),
+        scriptlets: jspIndex.scriptlets.filter((entry) => entry.file === file.path),
+        classReferences: jspIndex.classReferences.filter((entry) => entry.file === file.path),
+        methodCalls: jspIndex.methodCalls.filter((entry) => entry.file === file.path)
+      })),
+      registry: [
+        {
+          uri: "http://example.com/custom",
+          sourcePath: "WEB-INF/custom.tld",
+          sourceKind: "repo",
+          tags: [
+            {
+              name: "query",
+              handlerClass: "com.example.QueryTag"
+            }
+          ]
+        }
+      ],
+      taglibResolvers: {
+        "http://example.com/custom#query": ({ tag }) => ({
+          kind: "QueryNode",
+          raw: tag.raw,
+          lineRange: tag.lineRange,
+          queryId: tag.attributes["id"],
+          statement: tag.bodyText,
+          sourceTag: tag
+        })
+      }
+    });
+
+    expect(semanticAsts).toHaveLength(1);
+    expect(semanticAsts[0].semanticSummary).toMatchObject({
+      controlCount: 1,
+      queryCount: 2
+    });
+    expect(semanticAsts[0].root.children).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        kind: "IfStatement",
+        children: expect.arrayContaining([
+          expect.objectContaining({
+            kind: "QueryNode",
+            queryId: "accounts"
+          }),
+          expect.objectContaining({
+            kind: "QueryNode",
+            queryId: "account.find",
+            sourceTag: expect.objectContaining({
+              handlerClass: "com.example.QueryTag"
+            })
+          })
+        ])
+      })
+    ]));
   });
 
   it("marks JSTL tags as standard even without an explicit taglib directive", () => {

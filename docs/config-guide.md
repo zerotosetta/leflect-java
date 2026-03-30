@@ -241,6 +241,92 @@ With this config:
 - `analysis/graph/file-dependencies.json` contains per-file `references`, `referencedBy`, `referenceCount`, and `dependantCount`
 - unmatched patterns are also recorded so you can see when a config pattern selected nothing
 
+## JSP Semantic AST And TLD Config
+
+Use this when you want JSP metadata to include a nested structural document, TLD-backed tag
+resolution, and per-file semantic AST output for machine consumers.
+
+```ts
+import { defineConfig } from "@leflect-java/core";
+
+export default defineConfig({
+  analysisOut: "./analysis",
+  jsp: {
+    webappRoot: "src/main/webapp",
+    astMode: "lightweight",
+    semanticAstOut: "./analysis/jsp-semantic",
+    classpath: ["./target/classes", "./lib/custom-tags.jar"],
+    tld: {
+      autoLoad: true,
+      paths: ["./src/main/webapp/WEB-INF", "./lib/custom-tags.jar"],
+      uriMap: {
+        "http://java.sun.com/jsp/jstl/core": "./tld/c.tld",
+        "/WEB-INF/form.tld": "./src/main/webapp/WEB-INF/form.tld"
+      }
+    },
+    taglibResolvers: {
+      "/WEB-INF/form.tld#query": ({ node }) => ({
+        kind: "QueryNode",
+        queryId: node.attributes.id?.value,
+        statement: node.attributes.sql?.value,
+        parameters: [],
+        dataSource: node.attributes.dataSource?.value,
+        sourceTag: `${node.prefix}:${node.name}`,
+        lineRange: node.lineRange
+      }),
+      "c:if": ({ node, parseAttributeEl }) => ({
+        kind: "IfStatement",
+        condition: parseAttributeEl(node.attributes.test?.value),
+        lineRange: node.lineRange,
+        children: []
+      })
+    }
+  }
+});
+```
+
+Key behavior:
+
+- `jsp.semanticAstOut` defaults to `<analysisOut>/jsp-semantic`
+- `jsp.tld.paths` accepts directories, `.tld` files, `.jar` files, and `jar!/entry.tld` paths
+- `jsp.tld.uriMap` wins over repo-discovered or auto-loaded taglibs when duplicate URIs exist
+- resolver keys match in this order:
+  - `uri#tagName`
+  - `prefix:tagName`
+  - built-in JSTL / SQL resolvers
+  - generic `CustomTagNode` fallback
+- resolver failures do not stop the pipeline
+  - LeflectJava writes a semantic diagnostic and falls back to `CustomTagNode`
+
+Built-in semantic mappings:
+
+- `c:if` -> `IfStatement`
+- `c:choose` -> `ChooseStatement`
+- `c:when` -> `WhenBranch`
+- `c:otherwise` -> `OtherwiseBranch`
+- `c:forEach` -> `LoopNode`
+- JSTL SQL `sql:query` and `sql:update` -> `QueryNode`
+
+Current output files:
+
+- `analysis/jsp-meta/**/*.json`
+  - flat JSP metadata plus a nested `document` tree
+- `analysis/index/taglib-registry.json`
+  - canonical raw TLD registry loaded from repo files, configured paths, jars, and classpath
+- `analysis/index/taglibs.json`
+  - final usage-oriented taglib index with resolved usage counts and additive schema details
+- `analysis/jsp-semantic/**/*.json`
+  - full semantic AST per `.jsp` source
+- `analysis/index/jsp-files.json`
+  - manifest-level semantic summary and `semanticAstPath` per JSP source
+
+The raw registry and the final usage index are intentionally different:
+
+- `taglib-registry.json` is the TLD source-of-truth for build-index
+- `taglibs.json` is the consumer-facing usage summary after JSP files have been indexed
+
+For a longer walkthrough, see `docs/jsp-tld-semantic-guide.md`.
+
 ## Declared Entry Config
 
 Use `entries` when the analysis should start from logical business screens instead of only from regex-selected files.
@@ -424,6 +510,8 @@ JSP:
 - `jsp-files.json`
 - `jsp/**/*.json` for one metadata file per `.jsp`
 - each `.jsp` metadata file contains imports, taglibs, tags, scriptlets, class references, and method calls for that source only
+- `jsp-semantic/**/*.json` for one semantic AST file per `.jsp`
+- `jsp-files.json` also carries `semanticAstPath`, `semanticNodeCount`, `semanticControlCount`, `semanticQueryCount`, `semanticCustomTagCount`, and `semanticDiagnosticCount`
 
 Reference/call records include `line`, `column`, `endLine`, `endColumn` when the parser can determine them.
 
@@ -734,8 +822,10 @@ Java AST exists but semantic resolution is incomplete
 `analysis/report/unresolved.json` is where you want detailed failure context
 
 - `diagnostics[]` gives a flat list of issues with `path`, `category`, `summary`, `message`, and optional `hint`
+- parse-stage diagnostics also include `rootCauseClass`, `rootCauseMessage`, `causeChain`, `stackTrace`, `workerDiagnostics`, `missingPaths`, `missingClasses`, and `unresolvedTaglibUris` when the worker can extract them
 - parse-stage diagnostics also include `location.line`, `location.column`, `location.endLine`, `location.endColumn`, and `snippet` when the worker can resolve them
 - `byPath[]` groups the same diagnostics by source file so you can review a problematic JSP or Java file in one place
+- `byCause[]` groups the same diagnostics by normalized root cause so repeated failures such as one missing include or TLD stand out immediately
 - `analysis/logs/java-parse-errors.jsonl` and `analysis/logs/jsp-parse-errors.jsonl` contain the raw per-stage records in JSONL form
 
 `labels.json` is not where expected

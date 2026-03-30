@@ -14,7 +14,7 @@ Typical pipeline inputs are:
 
 - Java summaries from `analysis/index/java-summary.jsonl`
 - JSP metadata from `analysis/jsp-meta/**/*.json`
-- TLD metadata from `analysis/index/taglibs.json`
+- raw TLD registry from `analysis/index/taglib-registry.json`
 - file manifests from `analysis/manifests/java-files.json` and `analysis/manifests/tld-files.json`
 
 ## Programmatic Usage
@@ -22,6 +22,7 @@ Typical pipeline inputs are:
 ```ts
 import {
   buildJavaIndex,
+  buildJspSemanticAsts,
   buildJspIndex,
   readJavaSummaryIndex,
   writeJavaIndex
@@ -35,6 +36,9 @@ const javaIndex = buildJavaIndex({
 
 await writeJavaIndex("/repo/analysis/index", javaIndex);
 ```
+
+If you are building JSP semantic output programmatically, `buildJspSemanticAsts(...)` consumes
+JSP document metadata plus the raw TLD registry and produces one semantic AST per JSP source.
 
 ## Java Metadata
 
@@ -93,9 +97,26 @@ This is intended for workflow reconstruction and machine consumers that need met
   - `fields[]` carries field declaration metadata and initializer snippets
   - `methods[]` carries `orderedSteps[]` plus normalized `lineRange`
   - `calls[]` keeps legacy `rawTarget` and also includes normalized `targetText`, `resolvedClassId`, and `resolvedMethodId`
-- `jsp-files.json`: per-file JSP manifest
-- `jsp/**/*.json`: per-file JSP metadata
+- `jsp-files.json`: per-file JSP manifest with `semanticAstPath` and semantic summary counts
+- `jsp/**/*.json`: per-file JSP metadata with structural `document`, `semanticAstPath`, and `semanticSummary`
+- `../jsp-semantic/**/*.json`: full semantic JSP AST files
+- `taglib-registry.json`: canonical raw TLD registry with tag schema, handler class, source path, and source kind
 - `reverse-index.json` and `taglibs.json`: lookup-oriented artifacts for integrations
+
+### JSP Semantic Metadata
+
+JSP semantic AST files are designed for TLD-aware workflow extraction without reparsing JSP or TLD input.
+
+Current built-in mappings include:
+
+- `c:if` -> `IfStatement`
+- `c:choose` -> `ChooseStatement`
+- `c:when` -> `WhenBranch`
+- `c:otherwise` -> `OtherwiseBranch`
+- `c:forEach` -> `LoopNode`
+- `sql:query` and `sql:update` -> `QueryNode`
+
+Custom mappings can be injected via `jsp.taglibResolvers` in `leflect.config.ts`.
 
 ## Related Packages
 

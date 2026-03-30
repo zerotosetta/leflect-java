@@ -1,6 +1,7 @@
 {
   "name": "@leflect-java/parser-tld",
-  "version": "0.1.2",
+  "version": "0.1.5",
+  "license": "MIT",
   "private": false,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,6 +14,8 @@
     "clean": "tsc -b --clean"
   },
   "dependencies": {
+    "@leflect-java/schema": "workspace:*",
+    "adm-zip": "^0.5.16",
     "fast-xml-parser": "^4.4.0"
   },
   "publishConfig": {

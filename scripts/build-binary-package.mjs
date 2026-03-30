@@ -11,6 +11,7 @@ import {
   repoRoot,
   resetDir,
   resolvePkgPlatform,
+  rootLicensePath,
   rootPackageJsonPath,
   rootReadmePath,
   writeJson
@@ -75,6 +76,7 @@ const workerJarName = path.basename(workerJarPath);
 await fs.copyFile(workerJarPath, path.join(workDir, "java", workerJarName));
 await writeJson(path.join(workDir, "java", "worker-jar.json"), { fileName: workerJarName });
 await fs.copyFile(rootReadmePath, path.join(workDir, "README.md"));
+await fs.copyFile(rootLicensePath, path.join(workDir, "LICENSE"));
 
 await writeJson(path.join(workDir, "package.json"), {
   name: binaryPackageName,
@@ -82,7 +84,7 @@ await writeJson(path.join(workDir, "package.json"), {
   private: true,
   description: "Standalone LeflectJava CLI binary",
   bin: "index.js",
-  license: "UNLICENSED",
+  license: "MIT",
   pkg: {
     assets: ["java/*.jar", "java/worker-jar.json"]
   }
@@ -105,12 +107,13 @@ if (platform !== "win32") {
   await fs.chmod(path.join(packageDir, "bin", binaryFileName), 0o755);
 }
 await fs.copyFile(rootReadmePath, path.join(packageDir, "README.md"));
+await fs.copyFile(rootLicensePath, path.join(packageDir, "LICENSE"));
 
 await writeJson(path.join(packageDir, "package.json"), {
   name: binaryPackageName,
   version,
   description: "Standalone LeflectJava CLI binary with bundled java-worker",
-  license: "UNLICENSED",
+  license: "MIT",
   os: [platform],
   cpu: [arch],
   publishConfig: {
@@ -121,7 +124,8 @@ await writeJson(path.join(packageDir, "package.json"), {
   },
   files: [
     "bin",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ]
 });
 

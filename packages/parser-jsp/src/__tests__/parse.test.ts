@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { attachJspAstReference, parseJsp } from "../parse";
+import { attachJspAstReference, parseEl, parseJsp } from "../parse";
 import { resolveTagHandlers } from "../resolve";
 import { TldIndex } from "@leflect-java/parser-tld";
 
@@ -66,5 +66,68 @@ describe("parseJsp", () => {
 
     expect(withAst.ast?.mode).toBe("jasper");
     expect(withAst.ast?.generatedServletPath).toContain("generated-jsp-java");
+  });
+
+  it("builds a nested document tree with custom tags and EL nodes", () => {
+    const jsp = [
+      `<div class="page">`,
+      `  <c:if test="\${user != null}">`,
+      `    Hello \${user.name}`,
+      `    <my:query id="account.find">select * from account</my:query>`,
+      `  </c:if>`,
+      `</div>`
+    ].join("\n");
+
+    const parsed = parseJsp(jsp);
+    const root = parsed.document;
+
+    expect(root.kind).toBe("Document");
+    expect(root.children[0]).toMatchObject({
+      kind: "HtmlElement",
+      tagName: "div",
+      attributes: { class: "page" }
+    });
+    const htmlNode = root.children[0];
+    if (htmlNode.kind !== "HtmlElement") {
+      throw new Error("Expected HtmlElement root");
+    }
+    const ifNode = htmlNode.children.find((child) => child.kind === "CustomTagElement");
+    expect(ifNode).toMatchObject({
+      kind: "CustomTagElement",
+      prefix: "c",
+      name: "if"
+    });
+    if (!ifNode || ifNode.kind !== "CustomTagElement") {
+      throw new Error("Expected CustomTagElement child");
+    }
+    expect(ifNode.lineRange).toMatchObject({
+      startLine: 2,
+      endLine: 5
+    });
+    expect(ifNode.children.some((child) => child.kind === "ElExpression")).toBe(true);
+    expect(ifNode.children.some((child) => child.kind === "CustomTagElement" && child.name === "query")).toBe(true);
+  });
+
+  it("keeps malformed EL expressions as non-fatal fallback nodes", () => {
+    const parsed = parseJsp(`Hello \${user ? }`);
+    const elNode = parsed.document.children.find((child) => child.kind === "ElExpression");
+
+    expect(elNode).toBeDefined();
+    if (!elNode || elNode.kind !== "ElExpression") {
+      throw new Error("Expected ElExpression node");
+    }
+    expect(["UnknownExpression", "RawExpression"]).toContain(elNode.ast.kind);
+  });
+
+  it("parses aggressive EL expressions", () => {
+    const ast = parseEl(`\${empty user.items ? fn:length(defaults) : user.items[0].name}`);
+
+    expect(ast.kind).toBe("TernaryExpression");
+    if (ast.kind !== "TernaryExpression") {
+      throw new Error("Expected ternary expression");
+    }
+    expect(ast.test.kind).toBe("UnaryExpression");
+    expect(ast.consequent.kind).toBe("FunctionCallExpression");
+    expect(ast.alternate.kind).toBe("PropertyAccessExpression");
   });
 });

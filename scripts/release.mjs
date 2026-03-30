@@ -11,6 +11,7 @@ import {
   readJson,
   repoRoot,
   resetDir,
+  rootLicensePath,
   resolveVersionMap,
   rewriteWorkspaceManifest,
   rootPackageJsonPath,
@@ -145,6 +146,7 @@ async function stageWorkspacePackage(pkg, stageDir, versionMap, workerJarPath) {
   await resetDir(stageDir);
   await copyDir(path.join(pkg.directory, "dist"), path.join(stageDir, "dist"));
   await fs.copyFile(rootReadmePath, path.join(stageDir, "README.md"));
+  await fs.copyFile(rootLicensePath, path.join(stageDir, "LICENSE"));
   if (pkg.name === "@leflect-java/cli") {
     await fs.mkdir(path.join(stageDir, "java"), { recursive: true });
     const workerJarName = path.basename(workerJarPath);

@@ -12,13 +12,31 @@ describe("integration analyze", () => {
 
     try {
       await writeFile(
-        path.join(workspace.root, "leflect.config.json"),
-        JSON.stringify({
-          entryFiles: {
-            java: ["UserService\\.java$"],
-            jsp: ["customerEdit\\.jsp$"]
-          }
-        }, null, 2)
+        path.join(workspace.root, "leflect.config.ts"),
+        [
+          "import { defineConfig } from \"@leflect-java/core\";",
+          "",
+          "export default defineConfig({",
+          "  entryFiles: {",
+          "    java: [\"UserService\\\\.java$\"],",
+          "    jsp: [\"customerEdit\\\\.jsp$\"]",
+          "  },",
+          "  jsp: {",
+          "    astMode: \"lightweight\",",
+          "    taglibResolvers: {",
+          "      \"/WEB-INF/form.tld#form\": ({ tag }) => ({",
+          "        kind: \"QueryNode\",",
+          "        raw: tag.raw,",
+          "        lineRange: tag.lineRange,",
+          "        queryId: \"form.render\",",
+          "        statement: tag.bodyText,",
+          "        sourceTag: tag",
+          "      })",
+          "    }",
+          "  }",
+          "});",
+          ""
+        ].join("\n")
       );
 
       await run([
@@ -38,6 +56,23 @@ describe("integration analyze", () => {
       }>(path.join(workspace.analysisOut, "report", "summary.json"));
       const reverseIndex = await readJsonFile<{ handlerToJsp: Record<string, string[]> }>(
         path.join(workspace.analysisOut, "index", "reverse-index.json")
+      );
+      const taglibRegistry = await readJsonFile<Array<{ uri?: string; sourceKind?: string }>>(
+        path.join(workspace.analysisOut, "index", "taglib-registry.json")
+      );
+      const jspFiles = await readJsonFile<Array<{
+        path: string;
+        semanticAstPath?: string;
+        semanticNodeCount?: number;
+        semanticQueryCount?: number;
+      }>>(
+        path.join(workspace.analysisOut, "index", "jsp-files.json")
+      );
+      const semanticAst = await readJsonFile<{
+        semanticSummary: { queryCount: number };
+        root: { children: Array<{ kind: string }> };
+      }>(
+        path.join(workspace.analysisOut, "jsp-semantic", "web", "customerEdit.jsp.json")
       );
       const fileDependencies = await readJsonFile<{
         files: Array<{
@@ -65,6 +100,22 @@ describe("integration analyze", () => {
       expect(summary.jspImpacts[0]?.jspPath).toBe("web/customerEdit.jsp");
       expect(summary.jspImpacts[0]?.tagHandlers).toContain("FormTag");
       expect(summary.jspImpacts[0]?.javaTargets).toContain("UserService");
+      expect(taglibRegistry[0]).toMatchObject({
+        uri: "/WEB-INF/form.tld",
+        sourceKind: "repo"
+      });
+      expect(jspFiles[0]).toMatchObject({
+        path: "web/customerEdit.jsp",
+        semanticAstPath: "jsp-semantic/web/customerEdit.jsp.json",
+        semanticNodeCount: expect.any(Number),
+        semanticQueryCount: 1
+      });
+      expect(semanticAst.semanticSummary.queryCount).toBe(1);
+      expect(semanticAst.root.children).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          kind: "QueryNode"
+        })
+      ]));
       expect(reverseIndex.handlerToJsp.FormTag).toEqual(["web/customerEdit.jsp"]);
       const userServiceFile = fileDependencies.files.find((entry) => entry.path === "src/UserService.java");
       const jspFile = fileDependencies.files.find((entry) => entry.path === "web/customerEdit.jsp");
@@ -136,6 +187,8 @@ describe("integration analyze", () => {
         ]);
       }
       expect(await exists(path.join(workspace.analysisOut, "index", "jsp", "web", "customerEdit.jsp.json"))).toBe(true);
+      expect(await exists(path.join(workspace.analysisOut, "index", "taglib-registry.json"))).toBe(true);
+      expect(await exists(path.join(workspace.analysisOut, "jsp-semantic", "web", "customerEdit.jsp.json"))).toBe(true);
       expect(await exists(path.join(workspace.analysisOut, "index", "classes.json"))).toBe(false);
       expect(await exists(path.join(workspace.analysisOut, "index", "methods.json"))).toBe(false);
       expect(await exists(path.join(workspace.analysisOut, "index", "calls.json"))).toBe(false);

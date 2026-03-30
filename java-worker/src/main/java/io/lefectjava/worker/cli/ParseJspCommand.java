@@ -6,6 +6,7 @@ import io.lefectjava.worker.jsp.JasperJspCompiler;
 import io.lefectjava.worker.jsp.JasperJspCompiler.JspCompilationFailure;
 import io.lefectjava.worker.manifest.JspInputManifest;
 import io.lefectjava.worker.model.ParseProblemRecord;
+import io.lefectjava.worker.model.ParseProblemSupport;
 import io.lefectjava.worker.model.SourceLocation;
 import io.lefectjava.worker.parser.JavaAstExporter;
 
@@ -112,8 +113,10 @@ public class ParseJspCommand {
       String relativeServletPath,
       Exception ex
   ) throws IOException {
-    Throwable rootCause = findRootCause(ex);
-    String message = firstNonBlank(rootCause.getMessage(), ex.getMessage(), rootCause.toString());
+    String sourceContent = Files.readString(source);
+    String diagnostics = ex instanceof JspCompilationFailure
+        ? ((JspCompilationFailure) ex).getDiagnostics()
+        : null;
 
     ParseProblemRecord record = new ParseProblemRecord(
         "jsp-parse",
@@ -121,22 +124,24 @@ public class ParseJspCommand {
         relativeJspPath,
         "jsp.compile.error",
         "JSP compilation failed",
-        message
+        firstNonBlank(ex.getMessage(), ex.toString())
     );
-    record.detail = buildDetail(ex);
+    record.detail = diagnostics != null && !diagnostics.isBlank()
+        ? diagnostics
+        : buildDetail(ex);
     record.generatedPath = relativeServletPath;
     record.hint = "Inspect the JSP and ensure required taglib/TLD dependencies are available to Jasper.";
-    record.rawCause = rootCause.toString();
-
-    String diagnostics = ex instanceof JspCompilationFailure
-        ? ((JspCompilationFailure) ex).getDiagnostics()
-        : null;
-    if (diagnostics != null && !diagnostics.isBlank()) {
-      record.detail = diagnostics;
-    }
+    ParseProblemSupport.populateThrowableDetails(record, ex, diagnostics);
+    record.location = ParseProblemSupport.extractFirstLocation(
+        record.rootCauseMessage,
+        record.message,
+        record.detail,
+        diagnostics
+    );
+    record.snippet = ParseProblemSupport.buildSnippet(sourceContent, record.location);
 
     Matcher matcher = ABSOLUTE_URI_PATTERN.matcher(
-        "%s %s %s".formatted(message, record.detail, diagnostics == null ? "" : diagnostics)
+        "%s %s %s".formatted(record.message, record.detail, diagnostics == null ? "" : diagnostics)
     );
     if (matcher.find()) {
       String relatedUri = matcher.group(1);
@@ -145,15 +150,35 @@ public class ParseJspCommand {
       record.relatedUri = relatedUri;
       record.hint =
           "Add the dependency JAR/TLD for this URI or declare the mapping in web.xml before running Jasper AST generation.";
-      attachUriLocation(record, source, relatedUri);
+      attachUriLocation(record, sourceContent, relatedUri);
+    } else if (containsMissingJspInclude(record)) {
+      record.category = "jsp.include.notFound";
+      record.summary = "Included JSP file could not be resolved";
+      record.hint =
+          "Provide the missing JSP include or add the dependent web resources required by this page.";
+    } else if (containsMissingTldPath(record)) {
+      record.category = "jsp.tld.path.missing";
+      record.summary = "Referenced TLD path could not be resolved";
+      record.hint =
+          "Provide the missing TLD resources or dependency JARs before running Jasper AST generation.";
     }
 
     return record;
   }
 
-  private static void attachUriLocation(ParseProblemRecord record, Path source, String relatedUri)
-      throws IOException {
-    String[] lines = Files.readString(source).split("\\R", -1);
+  private static boolean containsMissingJspInclude(ParseProblemRecord record) {
+    return containsText(record.rootCauseMessage, "JSP file [")
+        || containsText(record.detail, "JSP file [");
+  }
+
+  private static boolean containsMissingTldPath(ParseProblemRecord record) {
+    return containsText(record.detail, "Failed to process TLD with path [")
+        && record.missingPaths != null
+        && !record.missingPaths.isEmpty();
+  }
+
+  private static void attachUriLocation(ParseProblemRecord record, String sourceContent, String relatedUri) {
+    String[] lines = sourceContent.split("\\R", -1);
     for (int index = 0; index < lines.length; index += 1) {
       int columnIndex = lines[index].indexOf(relatedUri);
       if (columnIndex >= 0) {
@@ -163,14 +188,6 @@ public class ParseJspCommand {
         return;
       }
     }
-  }
-
-  private static Throwable findRootCause(Throwable error) {
-    Throwable current = error;
-    while (current.getCause() != null && current.getCause() != current) {
-      current = current.getCause();
-    }
-    return current;
   }
 
   private static String buildDetail(Throwable error) {
@@ -187,6 +204,10 @@ public class ParseJspCommand {
       current = current.getCause();
     }
     return builder.toString();
+  }
+
+  private static boolean containsText(String value, String text) {
+    return value != null && value.contains(text);
   }
 
   private static String firstNonBlank(String... values) {

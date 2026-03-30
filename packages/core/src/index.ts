@@ -5,10 +5,16 @@ export * from "./manifests";
 export * from "./plugin-manifest";
 export type {
   AnalyzerHookDefinition,
+  ElAstNode,
   HookResolveResult,
+  JspSemanticAst,
+  JspSemanticNode,
+  JspTaglibResolver,
+  JspTaglibResolverContext,
   LeflectEntryDefinition,
   LeflectEntryVariant,
   LeflectPlugin,
   NormalizedEdgeInput,
-  NormalizedNodeInput
+  NormalizedNodeInput,
+  TldRegistryEntry
 } from "@leflect-java/schema";

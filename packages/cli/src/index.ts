@@ -27,15 +27,18 @@ import {
 import {
   buildJavaIndex,
   buildJspIndex,
+  buildJspSemanticAsts,
   buildReverseIndex,
   buildTaglibIndex,
   flattenJavaFileMetadata,
   flattenJspFileMetadata,
+  JspFileMetadata,
   readJavaFileMetadataDir,
   readJavaSummaryIndex,
   readJspFileMetadataDir,
   writeJavaIndex,
   writeJspIndex,
+  writeJspSemanticAsts,
   writeReverseIndex,
   writeTaglibIndex
 } from "@leflect-java/indexer";
@@ -54,21 +57,10 @@ import {
   resolveTagHandlers,
   writeJspMeta
 } from "@leflect-java/parser-jsp";
-import { parseTld, TldIndex } from "@leflect-java/parser-tld";
-import {
-  buildReports,
-  formatJavaUsagesResult,
-  formatJspImpactResult,
-  formatTagUsagesResult,
-  queryJavaUsages,
-  queryJspImpact,
-  queryTagUsages,
-  readReporterInput,
-  ReporterArtifacts,
-  writeReports
-} from "@leflect-java/reporter";
+import { loadTldRegistry, TldIndex } from "@leflect-java/parser-tld";
+import { buildReports, formatJavaUsagesResult, formatJspImpactResult, formatTagUsagesResult, queryJavaUsages, queryJspImpact, queryTagUsages, readReporterInput, ReporterArtifacts, writeReports } from "@leflect-java/reporter";
 import { scanWorkspace, ScanResult } from "@leflect-java/scanner";
-import { LeflectConfig, SummaryReport } from "@leflect-java/schema";
+import { LeflectConfig, SummaryReport, TldRegistryEntry } from "@leflect-java/schema";
 
 import {
   discoverSystemClasspathEntries,
@@ -571,7 +563,9 @@ async function executeParseJavaStage(
   }
 
   await persistStageState("java-parse", stage, files);
-  const message = `Java AST parse complete. Processed: ${stage.plan.selectedFiles.length}, Removed: ${stage.plan.removedFiles.length}`;
+  const message =
+    `Java AST parse complete. Processed: ${stage.plan.selectedFiles.length}, Removed: ${stage.plan.removedFiles.length}` +
+    await buildDiagnosticStatusSuffix(path.join(config.analysisOut, "logs", "java-parse-errors.jsonl"));
   runtime.output.status(message);
   emitAnalyzeEvent(runtime, {
     stage: "parse-java",
@@ -749,7 +743,9 @@ async function executeParseJspStage(
   }
 
   await persistStageState("jsp-parse", stage, files);
-  const message = `JSP parse complete. Processed: ${stage.plan.selectedFiles.length}, Removed: ${stage.plan.removedFiles.length}`;
+  const message =
+    `JSP parse complete. Processed: ${stage.plan.selectedFiles.length}, Removed: ${stage.plan.removedFiles.length}` +
+    await buildDiagnosticStatusSuffix(path.join(config.analysisOut, "logs", "jsp-parse-errors.jsonl"));
   runtime.output.status(message);
   emitAnalyzeEvent(runtime, {
     stage: "parse-jsp",
@@ -793,13 +789,17 @@ async function executeParseTldStage(
     message: `Parsing TLD sources under ${config.root}`
   });
   const files = await readScannerManifest(path.join(config.analysisOut, "manifests", "tld-files.json"));
-  const stage = await prepareStageContext<TldIndex>(
+  const jspDependencyCacheInput =
+    config.jsp?.tld?.autoLoad ? await createJspDependencyCacheInput(config) : undefined;
+  const stage = await prepareStageContext(
     "tld-parse",
     config.analysisOut,
     files,
     createCacheKey({
       version: PIPELINE_VERSION,
-      stage: "tld-parse"
+      stage: "tld-parse",
+      jsp: config.jsp ?? {},
+      dependencies: jspDependencyCacheInput
     }),
     incremental
   );
@@ -817,35 +817,28 @@ async function executeParseTldStage(
       stage: {
         stage: "parse-tld",
         status: "skipped",
-        outputPath: path.join(config.analysisOut, "index", "taglibs.json"),
+        outputPath: path.join(config.analysisOut, "index", "taglib-registry.json"),
         reason: "cache-hit"
       }
     };
   }
 
-  const entries: Record<string, TldIndex> =
-    stage.previousState && stage.previousState.cacheKey === stage.cacheKey
-      ? { ...(stage.previousState.entries ?? {}) }
-      : {};
+  const classpathEntries = config.jsp?.tld?.autoLoad
+    ? await resolveJspClasspathEntries(config, [])
+    : [];
+  const { entries, diagnostics } = await loadTldRegistry({
+    root: config.root,
+    repoFiles: files,
+    configuredPaths: config.jsp?.tld?.paths,
+    classpathEntries,
+    autoLoad: config.jsp?.tld?.autoLoad === true,
+    uriMap: config.jsp?.tld?.uriMap
+  });
 
-  for (const file of stage.plan.removedFiles) {
-    delete entries[file];
-  }
+  await writeTaglibRegistry(config.analysisOut, entries);
+  await persistStageState("tld-parse", stage, files);
 
-  for (const file of stage.plan.selectedFiles) {
-    const absolutePath = path.join(config.root, file);
-    const content = await fs.readFile(absolutePath, "utf8");
-    entries[file] = parseTld(content);
-  }
-
-  const taglibs = files
-    .map((file) => entries[file])
-    .filter((entry): entry is TldIndex => entry !== undefined);
-
-  await writeRawTaglibIndex(config.analysisOut, taglibs);
-  await persistStageState("tld-parse", stage, files, entries);
-
-  const message = `TLD parse complete. Processed: ${stage.plan.selectedFiles.length}, Removed: ${stage.plan.removedFiles.length}`;
+  const message = `TLD parse complete. Processed: ${stage.plan.selectedFiles.length}, Removed: ${stage.plan.removedFiles.length}, Registry entries: ${entries.length}, Warnings: ${diagnostics.length}`;
   runtime.output.status(message);
   emitAnalyzeEvent(runtime, {
     stage: "parse-tld",
@@ -853,7 +846,9 @@ async function executeParseTldStage(
     message,
     detail: {
       processedFiles: stage.plan.selectedFiles.length,
-      removedFiles: stage.plan.removedFiles.length
+      removedFiles: stage.plan.removedFiles.length,
+      registryEntries: entries.length,
+      warnings: diagnostics.length
     }
   });
 
@@ -861,7 +856,7 @@ async function executeParseTldStage(
     stage: {
       stage: "parse-tld",
       status: "completed",
-      outputPath: path.join(config.analysisOut, "index", "taglibs.json"),
+      outputPath: path.join(config.analysisOut, "index", "taglib-registry.json"),
       processedFiles: stage.plan.selectedFiles.length,
       removedFiles: stage.plan.removedFiles.length
     }
@@ -965,24 +960,40 @@ async function executeBuildIndexStage(
   });
   const indexDir = path.join(config.analysisOut, "index");
   const javaFiles = await readScannerManifest(path.join(config.analysisOut, "manifests", "java-files.json"));
-  const tldFiles = await readScannerManifest(path.join(config.analysisOut, "manifests", "tld-files.json"));
-  const rawTaglibs = await readJsonArray<TldIndex>(path.join(indexDir, "taglibs.json"));
   const jspDocs = await readJspMetaEntries(path.join(config.analysisOut, "jsp-meta"));
   const javaSummaries = await readJavaSummaryIndex(path.join(indexDir, "java-summary.jsonl"));
-  const tldIndexes = rawTaglibs.map((entry, index) => ({
-    ...entry,
-    sourcePath: tldFiles[index]
-  }));
+  const rawTaglibs = await readTaglibRegistry(indexDir);
   const enrichedJspDocs = jspDocs.map((entry) => ({
     ...entry,
     resolvedTags: resolveTagHandlers(entry.tags, entry.taglibs, rawTaglibs)
   }));
 
   const javaIndex = buildJavaIndex({ files: javaFiles, summaries: javaSummaries });
-  const jspIndex = buildJspIndex(enrichedJspDocs, {
+  const initialJspIndex = buildJspIndex(enrichedJspDocs, {
     javaMethods: javaIndex.methods
   });
-  const taglibIndex = buildTaglibIndex(tldIndexes, enrichedJspDocs);
+  const semanticAsts = await buildJspSemanticAsts({
+    projectRoot: config.root,
+    analysisOut: config.analysisOut,
+    astMode: config.jsp?.astMode ?? "jasper",
+    docs: enrichedJspDocs,
+    files: toJspFileMetadata(initialJspIndex),
+    registry: rawTaglibs,
+    taglibResolvers: config.jsp?.taglibResolvers
+  });
+  const semanticRootDir = config.jsp?.semanticAstOut ?? path.join(config.analysisOut, "jsp-semantic");
+  const semanticPaths = await writeJspSemanticAsts(semanticRootDir, semanticAsts);
+  const semanticByPath = new Map(semanticAsts.map((entry) => [entry.path, entry]));
+  const semanticJspDocs = enrichedJspDocs.map((entry) => ({
+    ...entry,
+    semanticAstPath: semanticPaths.get(entry.path),
+    semanticSummary: semanticByPath.get(entry.path)?.semanticSummary
+  }));
+
+  const jspIndex = buildJspIndex(semanticJspDocs, {
+    javaMethods: javaIndex.methods
+  });
+  const taglibIndex = buildTaglibIndex(rawTaglibs, semanticJspDocs);
   await writeJavaIndex(indexDir, javaIndex);
   await writeJspIndex(indexDir, jspIndex);
   await writeTaglibIndex(indexDir, taglibIndex);
@@ -1506,6 +1517,15 @@ async function pathExists(targetPath: string): Promise<boolean> {
   }
 }
 
+async function buildDiagnosticStatusSuffix(logPath: string): Promise<string> {
+  const problems = await readParseProblems(logPath);
+  if (problems.length === 0) {
+    return "";
+  }
+
+  return ` Failures: ${problems.length}. Full diagnostics: ${logPath}`;
+}
+
 async function prepareStageContext<TEntry = never>(
   stageName: StageName,
   analysisOut: string,
@@ -1602,10 +1622,19 @@ async function readJsonArray<T>(filePath: string): Promise<T[]> {
   }
 }
 
-async function writeRawTaglibIndex(analysisOut: string, taglibs: TldIndex[]): Promise<void> {
+async function writeTaglibRegistry(analysisOut: string, taglibs: TldRegistryEntry[]): Promise<void> {
   const indexDir = path.join(analysisOut, "index");
   await fs.mkdir(indexDir, { recursive: true });
-  await fs.writeFile(path.join(indexDir, "taglibs.json"), JSON.stringify(taglibs, null, 2));
+  await fs.writeFile(path.join(indexDir, "taglib-registry.json"), JSON.stringify(taglibs, null, 2));
+}
+
+async function readTaglibRegistry(indexDir: string): Promise<TldRegistryEntry[]> {
+  const registry = await readJsonArray<TldRegistryEntry>(path.join(indexDir, "taglib-registry.json"));
+  if (registry.length > 0) {
+    return registry;
+  }
+
+  return readJsonArray<TldIndex>(path.join(indexDir, "taglibs.json"));
 }
 
 async function readJspMetaEntries(metaDir: string): Promise<Array<Record<string, unknown> & {
@@ -1624,6 +1653,18 @@ async function readJspMetaEntries(metaDir: string): Promise<Array<Record<string,
   }
 
   return entries.sort((left, right) => left.path.localeCompare(right.path));
+}
+
+function toJspFileMetadata(index: Awaited<ReturnType<typeof buildJspIndex>>): JspFileMetadata[] {
+  return index.files.map((entry) => ({
+    ...entry,
+    importEntries: index.imports.filter((item) => item.file === entry.path),
+    taglibs: index.taglibs.filter((item) => item.file === entry.path),
+    tags: index.tags.filter((item) => item.file === entry.path),
+    scriptlets: index.scriptlets.filter((item) => item.file === entry.path),
+    classReferences: index.classReferences.filter((item) => item.file === entry.path),
+    methodCalls: index.methodCalls.filter((item) => item.file === entry.path)
+  }));
 }
 
 async function listFiles(dir: string): Promise<string[]> {
