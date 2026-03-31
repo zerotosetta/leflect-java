@@ -35,7 +35,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Java worker
-        run: pnpm java-worker:build
+        run: pnpm java-worker:package
 
       - name: Verify release
         run: pnpm release:check
