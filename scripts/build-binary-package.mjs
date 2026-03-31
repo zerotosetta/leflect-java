@@ -1,6 +1,5 @@
 import fs from "fs/promises";
 import path from "path";
-import { spawnSync } from "child_process";
 import { build } from "esbuild";
 import {
   artifactsRoot,
@@ -14,6 +13,7 @@ import {
   rootLicensePath,
   rootPackageJsonPath,
   rootReadmePath,
+  spawnExecutable,
   writeJson
 } from "./release-common.mjs";
 
@@ -95,7 +95,7 @@ await writeJson(path.join(workDir, "package.json"), {
   }
 });
 
-const pkgResult = spawnSync("pnpm", ["exec", "pkg", "package.json", "--targets", pkgTarget, "--output", binaryOutputPath], {
+const pkgResult = spawnExecutable("pnpm", ["exec", "pkg", "package.json", "--targets", pkgTarget, "--output", binaryOutputPath], {
   cwd: workDir,
   encoding: "utf8"
 });

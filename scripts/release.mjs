@@ -1,6 +1,5 @@
 import fs from "fs/promises";
 import path from "path";
-import { spawnSync } from "child_process";
 import {
   artifactsRoot,
   copyDir,
@@ -11,6 +10,7 @@ import {
   readJson,
   repoRoot,
   resetDir,
+  spawnExecutable,
   rootLicensePath,
   resolveVersionMap,
   rewriteWorkspaceManifest,
@@ -184,7 +184,7 @@ function packPackage(stageDir, packDir) {
 }
 
 function isAlreadyPublished(name, version) {
-  const result = spawnSync("npm", ["view", `${name}@${version}`, "version", "--json"], {
+  const result = spawnExecutable("npm", ["view", `${name}@${version}`, "version", "--json"], {
     cwd: repoRoot,
     encoding: "utf8"
   });
@@ -200,7 +200,7 @@ function addDistTag(name, version, tagName, args) {
 }
 
 function runOrThrow(command, args, options) {
-  const result = spawnSync(command, args, {
+  const result = spawnExecutable(command, args, {
     cwd: options.cwd,
     encoding: "utf8",
     stdio: options.stdio ?? "pipe"

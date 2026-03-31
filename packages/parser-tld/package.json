@@ -21,7 +21,7 @@
   "dependencies": {
     "@leflect-java/schema": "workspace:*",
     "adm-zip": "^0.5.16",
-    "fast-xml-parser": "^4.4.0"
+    "fast-xml-parser": "5.5.9"
   },
   "publishConfig": {
     "access": "public"

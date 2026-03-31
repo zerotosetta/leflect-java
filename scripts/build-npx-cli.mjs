@@ -2,8 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { build } from "esbuild";
-import { spawnSync } from "child_process";
-import { findJavaWorkerJar } from "./release-common.mjs";
+import { findJavaWorkerJar, spawnExecutable } from "./release-common.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,7 +68,7 @@ await fs.writeFile(
   "utf8"
 );
 
-const packResult = spawnSync("npm", ["pack", packageDir, "--pack-destination", packDir], {
+const packResult = spawnExecutable("npm", ["pack", packageDir, "--pack-destination", packDir], {
   cwd: repoRoot,
   encoding: "utf8"
 });

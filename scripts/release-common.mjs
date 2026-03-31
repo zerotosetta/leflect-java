@@ -1,5 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
+import { spawnSync } from "child_process";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -16,6 +17,13 @@ export const cliDistEntry = path.join(packagesRoot, "cli", "dist", "index.js");
 export const cliTypesEntry = path.join(packagesRoot, "cli", "dist", "index.d.ts");
 
 const JAVA_WORKER_JAR_PATTERN = /^leflectjava-java-worker-.*\.jar$/;
+
+export function spawnExecutable(command, args, options = {}) {
+  return spawnSync(command, args, {
+    shell: process.platform === "win32",
+    ...options
+  });
+}
 
 export async function readJson(filePath) {
   return JSON.parse(await fs.readFile(filePath, "utf8"));
