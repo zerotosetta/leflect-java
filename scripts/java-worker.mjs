@@ -8,7 +8,7 @@ const workspaceRoot = path.resolve(import.meta.dirname, "..");
 const workerDir = path.join(workspaceRoot, "java-worker");
 
 const command = process.argv[2] ?? "build";
-const extraArgs = process.argv.slice(3);
+const extraArgs = normalizeExtraArgs(process.argv.slice(3));
 const mvn = resolveMavenCommand();
 
 if (!mvn) {
@@ -44,6 +44,13 @@ function buildGoalArgs(value) {
       console.error("Usage: node scripts/java-worker.mjs <build|package|test|clean> [maven-args...]");
       process.exit(1);
   }
+}
+
+function normalizeExtraArgs(args) {
+  if (args[0] === "--") {
+    return args.slice(1);
+  }
+  return args;
 }
 
 function resolveMavenCommand() {
