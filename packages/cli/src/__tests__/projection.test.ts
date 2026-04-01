@@ -115,7 +115,7 @@ describe("projection snapshot", () => {
     expect(classpathJava.nodes.map((node) => node.label)).toEqual(["App.java", "Service.java"]);
   });
 
-  it("walks the full graph without a depth limit and stops on cycles", () => {
+  it("walks the full graph without a depth limit and removes back edges to ancestors", () => {
     const graph = buildProjectionGraph(createCyclicSnapshot(), {
       focusPath: "src/main/java/demo/A.java",
       maxNodes: 20
@@ -124,7 +124,7 @@ describe("projection snapshot", () => {
     expect(graph.depth).toBe(0);
     expect(graph.truncated).toBe(false);
     expect(graph.stats.nodes).toBe(3);
-    expect(graph.stats.edges).toBe(3);
+    expect(graph.stats.edges).toBe(2);
     expect(graph.nodes.map((node) => node.id)).toEqual([
       "src/main/java/demo/A.java",
       "src/main/java/demo/B.java",
@@ -138,26 +138,24 @@ describe("projection snapshot", () => {
     );
     expect(graph.edges.map((edge) => edge.id)).toEqual([
       "src/main/java/demo/A.java->src/main/java/demo/B.java",
-      "src/main/java/demo/B.java->src/main/java/demo/C.java",
-      "src/main/java/demo/C.java->src/main/java/demo/A.java"
+      "src/main/java/demo/B.java->src/main/java/demo/C.java"
     ]);
   });
 
-  it("keeps multi-parent edges for shared dependencies", () => {
+  it("keeps dependency graphs one-way when a dependency was already rendered higher in the tree", () => {
     const graph = buildProjectionGraph(createSharedDependencySnapshot(), {
       focusPath: "src/main/java/demo/A.java",
       maxNodes: 20
     });
 
     expect(graph.stats.nodes).toBe(3);
-    expect(graph.stats.edges).toBe(3);
+    expect(graph.stats.edges).toBe(2);
     expect(graph.nodes.find((node) => node.id === "src/main/java/demo/C.java")?.parentId).toBe(
       "src/main/java/demo/A.java"
     );
     expect(graph.edges.map((edge) => edge.id)).toEqual([
       "src/main/java/demo/A.java->src/main/java/demo/B.java",
-      "src/main/java/demo/A.java->src/main/java/demo/C.java",
-      "src/main/java/demo/B.java->src/main/java/demo/C.java"
+      "src/main/java/demo/A.java->src/main/java/demo/C.java"
     ]);
   });
 
