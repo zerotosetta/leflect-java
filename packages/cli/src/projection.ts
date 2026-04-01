@@ -654,24 +654,22 @@ export function buildProjectionGraph(
       (snapshot.adjacency.get(current.path) ?? []).filter((edge) => matchesProjectionGraphEdgeKinds(edge, edgeKinds))
     );
     for (const edge of nextEdges) {
-      if (!visited.has(edge.target)) {
-        if (nodes.size >= maxNodes) {
-          truncated = true;
-          continue;
-        }
-        const childDepth = current.depth + 1;
-        visited.add(edge.target);
-        nodes.set(
-          edge.target,
-          toGraphNode(snapshot, edge.target, normalizedFocus, childDepth, current.path, edge)
-        );
-        queue.push({ path: edge.target, depth: childDepth });
+      if (visited.has(edge.target)) {
+        continue;
       }
 
-      if (!nodes.has(edge.target)) {
+      if (nodes.size >= maxNodes) {
         truncated = true;
         continue;
       }
+      const childDepth = current.depth + 1;
+      visited.add(edge.target);
+      nodes.set(
+        edge.target,
+        toGraphNode(snapshot, edge.target, normalizedFocus, childDepth, current.path, edge)
+      );
+      queue.push({ path: edge.target, depth: childDepth });
+
       const graphEdge = toProjectionGraphEdge(current.path, edge.target, edge);
       edges.set(graphEdge.id, graphEdge);
     }
@@ -1053,21 +1051,19 @@ function buildDeclaredEntryGraph(
       (entryGraph.adjacency.get(current.path) ?? []).filter((edge) => matchesProjectionGraphEdgeKinds(edge, edgeKinds))
     );
     for (const edge of nextEdges) {
-      if (!visited.has(edge.target)) {
-        if (nodes.size >= maxNodes) {
-          truncated = true;
-          continue;
-        }
-        visited.add(edge.target);
-        const childDepth = current.depth + 1;
-        nodes.set(edge.target, toGraphNode(snapshot, edge.target, rootId, childDepth, current.path, edge));
-        queue.push({ path: edge.target, depth: childDepth });
+      if (visited.has(edge.target)) {
+        continue;
       }
 
-      if (!nodes.has(edge.target)) {
+      if (nodes.size >= maxNodes) {
         truncated = true;
         continue;
       }
+      visited.add(edge.target);
+      const childDepth = current.depth + 1;
+      nodes.set(edge.target, toGraphNode(snapshot, edge.target, rootId, childDepth, current.path, edge));
+      queue.push({ path: edge.target, depth: childDepth });
+
       const graphEdge = toProjectionGraphEdge(current.path, edge.target, edge);
       edges.set(graphEdge.id, graphEdge);
     }

@@ -800,7 +800,7 @@ class LeflectJavaProjectionApp extends LitElement {
                     )}
                   </div>
                   <div class="rounded border border-chrome-800 bg-chrome-900 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                    cycle-safe
+                    one-way
                   </div>
                   <label class="flex items-center gap-1 rounded border border-chrome-800 bg-chrome-900 px-2 py-1 text-[10px] text-slate-300">
                     <span class="uppercase tracking-[0.16em] text-slate-500">max nodes</span>
