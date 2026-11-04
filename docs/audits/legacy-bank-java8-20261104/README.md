@@ -4,6 +4,8 @@
 
 **추가 문제 6유형이 남아 있습니다.** 아래 결과와 [수정 계획서 초안](../../plans/2026-11-04-analysis-accuracy-revision-plan.md)은 구현 완료 보고가 아닙니다.
 
+제안 검토와 후속 구현·검증은 [이슈 #11](https://github.com/zerotosetta/leflect-java/issues/11)에서 추적합니다.
+
 원본은 별도의 `legacy-bank-java8` 프로젝트입니다. `src/...`는 원본 프로젝트 기준 경로입니다. 개인 PC의 절대 경로는 `<SOURCE_ROOT>`, `<WORKSPACE>`, `<MAVEN_REPOSITORY>`로 바꿨습니다. 이 문서에는 검수 범위와 유형별 근거를 수록했습니다.
 
 ## 재분석 결과

@@ -2,6 +2,8 @@
 
 상태: **검토용 초안 · 구현 전**. 각 항목의 **사용자 제안 / 검토 의견**에 의견을 추가한 뒤 범위와 완료 기준을 확정합니다.
 
+추적 이슈: [#11 — 6개 유형 수정 계획 검토·구현·검증](https://github.com/zerotosetta/leflect-java/issues/11).
+
 기준은 `legacy-bank-java8`의 `20261104-164240` 분석, 분석기 커밋 `6ffaab8c23bd7f88abbeda4654580acccf697043`입니다. 원본 84개 파일과 분석 입력의 SHA-1이 일치합니다. 원본 프로젝트는 별도 분석 입력이며, 아래 `src/...`는 그 프로젝트 기준 경로입니다. 실제 분석 결과의 필요한 필드만 발췌했습니다.
 
 기존 구현은 [PR #9](https://github.com/zerotosetta/leflect-java/pull/9)로 반영됐습니다. 이번 초안은 이후 원본 전수 대조에서 찾은 6개 유형을 대상으로 합니다. [검수 보고서](../audits/legacy-bank-java8-20261104/README.md), [유형별 전체 위치·실제 결과](../audits/legacy-bank-java8-20261104/findings.json), [파일별 검수 범위](../audits/legacy-bank-java8-20261104/coverage.json)를 함께 봅니다.
