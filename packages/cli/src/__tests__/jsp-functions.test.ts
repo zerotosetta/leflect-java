@@ -3,9 +3,10 @@ import os from "os";
 import path from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
+import AdmZip from "adm-zip";
 
 import { parseJsp } from "@leflect-java/parser-jsp";
-import { parseTld } from "@leflect-java/parser-tld";
+import { loadTldRegistry, parseTld } from "@leflect-java/parser-tld";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { resolveJspFunctions } from "../jsp-functions";
@@ -41,7 +42,7 @@ describe("TLD EL function links", () => {
       validation: "source", targetFile: "Web.java", location: { line: 2, column: 17 }
     });
     expect(refs[1]).toMatchObject({ validation: "unresolved", unresolvedReason: expect.stringContaining("public static") });
-  });
+  }, 30_000);
 
   it("validates external signatures and rejects wrong declared return types", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "leflect-el-external-"));
@@ -53,7 +54,7 @@ describe("TLD EL function links", () => {
     const refs = (await resolveJspFunctions({ root }, [{ path: "page.jsp", ...parsed }], [registry], { classes: [], methods: [], imports: [] })).get("page.jsp")!;
     expect(refs[0]).toMatchObject({ validation: "classpath", methodId: "java.lang.String#valueOf(java.lang.Object)" });
     expect(refs[1].validation).toBe("unresolved");
-  });
+  }, 30_000);
 
   it("uses the configured classpath for overloaded methods and rejects nonstatic targets", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "leflect-el-classpath-"));
@@ -78,7 +79,7 @@ describe("TLD EL function links", () => {
     expect(configured[1]).toMatchObject({ validation: "unresolved", unresolvedReason: expect.stringContaining("public static") });
     const missing = (await resolveJspFunctions({ root }, docs, [registry], index)).get("page.jsp")!;
     expect(missing[0]).toMatchObject({ validation: "unresolved", unresolvedReason: expect.stringContaining("configured Java classpath") });
-  });
+  }, 30_000);
 
   it("does not resolve a wildcard type over a same-package declaration or ambiguous wildcard imports", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "leflect-el-type-scope-"));
@@ -110,5 +111,58 @@ describe("TLD EL function links", () => {
     expect(refs[0].unresolvedReason).toContain("demo.Date");
     expect(refs[1].validation).toBe("unresolved");
     expect(refs[1].unresolvedReason).toContain("Ambiguous");
-  });
+  }, 30_000);
+
+  it("keeps alias-bound standard function occurrences and resolves their local classpath TLD when enabled", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "leflect-standard-function-"));
+    roots.push(root);
+    await fs.mkdir(path.join(root, "external"));
+    const javaSource = path.join(root, "external/Functions.java");
+    await fs.writeFile(javaSource, [
+      "package external; public class Functions {",
+      " public static int length(Object value) { return 0; }",
+      " public static String escapeXml(String value) { return value; }",
+      " public static String[] split(String value, String delimiter) { return new String[] {value}; }",
+      "}"
+    ].join("\n"));
+    await promisify(execFile)("javac", ["-d", root, javaSource]);
+    const uri = "http://java.sun.com/jsp/jstl/functions";
+    const tld = '<taglib><uri>' + uri + '</uri>' + [
+      '<function><name>length</name><function-class>external.Functions</function-class><function-signature>int length(java.lang.Object)</function-signature></function>',
+      '<function><name>escapeXml</name><function-class>external.Functions</function-class><function-signature>java.lang.String escapeXml(java.lang.String)</function-signature></function>',
+      '<function><name>split</name><function-class>external.Functions</function-class><function-signature>java.lang.String[] split(java.lang.String,java.lang.String)</function-signature></function>'
+    ].join("") + '</taglib>';
+    const jar = new AdmZip();
+    jar.addFile("external/Functions.class", await fs.readFile(path.join(root, "external/Functions.class")));
+    jar.addFile("META-INF/fn.tld", Buffer.from(tld));
+    const archive = path.join(root, "functions.jar");
+    await fs.writeFile(archive, jar.toBuffer());
+    const text = `<%@ taglib prefix="lib" uri="${uri}" %>\n${'${lib:length(items)} ${lib:escapeXml(value)} ${lib:split(value, delimiter)}'}`;
+    await fs.writeFile(path.join(root, "page.jsp"), text);
+    const docs = [{ path: "page.jsp", ...parseJsp(text) }];
+    const index = { classes: [], methods: [], imports: [] };
+    const disabled = await loadTldRegistry({ root, classpathEntries: [archive], autoLoad: false });
+    const excluded = (await resolveJspFunctions({ root, jsp: { tld: { autoLoad: false } } }, docs, disabled.entries, index)).get("page.jsp")!;
+    expect(excluded).toHaveLength(3);
+    expect(excluded.every(reference => reference.validation === "excluded" && reference.excludedReason?.includes("disabled"))).toBe(true);
+    expect(excluded.map(reference => reference.location.column)).toEqual([3, 24, 48]);
+
+    const loaded = await loadTldRegistry({ root, classpathEntries: [archive], autoLoad: true });
+    const configured = (await resolveJspFunctions({ root, java: { classpath: [archive] }, jsp: { tld: { autoLoad: true } } }, docs, loaded.entries, index)).get("page.jsp")!;
+    expect(configured.every(reference => reference.validation === "classpath")).toBe(true);
+    expect(configured.map(reference => reference.methodId)).toEqual([
+      "external.Functions#length(java.lang.Object)",
+      "external.Functions#escapeXml(java.lang.String)",
+      "external.Functions#split(java.lang.String,java.lang.String)"
+    ]);
+    expect(configured.every(reference => reference.declarationPath === archive.replace(/\\/g, "/") + "!/META-INF/fn.tld" && reference.declarationLineRange)).toBe(true);
+    const missingTld = (await resolveJspFunctions({ root, jsp: { tld: { autoLoad: true } } }, docs, [], index)).get("page.jsp")!;
+    expect(missingTld.every(reference => reference.validation === "unresolved" && reference.unresolvedReason?.includes("No TLD registered"))).toBe(true);
+    const missingConfiguredTld = (await resolveJspFunctions({ root, jsp: { tld: { paths: ["missing-fn.tld"] } } }, docs, [], index)).get("page.jsp")!;
+    expect(missingConfiguredTld.every(reference => reference.validation === "unresolved" && reference.unresolvedReason?.includes("No TLD registered"))).toBe(true);
+    const missingMappedTld = (await resolveJspFunctions({ root, jsp: { tld: { uriMap: { [uri]: "missing-fn.tld" } } } }, docs, [], index)).get("page.jsp")!;
+    expect(missingMappedTld.every(reference => reference.validation === "unresolved" && reference.unresolvedReason?.includes("No TLD registered"))).toBe(true);
+    const missingBinary = (await resolveJspFunctions({ root, jsp: { tld: { autoLoad: true } } }, docs, loaded.entries, index)).get("page.jsp")!;
+    expect(missingBinary.every(reference => reference.validation === "unresolved" && reference.unresolvedReason?.includes("configured Java classpath"))).toBe(true);
+  }, 30_000);
 });

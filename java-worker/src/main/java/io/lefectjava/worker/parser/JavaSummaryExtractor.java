@@ -39,6 +39,7 @@ import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.stmt.SwitchEntry;
 import com.github.javaparser.ast.stmt.SwitchStmt;
+import com.github.javaparser.ast.stmt.SynchronizedStmt;
 import com.github.javaparser.ast.stmt.ThrowStmt;
 import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.stmt.WhileStmt;
@@ -49,6 +50,8 @@ import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedConstructorDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedReferenceTypeDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedTypeParameterDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedFieldDeclaration;
 import com.github.javaparser.resolution.types.ResolvedReferenceType;
 import com.github.javaparser.resolution.types.ResolvedType;
 import com.github.javaparser.utils.Pair;
@@ -58,9 +61,11 @@ import io.lefectjava.worker.model.JavaClassSummary;
 import io.lefectjava.worker.model.JavaFieldSummary;
 import io.lefectjava.worker.model.JavaMethodCallSite;
 import io.lefectjava.worker.model.JavaMethodSummary;
+import io.lefectjava.worker.model.JavaReferenceDiagnostic;
 import io.lefectjava.worker.model.LineRange;
 import io.lefectjava.worker.model.OrderedExecutionStep;
 import io.lefectjava.worker.model.OrderedStepCall;
+import io.lefectjava.worker.model.OrderedStepField;
 import io.lefectjava.worker.model.SourceLocation;
 
 import java.util.ArrayList;
@@ -85,15 +90,18 @@ public class JavaSummaryExtractor {
       types.add(toTypeSummary(packageName, type));
     }
 
-    return new AstFileResult(
+    List<JavaReferenceDiagnostic> referenceDiagnostics = new ArrayList<>();
+    AstFileResult result = new AstFileResult(
         sourcePath,
         sourceKind,
         packageName,
         imports,
         types,
-        collectClassReferences(unit),
+        collectClassReferences(unit, referenceDiagnostics),
         collectMethodCalls(packageName, unit)
     );
+    result.referenceDiagnostics = referenceDiagnostics;
+    return result;
   }
 
   private JavaClassSummary toTypeSummary(String packageName, TypeDeclaration<?> type) {
@@ -178,11 +186,18 @@ public class JavaSummaryExtractor {
         ? ((MethodDeclaration) callable).getType().asString()
         : "void";
 
-    List<String> calls = callable.findAll(MethodCallExpr.class).stream()
+    List<String> calls = new ArrayList<>(callable.findAll(MethodCallExpr.class).stream()
+        .filter(call -> call.findAncestor(CallableDeclaration.class).orElse(null) == callable)
         .map(this::resolveMethodCall)
         .map(resolution -> resolution.target)
         .distinct()
-        .collect(Collectors.toList());
+        .collect(Collectors.toList()));
+    for (ExplicitConstructorInvocationStmt invocation : callable.findAll(ExplicitConstructorInvocationStmt.class)) {
+      if (invocation.findAncestor(CallableDeclaration.class).orElse(null) == callable) {
+        String target = toConstructorCallSite(packageName, invocation).target;
+        if (!calls.contains(target)) calls.add(target);
+      }
+    }
 
     JavaMethodSummary summary = new JavaMethodSummary(
         methodId,
@@ -199,7 +214,9 @@ public class JavaSummaryExtractor {
     return summary;
   }
 
-  private List<JavaClassReference> collectClassReferences(CompilationUnit unit) {
+  private List<JavaClassReference> collectClassReferences(
+      CompilationUnit unit, List<JavaReferenceDiagnostic> diagnostics
+  ) {
     Map<String, JavaClassReference> references = new LinkedHashMap<>();
 
     for (ImportDeclaration importDeclaration : unit.findAll(ImportDeclaration.class)) {
@@ -234,7 +251,60 @@ public class JavaSummaryExtractor {
       references.put(referenceKey(reference), reference);
     }
 
+    for (FieldAccessExpr access : unit.findAll(FieldAccessExpr.class)) {
+      Expression scope = access.getScope();
+      if (!(scope instanceof NameExpr || scope instanceof FieldAccessExpr) || resolvesToValue(scope)) {
+        continue;
+      }
+      try {
+        ResolvedValueDeclaration member = access.resolve();
+        if (!member.isEnumConstant() && !(member.isField() && member.asField().isStatic())) continue;
+        ResolvedType qualifier = scope.calculateResolvedType();
+        if (!qualifier.isReferenceType()) continue;
+        // The written qualifier can be a subclass inheriting the static member.
+        // Its source range belongs to that type, not the member's declaring type.
+        String owner = qualifier.asReferenceType().getQualifiedName();
+        JavaClassReference reference = new JavaClassReference(
+            scope.toString(), extractSimpleTypeName(scope.toString()), owner, owner,
+            "static-qualifier", scope.toString(), toSourceLocation(scope), toLineRange(scope)
+        );
+        references.put(referenceKey(reference), reference);
+      } catch (RuntimeException error) {
+        if (isResolvedTypeExpression(access)) continue;
+        // A failed resolution cannot distinguish a missing type from a value.
+        // Keep that uncertainty as a diagnostic, never a guessed type edge.
+        Node parent = access.getParentNode().orElse(null);
+        if (!(parent instanceof FieldAccessExpr && ((FieldAccessExpr) parent).getScope() == access)) {
+          diagnostics.add(new JavaReferenceDiagnostic(scope.toString(),
+              "Could not determine whether qualifier is a type: " + access, toSourceLocation(scope)));
+        }
+      }
+    }
     return new ArrayList<>(references.values());
+  }
+
+  private boolean resolvesToValue(Expression expression) {
+    try {
+      if (expression instanceof NameExpr) {
+        ((NameExpr) expression).resolve();
+      } else if (expression instanceof FieldAccessExpr) {
+        ((FieldAccessExpr) expression).resolve();
+      } else {
+        return true;
+      }
+      return true;
+    } catch (RuntimeException error) {
+      return false;
+    }
+  }
+
+  private boolean isResolvedTypeExpression(Expression expression) {
+    if (resolvesToValue(expression)) return false;
+    try {
+      return expression.calculateResolvedType().isReferenceType();
+    } catch (RuntimeException error) {
+      return false;
+    }
   }
 
   private List<JavaMethodCallSite> collectMethodCalls(String packageName, CompilationUnit unit) {
@@ -329,7 +399,7 @@ public class JavaSummaryExtractor {
         }
       }
     });
-    site.snippet = invocation.toString();
+    site.snippet = invocation.toString().trim().replaceFirst(";$", "");
     try {
       ResolvedConstructorDeclaration target = invocation.resolve();
       site.targetClassId = target.declaringType().getQualifiedName();
@@ -414,9 +484,29 @@ public class JavaSummaryExtractor {
       NodeList<Statement> statements,
       List<String> branchPath
   ) {
+    List<String> continuation = branchPath;
     for (Statement statement : statements) {
-      appendStatement(collector, statement, branchPath);
+      appendStatement(collector, statement, continuation);
+      if (statement instanceof ReturnStmt || statement instanceof ThrowStmt) {
+        break;
+      }
+      if (statement instanceof SynchronizedStmt || containsAbruptExit(statement)) {
+        continuation = appendBranchPath(continuation, scopeSegment("normal-completion", statement));
+      }
     }
+  }
+
+  private boolean containsAbruptExit(Node node) {
+    if (node instanceof ReturnStmt || node instanceof ThrowStmt) return true;
+    for (Node child : node.getChildNodes()) {
+      if (!(child instanceof TypeDeclaration<?> || child instanceof CallableDeclaration<?> || child instanceof LambdaExpr)
+          && containsAbruptExit(child)) return true;
+    }
+    return false;
+  }
+
+  private String scopeSegment(String kind, Node node) {
+    return kind + ":" + node.getRange().map(range -> range.begin.line + ":" + range.begin.column).orElse("unknown");
   }
 
   private void appendStatement(
@@ -430,6 +520,27 @@ public class JavaSummaryExtractor {
 
     if (statement.isBlockStmt()) {
       appendStatements(collector, statement.asBlockStmt().getStatements(), branchPath);
+      return;
+    }
+
+    if (statement instanceof SynchronizedStmt) {
+      SynchronizedStmt synchronizedStmt = (SynchronizedStmt) statement;
+      appendExpression(collector, synchronizedStmt.getExpression(), branchPath);
+      collector.addStep("synchronized", synchronizedStmt, branchPath, null);
+      appendStatement(collector, synchronizedStmt.getBody(),
+          appendBranchPath(branchPath, scopeSegment("synchronized", synchronizedStmt)));
+      return;
+    }
+
+    if (statement instanceof ExplicitConstructorInvocationStmt) {
+      ExplicitConstructorInvocationStmt invocation = (ExplicitConstructorInvocationStmt) statement;
+      invocation.getExpression().ifPresent(expression -> appendExpression(collector, expression, branchPath));
+      for (Expression argument : invocation.getArguments()) appendExpression(collector, argument, branchPath);
+      String packageName = invocation.findCompilationUnit().flatMap(CompilationUnit::getPackageDeclaration)
+          .map(declaration -> declaration.getNameAsString()).orElse("");
+      JavaMethodCallSite call = toConstructorCallSite(packageName, invocation);
+      collector.addStep("constructor-call", call.snippet, branchPath,
+          new OrderedStepCall(call.targetText, call.resolvedMethodId, call.resolvedClassId, "<init>"), call.lineRange);
       return;
     }
 
@@ -556,7 +667,21 @@ public class JavaSummaryExtractor {
       String kind = isEnclosingFieldReference(assignExpr.getTarget())
           ? "field-write"
           : "assignment";
-      collector.addStep(kind, assignExpr, branchPath, null);
+      OrderedExecutionStep step = collector.addStep(kind, assignExpr, branchPath, null);
+      if ("field-write".equals(kind)) {
+        Optional<ResolvedFieldDeclaration> resolved = resolveEnclosingField(assignExpr.getTarget());
+        if (resolved.isPresent()) {
+          step.field = new OrderedStepField(resolved.get().declaringType().getQualifiedName(), resolved.get().getName());
+        } else {
+          // A declared field remains identifiable in lightweight parsing without a solver.
+          String name = assignExpr.getTarget().isNameExpr() ? assignExpr.getTarget().asNameExpr().getNameAsString()
+              : assignExpr.getTarget().asFieldAccessExpr().getNameAsString();
+          TypeDeclaration<?> owner = assignExpr.findAncestor(TypeDeclaration.class).orElse(null);
+          String packageName = assignExpr.findCompilationUnit().flatMap(CompilationUnit::getPackageDeclaration)
+              .map(declaration -> declaration.getNameAsString()).orElse("");
+          if (owner != null) step.field = new OrderedStepField(buildTypeFqn(packageName, typeName(owner)), name);
+        }
+      }
       return;
     }
 
@@ -641,13 +766,14 @@ public class JavaSummaryExtractor {
   }
 
   private boolean isEnclosingFieldReference(Node node) {
+    if (resolveEnclosingField(node).isPresent()) return true;
     if (node instanceof NameExpr) {
       return isEnclosingFieldReference(node, ((NameExpr) node).getNameAsString());
     }
     if (node instanceof FieldAccessExpr) {
       FieldAccessExpr fieldAccessExpr = (FieldAccessExpr) node;
       return fieldAccessExpr.getScope().isThisExpr() &&
-          isEnclosingFieldReference(node, fieldAccessExpr.getNameAsString());
+          hasDeclaredField(node, fieldAccessExpr.getNameAsString());
     }
     return false;
   }
@@ -657,6 +783,23 @@ public class JavaSummaryExtractor {
       return false;
     }
 
+    return hasDeclaredField(node, name);
+  }
+
+  private Optional<ResolvedFieldDeclaration> resolveEnclosingField(Node node) {
+    try {
+      ResolvedValueDeclaration value;
+      if (node instanceof NameExpr) value = ((NameExpr) node).resolve();
+      else if (node instanceof FieldAccessExpr && ((FieldAccessExpr) node).getScope().isThisExpr())
+        value = ((FieldAccessExpr) node).resolve();
+      else return Optional.empty();
+      return value.isField() ? Optional.of(value.asField()) : Optional.empty();
+    } catch (RuntimeException error) {
+      return Optional.empty();
+    }
+  }
+
+  private boolean hasDeclaredField(Node node, String name) {
     Optional<TypeDeclaration<?>> type = node.findAncestor(TypeDeclaration.class)
         .map(value -> (TypeDeclaration<?>) value);
     if (type.isEmpty()) {
@@ -1238,21 +1381,27 @@ public class JavaSummaryExtractor {
       this.nextIndex = 0;
     }
 
-    private void addStep(
+    private OrderedExecutionStep addStep(
         String kind,
         Node node,
         List<String> branchPath,
         OrderedStepCall call
     ) {
+      return addStep(kind, node.toString(), branchPath, call, toStaticLineRange(node));
+    }
+
+    private OrderedExecutionStep addStep(String kind, String snippet, List<String> branchPath, OrderedStepCall call, LineRange range) {
       this.nextIndex += 1;
-      this.steps.add(new OrderedExecutionStep(
+      OrderedExecutionStep step = new OrderedExecutionStep(
           methodId + ":step:" + nextIndex,
           kind,
-          node.toString(),
+          snippet,
           new ArrayList<>(branchPath),
-          toStaticLineRange(node),
+          range,
           call
-      ));
+      );
+      this.steps.add(step);
+      return step;
     }
 
     private LineRange toStaticLineRange(Node node) {

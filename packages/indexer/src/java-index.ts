@@ -87,6 +87,7 @@ export type JavaFileIndexEntry = {
   classIds: string[];
   methodIds: string[];
   callTargets: string[];
+  referenceDiagnostics?: Array<{ snippet: string; message: string; location?: JavaSourceLocation }>;
   importCount?: number;
   classCount?: number;
   fieldCount?: number;
@@ -164,6 +165,7 @@ export type OrderedExecutionStepEntry = {
   branchPath?: string[];
   lineRange?: JavaLineRange;
   call?: OrderedStepCallEntry;
+  field?: { id: string; classId: string; name: string };
 };
 
 export type JavaSummaryMethod = {
@@ -242,6 +244,7 @@ export type JavaSummaryRecord = {
   types?: JavaSummaryType[];
   classReferences?: JavaSummaryClassReference[];
   methodCalls?: JavaSummaryMethodCall[];
+  referenceDiagnostics?: JavaFileIndexEntry["referenceDiagnostics"];
 };
 
 export type WorkerIndex = {
@@ -407,7 +410,8 @@ export function buildJavaIndex(workerIndex: WorkerIndex): JavaIndex {
       importIds: fileImportEntries.map((entry) => entry.id),
       classIds: collectUnique(fileClassIds),
       methodIds: collectUnique(fileMethodIds),
-      callTargets: collectUnique(fileCallTargets)
+      callTargets: collectUnique(fileCallTargets),
+      referenceDiagnostics: summary.referenceDiagnostics
     });
   }
 
@@ -545,6 +549,7 @@ export function flattenJavaFileMetadata(files: JavaFileMetadata[]): JavaIndex {
       classIds: [...file.classIds],
       methodIds: [...file.methodIds],
       callTargets: [...file.callTargets],
+      referenceDiagnostics: file.referenceDiagnostics,
       importCount: file.importEntries.length,
       classCount: file.classes.length,
       fieldCount: fileFields.length,
@@ -940,6 +945,7 @@ function normalizeOrderedSteps(
     snippet: step.snippet,
     branchPath: [...(step.branchPath ?? [])],
     lineRange: normalizeLineRange(step.lineRange),
+    field: step.field ? { ...step.field } : undefined,
     call: step.call
       ? {
           targetText: step.call.targetText,

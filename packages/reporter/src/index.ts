@@ -209,6 +209,15 @@ export function buildImpactMarkdown(input: ReporterInput): string {
       sections.push(
         `- Java targets: ${impact.javaTargets.length > 0 ? impact.javaTargets.join(", ") : "-"}` 
       );
+      if (impact.externalJavaTargets?.length) {
+        sections.push(`- External Java targets: ${impact.externalJavaTargets.join(", ")}`);
+      }
+      if (impact.functionReferences?.length) {
+        sections.push(`- Function uses: ${impact.functionUsageCount ?? impact.functionReferences.length}`);
+        for (const reference of impact.functionReferences) {
+          sections.push(`- Function: ${formatFunctionReference(reference)}`);
+        }
+      }
       sections.push(
         `- Tag handlers: ${impact.tagHandlers.length > 0 ? impact.tagHandlers.join(", ") : "-"}`
       );
@@ -256,15 +265,18 @@ export function queryJspImpact(
   const edges = input.jspJavaEdges.filter((edge) => normalizePath(edge.from) === normalizedFile);
   const fileReferences = edges.filter((edge) =>
     (edge.type === "JSP_USES_TAG_FILE" || edge.type === "JSP_INCLUDES") && edge.confidence !== "unresolved");
+  const javaCallEdges = edges.filter((edge) => isJspJavaCall(edge) && edge.confidence !== "unresolved");
+  const functionReferences = javaCallEdges.filter((edge) => edge.type === "JSP_FUNCTION_CALL");
+  const indexedClassIds = new Set(input.classes.map((entry) => entry.id));
 
   return {
     file: normalizedFile,
     labels: input.labels?.jsps[normalizedFile] ?? [],
-    javaTargets: collectUnique(
-      edges
-        .filter((edge) => edge.type === "JSP_SCRIPTLET_CALL" && edge.confidence !== "unresolved")
-        .map((edge) => edge.to)
-    ),
+    javaTargets: collectUnique(javaCallEdges.map((edge) => edge.to)),
+    externalJavaTargets: collectUnique(javaCallEdges
+      .filter((edge) => !edge.toFile && !indexedClassIds.has(edge.to)).map((edge) => edge.to)),
+    functionReferences,
+    functionUsageCount: functionReferences.length,
     tagHandlers: collectUnique(
       edges
         .filter((edge) => edge.type === "JSP_USES_TAG" && edge.confidence !== "unresolved")
@@ -300,7 +312,7 @@ export function queryJavaUsages(
     ),
     jspCallers: collectUnique(
       input.jspJavaEdges
-        .filter((edge) => edge.type === "JSP_SCRIPTLET_CALL" && edge.to === classId)
+        .filter((edge) => isJspJavaCall(edge) && edge.confidence !== "unresolved" && edge.to === classId)
         .map((edge) => edge.from)
     ),
     tagUsageJsp: collectUnique(input.reverseIndex.handlerToJsp[classId] ?? [])
@@ -332,6 +344,9 @@ export function formatJspImpactResult(result: JspImpactQueryResult): string {
     `JSP: ${result.file}`,
     `Labels: ${formatList(result.labels)}`,
     `Java targets: ${formatList(result.javaTargets)}`,
+    `External Java targets: ${formatList(result.externalJavaTargets ?? [])}`,
+    `Function uses: ${result.functionUsageCount ?? 0}`,
+    `Functions: ${formatList((result.functionReferences ?? []).map(formatFunctionReference))}`,
     `Tag handlers: ${formatList(result.tagHandlers)}`,
     `File targets: ${formatList(result.fileTargets ?? [])}`,
     `File reference uses: ${result.fileUsageCount ?? 0}`,
@@ -384,8 +399,26 @@ function buildJspImpacts(
       unresolvedTargets: entry.unresolvedTargets,
       fileTargets: entry.fileTargets,
       fileReferences: entry.fileReferences,
-      fileUsageCount: entry.fileUsageCount
+      fileUsageCount: entry.fileUsageCount,
+      externalJavaTargets: entry.externalJavaTargets,
+      functionReferences: entry.functionReferences,
+      functionUsageCount: entry.functionUsageCount
     }));
+}
+
+function isJspJavaCall(edge: GraphEdge): boolean {
+  return edge.type === "JSP_SCRIPTLET_CALL" || edge.type === "JSP_FUNCTION_CALL";
+}
+
+function formatFunctionReference(edge: GraphEdge): string {
+  const location = edge.fromLocation;
+  const sourcePath = normalizePath(edge.fromFile ?? edge.from);
+  const start = location?.line !== undefined
+    ? `:${location.line}${location.column !== undefined ? `:${location.column}` : ""}` : "";
+  const end = location?.endLine !== undefined && location.endColumn !== undefined
+    ? `-${location.endLine}:${location.endColumn}` : "";
+  const alias = edge.fromSymbol ? `${edge.fromSymbol} -> ` : "";
+  return `${alias}${edge.toSymbol ?? edge.to} @ ${sourcePath}${start}${end}`;
 }
 
 function collectUnresolvedEdges(input: ReporterInput): GraphEdge[] {

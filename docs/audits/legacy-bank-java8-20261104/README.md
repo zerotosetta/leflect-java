@@ -2,7 +2,7 @@
 
 분석 실행은 `20261104-164240`, 분석기 커밋은 `6ffaab8c23bd7f88abbeda4654580acccf697043`입니다. [PR #9](https://github.com/zerotosetta/leflect-java/pull/9)의 구현을 반영한 뒤 같은 원본을 새 폴더에서 전체·증분 분석하고, 원본에서 항목을 먼저 열거해 출력과 양방향 대조했습니다.
 
-**추가 문제 6유형이 남아 있습니다.** 아래 결과와 [수정 계획서 초안](../../plans/2026-11-04-analysis-accuracy-revision-plan.md)은 구현 완료 보고가 아닙니다.
+**이 문서는 수정 전의 추가 문제 6유형을 기록한 기준 스냅샷입니다.** 이후 이슈 #11에 따른 구현·검증을 완료했으며, 최신 상태는 [완료 보고서](../legacy-bank-java8-issue11-completion/README.md)를 참고합니다. 아래 데이터는 당시의 원본 검수 근거로 보존합니다.
 
 제안 검토와 후속 구현·검증은 [이슈 #11](https://github.com/zerotosetta/leflect-java/issues/11)에서 추적합니다.
 

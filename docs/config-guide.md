@@ -768,6 +768,23 @@ This is the most explicit form and is useful when you want all output paths pinn
 - optional array of JAR/directories to append to Jasper classpath
 - use this when taglibs or generated classes are outside the webapp source tree
 
+`jsp.tld.autoLoad` and function coverage
+
+- enable `jsp.tld.autoLoad: true` to collect TLD function declarations from the local analysis classpath; the global default is unchanged
+- `functionCalls` in each JSP metadata/semantic shard records `source`, `classpath`, `unresolved`, or `excluded`, with the exact URI, function name and source location
+- when standard function TLD collection is disabled, the occurrence remains `excluded` with `excludedReason`; an explicit collection/path/URI-map request that cannot supply the declaration produces an unresolved diagnostic
+- `logs/jsp-function-diagnostics.json` contains informational exclusions and warnings for failures. Excluded occurrences do not create resolved or unresolved graph edges
+- resolved functions contribute to `javaTargets` and Java caller queries. `functionReferences`/`functionUsageCount` preserve individual calls; `externalJavaTargets` distinguishes library classes from project targets
+- classpath discovery of standard c/fmt tag declarations does not expand the file graph to external standard tag handlers; tag files and project-defined handlers keep their existing relationships
+
+Java ordered execution metadata
+
+- static field/enum type qualifiers retain resolved type identity and exact source ranges; uncertain qualifiers are stored in per-file `referenceDiagnostics` without guessing a type edge
+- `synchronized` steps follow lock-expression evaluation. Their body steps carry a `synchronized:<line>:<column>` branch-path segment identifying the source scope
+- `normal-completion:<line>:<column>` segments guard continuation after a synchronized or explicitly abrupt-capable statement. This is a source-ordered summary with branch guards, not a complete interprocedural CFG
+- explicit this/super constructor delegation is recorded as `constructor-call` with canonical `<init>` targets, and shared with method `callTargets`
+- a `field-write` step may include `field: { id, classId, name }` for its resolved field owner, including inherited fields
+
 `jsp.mavenCommand`
 
 - optional Maven executable path or command name used for JSP dependency classpath auto-discovery

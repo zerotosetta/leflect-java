@@ -52,8 +52,9 @@ export type JspFunctionReference = {
   declarationPath?: string;
   declarationLineRange?: LineRange;
   location: { line: number; column: number; endLine: number; endColumn: number };
-  validation: "source" | "classpath" | "unresolved";
+  validation: "source" | "classpath" | "unresolved" | "excluded";
   unresolvedReason?: string;
+  excludedReason?: string;
 };
 
 type ElAstBase = {

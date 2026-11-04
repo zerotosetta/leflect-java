@@ -1170,6 +1170,20 @@ class LeflectJavaProjectionApp extends LitElement {
           ${this.renderReferenceTable(detail.referencedBy)}
         </section>
         ${file.nodeType === "jsp" ? this.renderJspReferences(detail) : nothing}
+        ${file.nodeType === "java" && metadata.referenceDiagnostics?.length ? html`
+          <section class="grid gap-1 rounded border border-chrome-800 bg-chrome-950 px-2 py-1 text-[11px]">
+            <div class="text-[10px] uppercase tracking-[0.18em] text-slate-500">Type reference diagnostics</div>
+            ${metadata.referenceDiagnostics.map((diagnostic) => html`
+              <div class="grid gap-1 break-all border-t border-chrome-800 py-1">
+                <div class="font-mono text-slate-300">${diagnostic.snippet}</div>
+                <div class="text-amber-200">${diagnostic.message}</div>
+                ${diagnostic.location?.line ? html`<button class="text-left text-accent-500 underline" @click=${() => {
+                  this.sourceHighlight = { path: file.path, location: diagnostic.location };
+                }}>line ${diagnostic.location.line}</button>` : nothing}
+              </div>
+            `)}
+          </section>
+        ` : nothing}
         <section class="rounded border border-chrome-800 bg-chrome-950 px-2 py-1">
           <div class="mb-1 text-[10px] uppercase tracking-[0.18em] text-slate-500">Shard Metadata</div>
           <div class="grid gap-2">${metadataSections}</div>
@@ -1185,7 +1199,8 @@ class LeflectJavaProjectionApp extends LitElement {
     const tags = (metadata?.tags ?? []).filter((tag) => tag.handlerClass || tag.tagFile || tag.unresolvedReason);
     const comments = metadata?.comments ?? [];
     const taskCodes = metadata?.taskCodes ?? [];
-    if (!includes.length && !beans.length && !tags.length && !comments.length && !taskCodes.length) return nothing;
+    const functions = metadata?.functionCalls ?? [];
+    if (!includes.length && !beans.length && !tags.length && !comments.length && !taskCodes.length && !functions.length) return nothing;
 
     const targetLink = (target: string) => html`
       <button class="break-all text-left text-accent-500 underline"
@@ -1201,6 +1216,21 @@ class LeflectJavaProjectionApp extends LitElement {
     ` : nothing;
     return html`
       <section class="grid gap-2 rounded border border-chrome-800 bg-chrome-950 px-2 py-1 text-[11px] text-slate-300">
+        ${functions.length ? html`
+          <details>
+            <summary class="cursor-pointer">EL functions (${functions.length})</summary>
+            ${functions.map((reference) => html`
+              <div class="grid gap-1 break-all rounded border border-chrome-800 px-2 py-1">
+                <div class="font-mono">${reference.prefix}:${reference.name} · ${reference.validation} · ${locationButton(reference.location)}</div>
+                ${reference.uri ? html`<div class="text-slate-500">${reference.uri}</div>` : nothing}
+                ${reference.validation === "source" || reference.validation === "classpath" ? html`
+                  <div>${reference.targetFile || reference.className ? targetLink(reference.targetFile ?? reference.className!) : nothing}</div>
+                  <div class="font-mono">${reference.methodId}</div>
+                ` : html`<div class=${reference.validation === "unresolved" ? "text-amber-200" : "text-slate-400"}>${reference.excludedReason ?? reference.unresolvedReason}</div>`}
+              </div>
+            `)}
+          </details>
+        ` : nothing}
         ${taskCodes.length ? html`
           <div class="text-[10px] uppercase tracking-[0.18em] text-slate-500">TASK codes</div>
           ${taskCodes.map((task) => html`

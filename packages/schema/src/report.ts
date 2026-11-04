@@ -82,6 +82,9 @@ export type SummaryReport = {
     fileTargets?: string[];
     fileReferences?: GraphEdge[];
     fileUsageCount?: number;
+    externalJavaTargets?: string[];
+    functionReferences?: GraphEdge[];
+    functionUsageCount?: number;
   }>;
 };
 
@@ -104,6 +107,9 @@ export type JspImpactQueryResult = {
   fileTargets?: string[];
   fileReferences?: GraphEdge[];
   fileUsageCount?: number;
+  externalJavaTargets?: string[];
+  functionReferences?: GraphEdge[];
+  functionUsageCount?: number;
 };
 
 export type JavaUsagesQueryResult = {
