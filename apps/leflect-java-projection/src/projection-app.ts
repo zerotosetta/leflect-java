@@ -289,7 +289,7 @@ class LeflectJavaProjectionApp extends LitElement {
 
         <footer class="grid h-7 grid-cols-[1fr_auto_auto] items-center gap-2 border-t border-chrome-800 bg-chrome-900 px-2 text-[10px] text-slate-400">
           <div class="truncate">${this.statusMessage}</div>
-          <div>${this.bootstrap ? `java ${this.bootstrap.counts.javaFiles} · jsp ${this.bootstrap.counts.jspFiles}` : "snapshot idle"}</div>
+          <div>${this.bootstrap ? `java ${this.bootstrap.counts.javaFiles} · jsp ${this.bootstrap.counts.jspFiles} · fragments ${this.bootstrap.counts.jspFragments ?? 0}` : "snapshot idle"}</div>
           <div>${this.selectedPath ? `focus ${this.selectedPath}` : "no focus"}</div>
         </footer>
       </div>
@@ -1024,6 +1024,23 @@ class LeflectJavaProjectionApp extends LitElement {
           <div class="break-words text-[12px] font-semibold text-slate-100">${entry.label}</div>
           <div class="break-all font-mono text-[10px] text-slate-500">${entry.id}</div>
           ${entry.description ? html`<p class="mt-2 break-words text-[10px] leading-5 text-slate-300">${entry.description}</p>` : nothing}
+          ${entry.http ? html`
+            <div class="mt-2 grid gap-1 text-[11px] text-slate-300">
+              <div>${entry.http.urlPattern} → ${entry.http.className}</div>
+              ${entry.http.handlerMethodIds.map((method) => html`<div class="break-all font-mono">${method}</div>`)}
+              <button class="text-left text-accent-500 underline" @click=${() => {
+                this.selectedGraphNodeId = entry.http!.sourcePath;
+                this.sourceHighlight = {
+                  path: entry.http!.sourcePath,
+                  location: {
+                    line: entry.http!.lineRange.startLine, column: entry.http!.lineRange.startColumn,
+                    endLine: entry.http!.lineRange.endLine, endColumn: entry.http!.lineRange.endColumn
+                  }
+                };
+              }}>mapping source · line ${entry.http.lineRange.startLine}</button>
+              ${entry.http.diagnostic ? html`<div class="text-amber-200">${entry.http.diagnostic}</div>` : nothing}
+            </div>
+          ` : nothing}
           <div class="mt-2 grid grid-cols-2 gap-1 text-[10px] text-slate-400">
             <div class="rounded border border-chrome-800 px-2 py-1">reach ${entry.reachableCount}</div>
             <div class="rounded border border-chrome-800 px-2 py-1">edges ${entry.edgeCount}</div>
@@ -1102,9 +1119,16 @@ class LeflectJavaProjectionApp extends LitElement {
         <section class="rounded border border-chrome-800 bg-chrome-950 px-2 py-1">
           <div class="mb-1 flex items-center justify-between">
             <span class="text-[10px] uppercase tracking-[0.18em] text-slate-500">Summary</span>
-            <span class=${file.nodeType === "jsp" ? "rounded bg-sky-950 px-1 py-0.5 text-[10px] text-accent-500" : file.nodeType === "java" ? "rounded bg-emerald-950 px-1 py-0.5 text-[10px] text-accent-400" : "rounded bg-rose-950 px-1 py-0.5 text-[10px] text-accent-200"}>${file.nodeType}</span>
+            <span class=${file.nodeType === "jsp" ? "rounded bg-sky-950 px-1 py-0.5 text-[10px] text-accent-500" : file.nodeType === "java" ? "rounded bg-emerald-950 px-1 py-0.5 text-[10px] text-accent-400" : file.nodeType === "external" ? "rounded bg-slate-800 px-1 py-0.5 text-[10px] text-slate-300" : "rounded bg-rose-950 px-1 py-0.5 text-[10px] text-accent-200"}>${file.nodeType}</span>
           </div>
           <div class="break-all font-mono text-[11px] text-slate-100">${file.path}</div>
+          ${file.external ? html`
+            <div class="mt-1 grid gap-1 text-[11px] text-slate-300">
+              <div>resolved external · ${file.external.provider.name} ${file.external.provider.version ?? ""}</div>
+              <div>source · ${file.external.source.status}</div>
+              ${file.external.provider.path ? html`<div class="break-all text-slate-500">${file.external.provider.path}</div>` : nothing}
+            </div>
+          ` : nothing}
           <div class="mt-1 grid grid-cols-2 gap-1 text-[10px] text-slate-400">
             <div class="rounded border border-chrome-800 px-2 py-1">out ${file.referenceCount}</div>
             <div class="rounded border border-chrome-800 px-2 py-1">in ${file.dependantCount}</div>
@@ -1160,7 +1184,8 @@ class LeflectJavaProjectionApp extends LitElement {
     const beans = metadata?.beanActions ?? [];
     const tags = (metadata?.tags ?? []).filter((tag) => tag.handlerClass || tag.tagFile || tag.unresolvedReason);
     const comments = metadata?.comments ?? [];
-    if (!includes.length && !beans.length && !tags.length && !comments.length) return nothing;
+    const taskCodes = metadata?.taskCodes ?? [];
+    if (!includes.length && !beans.length && !tags.length && !comments.length && !taskCodes.length) return nothing;
 
     const targetLink = (target: string) => html`
       <button class="break-all text-left text-accent-500 underline"
@@ -1176,6 +1201,18 @@ class LeflectJavaProjectionApp extends LitElement {
     ` : nothing;
     return html`
       <section class="grid gap-2 rounded border border-chrome-800 bg-chrome-950 px-2 py-1 text-[11px] text-slate-300">
+        ${taskCodes.length ? html`
+          <div class="text-[10px] uppercase tracking-[0.18em] text-slate-500">TASK codes</div>
+          ${taskCodes.map((task) => html`
+            <div class="break-all rounded border border-chrome-800 px-2 py-1">
+              ${task.code ?? "(missing)"} · ${task.state} · ${locationButton({
+                line: task.lineRange.startLine, column: task.lineRange.startColumn,
+                endLine: task.lineRange.endLine, endColumn: task.lineRange.endColumn
+              })}
+              <div class="text-slate-500">${task.uri} · ${task.handlerClass}</div>
+            </div>
+          `)}
+        ` : nothing}
         ${includes.length ? html`
           <div class="text-[10px] uppercase tracking-[0.18em] text-slate-500">JSP includes</div>
           ${includes.map((entry) => html`
@@ -1183,7 +1220,7 @@ class LeflectJavaProjectionApp extends LitElement {
               <div class="break-all font-mono">${entry.page} · ${entry.kind === "dynamic" ? "dynamic target" : "fixed path"} · ${locationButton(entry.location)}</div>
               ${(entry.targetPath ? [entry.targetPath] : entry.candidatePaths ?? []).map(targetLink)}
               ${entry.parameters.map((param) => html`<div class="break-all font-mono">${param.name} = ${param.value}</div>`)}
-              ${entry.evidence?.map((item) => html`<div class="break-all">${item.description}${item.path ? html` · ${targetLink(item.path)}` : nothing}</div>`)}
+              ${entry.evidence?.map((item) => html`<div class="break-all">${item.role ? html`<span class="text-slate-500">${item.role} · </span>` : nothing}${item.description}${item.variable ? html` · ${item.variable}${item.objectType ? html` : ${item.objectType}` : nothing}` : nothing}${item.path ? html` · ${targetLink(item.path)}` : nothing}</div>`)}
               ${entry.unresolvedReason ? html`<div class="break-all text-amber-200">${entry.unresolvedReason}</div>` : nothing}
             </div>
           `)}

@@ -13,6 +13,7 @@ import {
   GraphEdgeType,
   GraphNodeType,
   JspIncludeReference,
+  JspFunctionReference,
   JspReferenceLocation,
   LeflectEntryDefinition
 } from "@leflect-java/schema";
@@ -24,6 +25,7 @@ export type JavaCallRecord = {
   toClassId?: string;
   fromMethodId?: string;
   callerKind?: "static-initializer";
+  invocationKind?: "super-constructor" | "this-constructor";
   toMethodId?: string;
   resolvedMethodId?: string;
   fromFile?: string;
@@ -49,10 +51,12 @@ export type GraphResolvedTag = {
 
 export type GraphJspRecord = {
   path: string;
+  sourceKind?: "jsp" | "jspf" | "tag" | "tagx";
   scriptlets: Array<{ kind: string; code: string }>;
   tags?: Array<{ prefix: string; name: string; location?: JspReferenceLocation }>;
   resolvedTags?: GraphResolvedTag[];
   includeReferences?: JspIncludeReference[];
+  functionCalls?: JspFunctionReference[];
 };
 
 export type GraphJavaClassReferenceRecord = {
@@ -122,7 +126,7 @@ export function buildJavaCallGraph(
     return {
       from,
       to,
-      type: "JAVA_CALL",
+      type: call.invocationKind ? "JAVA_CONSTRUCTOR_CALL" : "JAVA_CALL",
       confidence: isResolvedEdge(from, to) ? resolveJavaCallConfidence(call) : "unresolved",
       fromFile: normalizeOptionalPath(call.fromFile ?? fromClass?.file),
       toFile: normalizeOptionalPath(call.toFile ?? toClass?.file),
@@ -144,6 +148,22 @@ export function buildJspGraph(
 
   for (const doc of docs) {
     const jspPath = normalizePath(doc.path);
+    for (const call of doc.functionCalls ?? []) {
+      const resolved = call.validation !== "unresolved" && call.className && call.methodId;
+      edges.push({
+        from: jspPath,
+        to: resolved ? call.className! :
+          `unresolved:jsp-function:${jspPath}:${call.location.line}:${call.location.column}:${call.prefix}:${call.name}`,
+        type: "JSP_FUNCTION_CALL",
+        confidence: resolved ? "high" : "unresolved",
+        fromFile: jspPath,
+        toFile: resolved ? call.targetFile : undefined,
+        fromSymbol: `${call.prefix}:${call.name}`,
+        toSymbol: resolved ? call.methodId : undefined,
+        fromLocation: call.location,
+        unresolvedReason: call.unresolvedReason
+      });
+    }
     for (const include of doc.includeReferences ?? []) {
       const targets = include.targetPath ? [include.targetPath] : include.candidatePaths ?? [];
       if (targets.length === 0 && include.kind === "static") {
@@ -154,6 +174,7 @@ export function buildJspGraph(
           confidence: "unresolved",
           fromFile: jspPath,
           fromLocation: include.location,
+          fromSymbol: include.mode,
           unresolvedReason: include.unresolvedReason
         });
       }
@@ -165,7 +186,8 @@ export function buildJspGraph(
           confidence: include.kind === "static" ? "high" : "medium",
           fromFile: jspPath,
           toFile: target,
-          fromLocation: include.location
+          fromLocation: include.location,
+          fromSymbol: include.mode
         });
       }
     }
@@ -356,6 +378,9 @@ export async function writeGraphFiles(
 }
 
 function resolveJavaCallConfidence(call: JavaCallRecord): GraphConfidence {
+  if (call.invocationKind) {
+    return call.fromClassId && call.resolvedMethodId && call.toClassId ? "high" : "unresolved";
+  }
   if (call.callerKind === "static-initializer") {
     return call.fromClassId && call.resolvedMethodId && call.toClassId ? "high" : "unresolved";
   }
@@ -367,13 +392,22 @@ function resolveJavaCallConfidence(call: JavaCallRecord): GraphConfidence {
 
 function buildClassLookup(classes: GraphClassRecord[]): Map<string, GraphClassRecord> {
   const lookup = new Map<string, GraphClassRecord>();
+  const ambiguous = new Set<string>();
 
   for (const entry of classes) {
     lookup.set(entry.id, entry);
-    lookup.set(entry.name, entry);
-
-    if (entry.id.includes(".")) {
-      lookup.set(entry.id.split(".").at(-1) ?? entry.id, entry);
+    const aliases = new Set([entry.name, entry.id.split(".").at(-1) ?? entry.id]);
+    for (const alias of aliases) {
+      if (alias === entry.id || ambiguous.has(alias)) {
+        continue;
+      }
+      const previous = lookup.get(alias);
+      if (previous && previous.id !== entry.id) {
+        lookup.delete(alias);
+        ambiguous.add(alias);
+      } else {
+        lookup.set(alias, entry);
+      }
     }
   }
 
@@ -412,7 +446,8 @@ function resolveJavaReferenceTarget(
     normalizeReferenceTargetId(reference.qualifiedName),
     normalizeReferenceTargetId(reference.className)
   ].filter((value): value is string => Boolean(value));
-  const targetClass = candidates
+  const qualifiedCandidates = candidates.filter((candidate) => candidate.includes("."));
+  const targetClass = (qualifiedCandidates.length ? qualifiedCandidates : candidates)
     .map((candidate) => classLookup.get(candidate))
     .find((candidate): candidate is GraphClassRecord => candidate !== undefined);
   const targetId = targetClass?.id ?? candidates[0];
@@ -558,7 +593,11 @@ function buildFileDependencyIndex(
       continue;
     }
 
-    const targetType = resolveNodeType(target, nodeTypes);
+    const targetType = nodeTypes.get(target) ?? (
+      edge.confidence === "high" && !target.startsWith("unresolved:") &&
+      /^(?:[A-Za-z_$][\w$]*\.)+[A-Za-z_$][\w$]*(?:#.*)?$/.test(target)
+        ? "external" : "unresolved"
+    );
     upsertReference(
       sourceRecord.references,
       target,
@@ -639,6 +678,9 @@ function buildEntryDependencyIndex(
   ]);
 
   for (const [file, nodeType] of nodeTypes.entries()) {
+    if (nodeType !== "java" && nodeType !== "jsp") {
+      continue;
+    }
     const candidates = compiled[nodeType];
     for (const candidate of candidates) {
       if (!candidate.expression.test(file)) {
@@ -737,6 +779,7 @@ function buildDeclaredEntryRecord(
     description: entry.description,
     tags: entry.tags,
     variantOf: entry.variantOf,
+    http: entry.http,
     seeds: {
       java: javaSeeds,
       jsp: jspSeeds
@@ -875,13 +918,6 @@ function upsertReference(
 
 function sortReferences(source: Map<string, FileDependencyReference>): FileDependencyReference[] {
   return [...source.values()].sort((left, right) => left.path.localeCompare(right.path));
-}
-
-function resolveNodeType(
-  value: string,
-  nodeTypes: Map<string, Exclude<GraphNodeType, "unresolved">>
-): GraphNodeType {
-  return nodeTypes.get(value) ?? "unresolved";
 }
 
 function isResolvedEdge(from: string, to: string): boolean {

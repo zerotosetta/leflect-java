@@ -19,6 +19,54 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JavaAstExporterTest {
   @Test
+  void exportIncludesNestedDeclarationsAndExactConstructorDelegation() throws Exception {
+    Path root = Files.createTempDirectory("leflect-java-nested");
+    Path source = root.resolve("demo/Outer.java");
+    Files.createDirectories(source.getParent());
+    Files.writeString(source, """
+        package demo;
+        import java.util.*;
+        class Outer {
+          static class Inner extends RuntimeException {
+            String value;
+            Inner() { this("x"); }
+            Inner(String message) { super(message); }
+            public static String echo(String value) { return value; }
+          }
+          void make() {
+            java.util.Map<String,String> values = new java.util.HashMap<String,String>();
+            Inner.echo("x");
+          }
+        }
+        """);
+    JavaAstExporter exporter = new JavaAstExporter(
+        ParserFactory.createJavaParser(root, List.of(source), List.of()),
+        new JavaSummaryExtractor(), new ParseProblemCollector(), new JavaParserAstSerializer()
+    );
+    AstFileResult summary = exporter.export(source, "demo/Outer.java", "java").ast;
+    assertEquals(List.of("java.util.*"), summary.imports);
+    assertEquals(List.of("demo.Outer", "demo.Outer.Inner"),
+        summary.types.stream().map(type -> type.fqn).toList());
+    var inner = summary.types.get(1);
+    assertEquals("demo.Outer.Inner#value", inner.fields.get(0).id);
+    assertTrue(inner.methods.stream().allMatch(method -> method.id.startsWith("demo.Outer.Inner#")));
+    assertEquals(List.of("public", "static"),
+        inner.methods.stream().filter(method -> method.name.equals("echo")).findFirst().orElseThrow().modifiers);
+    assertFalse(summary.classReferences.stream().anyMatch(reference ->
+        !"import-wildcard".equals(reference.kind) &&
+        ("java".equals(reference.qualifiedName) || "java.util".equals(reference.qualifiedName))));
+    var thisCall = summary.methodCalls.stream().filter(call -> "this-constructor".equals(call.invocationKind))
+        .findFirst().orElseThrow();
+    assertEquals("demo.Outer.Inner#<init>(java.lang.String)", thisCall.resolvedMethodId);
+    assertEquals("demo.Outer.Inner#Inner()", thisCall.callerMethodId);
+    var superCall = summary.methodCalls.stream().filter(call -> "super-constructor".equals(call.invocationKind))
+        .findFirst().orElseThrow();
+    assertEquals("java.lang.RuntimeException#<init>(java.lang.String)", superCall.resolvedMethodId);
+    assertEquals("demo.Outer.Inner#Inner(String)", superCall.callerMethodId);
+    assertEquals(superCall.location.endColumn - superCall.location.column + 1, "super(message)".length());
+  }
+
+  @Test
   void exportIdentifiesCallsFromStaticInitializerBlocks() throws Exception {
     Path source = Files.createTempFile("leflect-java-initializer", ".java");
     Files.writeString(source, """

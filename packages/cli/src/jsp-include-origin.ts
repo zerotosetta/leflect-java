@@ -23,6 +23,7 @@ type AstNode = {
   thenExpr?: AstNode;
   elseExpr?: AstNode;
   inner?: AstNode;
+  type?: AstNode;
 };
 type Method = { file: JavaSummaryRecord; summary: JavaSummaryMethod };
 type Body = {
@@ -36,7 +37,7 @@ type Arguments = { body: Body; nodes: AstNode[]; parent?: Arguments };
 type Trace = {
   evidence: Evidence[];
   visited: Set<string>;
-  add: (body: Body, node: AstNode, description: string) => void;
+  add: (body: Body, node: AstNode, description: string, role?: Evidence["role"], variable?: string, objectType?: string) => void;
 };
 
 const MAX_TRACE_DEPTH = 14;
@@ -154,12 +155,12 @@ export function createServletAttributeTrace(analysisOut: string, summaries: read
     const trace: Trace = {
       evidence,
       visited: new Set(),
-      add(body, node, description) {
+      add(body, node, description, role = "value", variable, objectType) {
         const file = body.method.file.path;
         const location = locationOf(node);
         if (evidence.length < MAX_EVIDENCE && !evidence.some((item) =>
           item.description === description && item.path === file && sameStart(item.location, location))) {
-          evidence.push({ description, path: file, location });
+          evidence.push({ description, path: file, location, role, variable, objectType });
         }
       }
     };
@@ -167,7 +168,9 @@ export function createServletAttributeTrace(analysisOut: string, summaries: read
       evidence.push({
         description: `Servlet request attribute "${attribute}"${property ? ` supplies property "${property}"` : ""}`,
         path: file.path,
-        location: completeLocation(call.location)
+        location: completeLocation(call.location),
+        role: "assignment",
+        variable: attribute
       });
       const caller = call.callerMethodId ? methodsByFile.get(file)?.get(call.callerMethodId) : undefined;
       const body = caller && await loadBody(caller);
@@ -192,6 +195,9 @@ export function createServletAttributeTrace(analysisOut: string, summaries: read
     bindings?: Arguments
   ): Promise<void> {
     if (depth >= MAX_TRACE_DEPTH || trace.evidence.length >= MAX_EVIDENCE) {
+      if (depth >= MAX_TRACE_DEPTH) {
+        trace.add(body, node, "Value tracing stopped at the configured depth limit");
+      }
       return;
     }
     const location = locationOf(node);
@@ -219,12 +225,28 @@ export function createServletAttributeTrace(analysisOut: string, summaries: read
           }
           if (value && typeof value === "object") {
             const branches = body.branches.get(record) ?? [];
-            trace.add(body, record, `Possible write to ${variable}.${property}${branches.length ? " inside a branch or loop" : ""}`);
+            trace.add(body, record, `Possible write to ${variable}.${property}${branches.length ? " inside a branch or loop" : ""}`, "assignment", `${variable}.${property}`);
+            for (const branch of branches) {
+              trace.add(body, branch, `Control flow: ${kindOf(branch)}`, "condition");
+            }
             await traceExpression(body, value, undefined, trace, next, bindings);
           }
         }
       }
       const definitions = localDefinitions(body, variable, node);
+      for (const declaration of body.nodes.filter((candidate) => kindOf(candidate) === "VariableDeclarator" &&
+          candidate.name?.identifier === variable && precedes(candidate, node))) {
+        trace.add(body, declaration, `Declaration of ${variable}`, "declaration", variable,
+          declaration.type?.name?.identifier);
+      }
+      for (const assignment of body.nodes.filter((candidate) => kindOf(candidate) === "AssignExpr" &&
+          kindOf(candidate.target) === "NameExpr" && candidate.target?.name?.identifier === variable &&
+          precedes(candidate, node))) {
+        trace.add(body, assignment, `Possible assignment to ${variable}`, "assignment", variable);
+        for (const branch of body.branches.get(assignment) ?? []) {
+          trace.add(body, branch, `Control flow: ${kindOf(branch)}`, "condition");
+        }
+      }
       for (const definition of definitions) {
         await follow(definition);
       }
@@ -259,13 +281,15 @@ export function createServletAttributeTrace(analysisOut: string, summaries: read
     }
     const owner = call.resolvedClassId ?? call.targetClassId;
     const name = call.targetMethodName ?? node.name?.identifier;
+    const resourceResult = /^(?:java\.sql\.)?(?:Connection|Statement|PreparedStatement|CallableStatement|ResultSet)$/.test(call.responseType ?? "");
     if (owner?.startsWith("java.sql.")) {
       const sql = node.arguments?.[0];
       const table = name === "prepareStatement" && typeof sql?.value === "string"
         ? sql.value.match(/\bFROM\s+([A-Za-z_][\w$.]*)/i)?.[1] : undefined;
       trace.add(body, node, table
         ? `Prepared SQL reads ${table}`
-        : `Database value through ${owner}.${name}`);
+        : `Database ${resourceResult ? "resource" : "value"} through ${owner}.${name}`, resourceResult ? "resource" : "value",
+        undefined, call.responseType);
       if (node.scope) {
         await traceExpression(body, node.scope, undefined, trace, next, bindings);
       }
@@ -282,7 +306,8 @@ export function createServletAttributeTrace(analysisOut: string, summaries: read
     if (!candidate) {
       return;
     }
-    trace.add(body, node, `Value from ${owner}.${name}()`);
+    trace.add(body, node, `${resourceResult ? "Resource" : "Value"} from ${owner}.${name}()`,
+      resourceResult ? "resource" : "value", undefined, call.responseType);
     const target = await loadBody(candidate);
     if (target) {
       for (const returned of target.nodes) {

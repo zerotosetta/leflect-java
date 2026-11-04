@@ -2,6 +2,7 @@ package io.lefectjava.worker.parser;
 
 import com.github.javaparser.Position;
 import com.github.javaparser.Range;
+import com.github.javaparser.JavaToken;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Node;
@@ -30,6 +31,7 @@ import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.DoStmt;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
+import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
 import com.github.javaparser.ast.stmt.ForEachStmt;
 import com.github.javaparser.ast.stmt.ForStmt;
 import com.github.javaparser.ast.stmt.IfStmt;
@@ -44,6 +46,7 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.resolution.MethodUsage;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedConstructorDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedReferenceTypeDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedTypeParameterDeclaration;
 import com.github.javaparser.resolution.types.ResolvedReferenceType;
@@ -74,11 +77,11 @@ public class JavaSummaryExtractor {
         .orElse("");
 
     List<String> imports = unit.getImports().stream()
-        .map(importDeclaration -> importDeclaration.getNameAsString())
+        .map(importDeclaration -> importDeclaration.getNameAsString() + (importDeclaration.isAsterisk() ? ".*" : ""))
         .collect(Collectors.toList());
 
     List<JavaClassSummary> types = new ArrayList<>();
-    for (TypeDeclaration<?> type : unit.getTypes()) {
+    for (TypeDeclaration<?> type : unit.findAll(TypeDeclaration.class)) {
       types.add(toTypeSummary(packageName, type));
     }
 
@@ -113,17 +116,17 @@ public class JavaSummaryExtractor {
     List<JavaFieldSummary> fields = new ArrayList<>();
     for (FieldDeclaration field : type.getFields()) {
       for (VariableDeclarator variable : field.getVariables()) {
-        fields.add(toFieldSummary(packageName, type.getNameAsString(), field, variable));
+        fields.add(toFieldSummary(packageName, typeName(type), field, variable));
       }
     }
     for (CallableDeclaration<?> callable : type.getMembers().stream()
         .filter(CallableDeclaration.class::isInstance)
         .map(CallableDeclaration.class::cast)
         .collect(Collectors.toList())) {
-      methods.add(toMethodSummary(packageName, type.getNameAsString(), callable));
+      methods.add(toMethodSummary(packageName, typeName(type), callable));
     }
 
-    String fqn = buildTypeFqn(packageName, type.getNameAsString());
+    String fqn = buildTypeFqn(packageName, typeName(type));
 
     return new JavaClassSummary(
         type.getNameAsString(),
@@ -181,7 +184,7 @@ public class JavaSummaryExtractor {
         .distinct()
         .collect(Collectors.toList());
 
-    return new JavaMethodSummary(
+    JavaMethodSummary summary = new JavaMethodSummary(
         methodId,
         callable.getNameAsString(),
         returnType,
@@ -191,6 +194,9 @@ public class JavaSummaryExtractor {
         toLineRange(callable),
         collectOrderedSteps(methodId, callable)
     );
+    summary.modifiers = callable.getModifiers().stream()
+        .map(modifier -> modifier.getKeyword().asString()).collect(Collectors.toList());
+    return summary;
   }
 
   private List<JavaClassReference> collectClassReferences(CompilationUnit unit) {
@@ -211,6 +217,9 @@ public class JavaSummaryExtractor {
     }
 
     for (ClassOrInterfaceType type : unit.findAll(ClassOrInterfaceType.class)) {
+      if (isPackageQualifier(type)) {
+        continue;
+      }
       String qualifiedName = resolveTypeName(type);
       JavaClassReference reference = new JavaClassReference(
           type.getNameAsString(),
@@ -229,9 +238,18 @@ public class JavaSummaryExtractor {
   }
 
   private List<JavaMethodCallSite> collectMethodCalls(String packageName, CompilationUnit unit) {
-    return unit.findAll(MethodCallExpr.class).stream()
+    List<JavaMethodCallSite> calls = unit.findAll(MethodCallExpr.class).stream()
         .map(call -> toMethodCallSite(packageName, call))
         .collect(Collectors.toList());
+    for (ExplicitConstructorInvocationStmt invocation : unit.findAll(ExplicitConstructorInvocationStmt.class)) {
+      calls.add(toConstructorCallSite(packageName, invocation));
+    }
+    calls.sort((left, right) -> {
+      if (left.location == null || right.location == null) return 0;
+      int line = Integer.compare(left.location.line, right.location.line);
+      return line != 0 ? line : Integer.compare(left.location.column, right.location.column);
+    });
+    return calls;
   }
 
   private JavaMethodCallSite toMethodCallSite(String packageName, MethodCallExpr call) {
@@ -241,12 +259,12 @@ public class JavaSummaryExtractor {
         .map(value -> (TypeDeclaration<?>) value);
 
     String callerClassId = type
-        .map(typeDeclaration -> buildTypeFqn(packageName, typeDeclaration.getNameAsString()))
+        .map(typeDeclaration -> buildTypeFqn(packageName, typeName(typeDeclaration)))
         .orElse(null);
     String callerMethodId = callable
         .map(value -> buildMethodId(
             packageName,
-            type.map(TypeDeclaration::getNameAsString).orElse("unknown"),
+            type.map(this::typeName).orElse("unknown"),
             value.getNameAsString(),
             value.getParameters().stream().map(parameter -> parameter.getType().asString()).collect(Collectors.toList())
         ))
@@ -278,6 +296,81 @@ public class JavaSummaryExtractor {
       site.callerKind = "static-initializer";
     }
     return site;
+  }
+
+  private JavaMethodCallSite toConstructorCallSite(String packageName, ExplicitConstructorInvocationStmt invocation) {
+    TypeDeclaration<?> owner = invocation.findAncestor(TypeDeclaration.class).orElse(null);
+    ConstructorDeclaration caller = invocation.findAncestor(ConstructorDeclaration.class).orElse(null);
+    String callerClass = owner == null ? null : buildTypeFqn(packageName, typeName(owner));
+    String callerMethod = caller == null || owner == null ? null : buildMethodId(
+        packageName, typeName(owner), caller.getNameAsString(),
+        caller.getParameters().stream().map(parameter -> parameter.getType().asString()).collect(Collectors.toList())
+    );
+    JavaMethodCallSite site = new JavaMethodCallSite();
+    site.callerClassId = callerClass;
+    site.callerMethodId = callerMethod;
+    site.invocationKind = invocation.isThis() ? "this-constructor" : "super-constructor";
+    site.targetText = invocation.isThis() ? "this" : "super";
+    site.targetMethodName = "<init>";
+    site.argumentExpressions = invocation.getArguments().stream().map(Node::toString).collect(Collectors.toList());
+    site.location = toSourceLocation(invocation);
+    site.lineRange = toLineRange(invocation);
+    invocation.getTokenRange().ifPresent(tokens -> {
+      JavaToken token = tokens.getEnd();
+      if (";".equals(token.getText())) {
+        token = token.getPreviousToken().orElse(token);
+        while (token.getText().trim().isEmpty() && token.getPreviousToken().isPresent()) {
+          token = token.getPreviousToken().get();
+        }
+        if (token.getRange().isPresent() && invocation.getRange().isPresent()) {
+          Range range = new Range(invocation.getRange().get().begin, token.getRange().get().end);
+          site.location = toSourceLocation(range);
+          site.lineRange = toLineRange(range);
+        }
+      }
+    });
+    site.snippet = invocation.toString();
+    try {
+      ResolvedConstructorDeclaration target = invocation.resolve();
+      site.targetClassId = target.declaringType().getQualifiedName();
+      site.resolvedClassId = site.targetClassId;
+      site.classPath = site.targetClassId;
+      site.parameterTypes = new ArrayList<>();
+      for (int index = 0; index < target.getNumberOfParams(); index++) {
+        site.parameterTypes.add(target.getParam(index).getType().describe());
+      }
+      site.targetMethodId = site.targetClassId + "#<init>(" + String.join(",", site.parameterTypes) + ")";
+      site.resolvedMethodId = site.targetMethodId;
+      site.target = site.targetMethodId;
+      site.responseType = "void";
+    } catch (RuntimeException error) {
+      site.target = "unresolved:constructor:" + site.targetText;
+      site.parameterTypes = List.of();
+    }
+    return site;
+  }
+
+  private String typeName(TypeDeclaration<?> type) {
+    List<String> names = new ArrayList<>();
+    for (Node node = type; node != null; node = node.getParentNode().orElse(null)) {
+      if (node instanceof TypeDeclaration<?>) {
+        names.add(0, ((TypeDeclaration<?>) node).getNameAsString());
+      }
+    }
+    return String.join(".", names);
+  }
+
+  private boolean isPackageQualifier(ClassOrInterfaceType type) {
+    Node parent = type.getParentNode().orElse(null);
+    if (!(parent instanceof ClassOrInterfaceType) ||
+        ((ClassOrInterfaceType) parent).getScope().orElse(null) != type) {
+      return false;
+    }
+    try {
+      return !type.resolve().isReferenceType();
+    } catch (RuntimeException error) {
+      return true;
+    }
   }
 
   private boolean isInStaticInitializer(Node node) {

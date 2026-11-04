@@ -81,6 +81,10 @@ import { createJavaDependencyCacheInput, resolveJavaClasspathEntries } from "./j
 import { describeJspBeans } from "./jsp-beans";
 import { createJspDependencyCacheInput, resolveJspClasspathEntries } from "./jsp-classpath";
 import { resolveJspIncludes } from "./jsp-includes";
+import { resolveJspFunctions } from "./jsp-functions";
+import { discoverServletEntries } from "./servlet-entries";
+import { buildTaskCodeIndex, readTaskCodes, writeTaskCodes } from "./task-codes";
+import { createExternalSymbolResolver, withAnalysisClasspath } from "./external-symbols";
 import { runPluginScaffoldCommand } from "./plugin-scaffold";
 import { runProjectionServer } from "./projection-server";
 import { resolveJavaWorkerJar } from "./worker-jar";
@@ -472,7 +476,7 @@ async function executeParseJavaStage(
     createCacheKey({
       version: PIPELINE_VERSION,
       stage: "java-parse",
-      callSiteSchema: 2,
+      callSiteSchema: 4,
       java: config.java ?? {},
       dependencies: await createJavaDependencyCacheInput(config)
     }),
@@ -503,7 +507,15 @@ async function executeParseJavaStage(
     await removeRelativeJsonFiles(path.join(config.analysisOut, "java-ast"), stage.plan.removedFiles);
   }
 
+  // A declaration change can alter calls in unchanged Java files. The worker
+  // also replaces the complete summary, so rebuild the current source set.
+  stage.plan.selectedFiles = [...files];
+  stage.plan.unchangedFiles = [];
+
   if (stage.plan.selectedFiles.length === 0) {
+    const indexDir = path.join(config.analysisOut, "index");
+    await fs.mkdir(indexDir, { recursive: true });
+    await fs.writeFile(path.join(indexDir, "java-summary.jsonl"), "");
     await persistStageState("java-parse", stage, files);
     const message = `Java AST parse complete. Removed: ${stage.plan.removedFiles.length}`;
     runtime.output.status(message);
@@ -625,7 +637,11 @@ async function executeParseJspStage(
     message: `Parsing JSP sources under ${config.root}`,
     detail: { astMode: config.jsp?.astMode ?? "jasper" }
   });
-  const files = await readScannerManifest(path.join(config.analysisOut, "manifests", "jsp-files.json"));
+  const pageFiles = await readScannerManifest(path.join(config.analysisOut, "manifests", "jsp-files.json"));
+  const scanned = await readFileHashesCache(path.join(config.analysisOut, "cache", "file-hashes.json"));
+  const fragmentFiles = Object.keys(scanned?.files ?? {}).filter((file) => /\.(?:jspf|tagx?)$/i.test(file));
+  const files = [...pageFiles, ...fragmentFiles].sort();
+  const pages = new Set(pageFiles);
   const astMode = config.jsp?.astMode ?? "jasper";
   const metaDir = path.join(config.analysisOut, "jsp-meta");
   const astOutDir = config.jsp?.astOut ?? path.join(config.analysisOut, "jsp-ast");
@@ -639,7 +655,7 @@ async function executeParseJspStage(
     createCacheKey({
       version: PIPELINE_VERSION,
       stage: "jsp-parse",
-      metadataVersion: 3,
+      metadataVersion: 4,
       java: config.java ?? {},
       jsp: config.jsp ?? {},
       dependencies: dependencyCacheInput
@@ -710,7 +726,10 @@ async function executeParseJspStage(
   for (const file of stage.plan.selectedFiles) {
     const absolutePath = path.join(config.root, file);
     const content = await fs.readFile(absolutePath, "utf8");
-    const parsedJsp = parseJsp(content);
+    const extension = path.extname(file).toLowerCase();
+    const sourceKind = extension === ".tag" ? "tag" : extension === ".tagx" ? "tagx"
+      : extension === ".jspf" ? "jspf" : "jsp";
+    const parsedJsp = parseJsp(content, { sourceKind });
     const taglibScope = parsedJsp.includes.length > 0
       ? await resolveStaticTaglibs({ ...parsedJsp, path: file })
       : undefined;
@@ -724,7 +743,7 @@ async function executeParseJspStage(
     }
     const withAst = attachJspAstReference(
       parsedJsp,
-      astMode === "jasper"
+      astMode === "jasper" && pages.has(file)
         ? {
             mode: "jasper",
             astPath: toAnalysisRelative(config.analysisOut, path.join(astOutDir, `${file}.json`))
@@ -735,7 +754,8 @@ async function executeParseJspStage(
     await writeJspMeta(metaDir, file, withAst);
   }
 
-  if (astMode === "jasper" && stage.plan.selectedFiles.length > 0) {
+  const selectedPages = stage.plan.selectedFiles.filter((file) => pages.has(file));
+  if (astMode === "jasper" && selectedPages.length > 0) {
     const workerJar = await resolveJavaWorkerJar(config.java?.workerJar);
     if (!workerJar) {
       throw new Error(
@@ -744,7 +764,7 @@ async function executeParseJspStage(
     }
 
     let classpathEntries = await resolveJspClasspathEntries(config, [...taglibUris]);
-    let manifest = buildJspInputManifest(config, stage.plan.selectedFiles, classpathEntries);
+    let manifest = buildJspInputManifest(config, selectedPages, classpathEntries);
     const manifestPath = path.join(config.analysisOut, "manifests", "jsp-parse.json");
     await writeJspManifest(manifestPath, manifest);
 
@@ -753,7 +773,7 @@ async function executeParseJspStage(
       : 0;
 
     for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
-      await removeRelativeJsonFiles(astOutDir, stage.plan.selectedFiles);
+      await removeRelativeJsonFiles(astOutDir, selectedPages);
       const result = await runJavaWorker({
         jreHome: config.java?.jreHome,
         javaHome: config.java?.javaHome,
@@ -787,7 +807,7 @@ async function executeParseJspStage(
       }
 
       classpathEntries = [...new Set([...classpathEntries, ...discovered])];
-      manifest = buildJspInputManifest(config, stage.plan.selectedFiles, classpathEntries);
+      manifest = buildJspInputManifest(config, selectedPages, classpathEntries);
       await writeJspManifest(manifestPath, manifest);
     }
   }
@@ -955,16 +975,33 @@ async function executeBuildGraphStage(
     await readJsonArray<GraphJspRecord & LabelerJspRecord>(path.join(indexDir, "jsp-docs.json"))
   ) as Array<GraphJspRecord & LabelerJspRecord>;
 
+  const servletDiscovery = await discoverServletEntries(config, classes, methods);
+  const effectiveConfig = { ...config, entries: servletDiscovery.entries };
   const graphs = buildGraphs(calls, jspDocs, classes, {
     entryFiles: config.entryFiles,
-    entries: config.entries,
+    entries: effectiveConfig.entries,
     javaClassReferences: javaIndex?.classReferences
   });
+  const resolveExternal = createExternalSymbolResolver(await withAnalysisClasspath(config));
+  await Promise.all(graphs.fileDependencies.files.flatMap((file) => file.references)
+    .filter((reference) => reference.nodeType === "external")
+    .map(async (reference) => {
+      reference.external = await resolveExternal(reference.path);
+    }));
   await writeGraphFiles(config.analysisOut, graphs);
-  await writeConfigRegistryArtifacts(config);
+  const externalSymbols = [...new Map(graphs.fileDependencies.files
+    .flatMap((file) => file.references)
+    .flatMap((reference) => reference.external ? [[reference.path, reference.external] as const] : [])).values()]
+    .sort((left, right) => left.symbol.localeCompare(right.symbol));
+  await fs.writeFile(path.join(indexDir, "external-symbols.json"), JSON.stringify(externalSymbols, null, 2));
+  await writeConfigRegistryArtifacts(effectiveConfig);
+  await fs.writeFile(path.join(indexDir, "servlet-entries.json"), JSON.stringify(servletDiscovery.registrations, null, 2));
 
   const labels = buildLabelsIndex({
-    classes,
+    classes: classes.map((entry) => ({
+      ...entry,
+      registeredServlet: servletDiscovery.registrations.some((mapping) => mapping.className === entry.id)
+    })),
     methods,
     jsps: jspDocs.map((entry) => ({ path: entry.path }))
   });
@@ -1013,6 +1050,7 @@ async function executeBuildIndexStage(
   const javaFiles = await readScannerManifest(path.join(config.analysisOut, "manifests", "java-files.json"));
   const jspDocs = await readJspMetaEntries(path.join(config.analysisOut, "jsp-meta"));
   const javaSummaries = await readJavaSummaryIndex(path.join(indexDir, "java-summary.jsonl"));
+  const javaIndex = buildJavaIndex({ files: javaFiles, summaries: javaSummaries });
   const rawTaglibs = await readTaglibRegistry(indexDir);
   const webappRoot = config.jsp?.webappRoot ?? config.root;
   const resolveStaticTaglibs = createStaticTaglibResolver(config.root, webappRoot);
@@ -1024,18 +1062,20 @@ async function executeBuildIndexStage(
     const { taglibs } = taglibScopes[index];
     return { ...entry, taglibs, resolvedTags: resolveTagHandlers(entry.tags, taglibs, rawTaglibs, tagFiles) };
   });
-  const [includesByPath, beansByPath] = await Promise.all([
+  const [includesByPath, beansByPath, functionsByPath] = await Promise.all([
     resolveJspIncludes(config, jspDocsWithTags, javaSummaries),
     describeJspBeans(jspDocsWithTags, {
       root: config.root,
       javaVersion: config.java?.targetVersion,
       jdkSourceArchive: config.java?.sourceArchive
-    })
+    }),
+    withAnalysisClasspath(config).then((environment) => resolveJspFunctions(environment, jspDocsWithTags, rawTaglibs, javaIndex))
   ]);
   const enrichedJspDocs = jspDocsWithTags.map((entry) => ({
     ...entry,
     includeReferences: includesByPath.get(entry.path),
-    beanActions: beansByPath.get(entry.path)
+    beanActions: beansByPath.get(entry.path),
+    functionCalls: functionsByPath.get(entry.path)
   }));
   const logsDir = path.join(config.analysisOut, "logs");
   await fs.mkdir(logsDir, { recursive: true });
@@ -1044,7 +1084,6 @@ async function executeBuildIndexStage(
     JSON.stringify(taglibScopes.flatMap((scope) => scope.diagnostics), null, 2)
   );
 
-  const javaIndex = buildJavaIndex({ files: javaFiles, summaries: javaSummaries });
   const initialJspIndex = buildJspIndex(enrichedJspDocs, {
     javaMethods: javaIndex.methods
   });
@@ -1059,6 +1098,7 @@ async function executeBuildIndexStage(
   });
   const semanticRootDir = config.jsp?.semanticAstOut ?? path.join(config.analysisOut, "jsp-semantic");
   const semanticPaths = await writeJspSemanticAsts(semanticRootDir, semanticAsts);
+  await writeTaskCodes(config.analysisOut, buildTaskCodeIndex(semanticAsts));
   const semanticByPath = new Map(semanticAsts.map((entry) => [entry.path, entry]));
   const semanticJspDocs = enrichedJspDocs.map((entry) => ({
     ...entry,
@@ -1205,6 +1245,16 @@ async function runQuery(args: string[]): Promise<void> {
     analysisOut: parsed["analysis"] ? path.resolve(parsed["analysis"]) : undefined
   });
   const format = resolveFormat(parsed["format"]);
+  if (subcommand === "task-codes") {
+    const result = await readTaskCodes(config.analysisOut, parsed["file"]);
+    printResult(output, result, format, [
+      `TASK code occurrences: ${result.counts.occurrences}`,
+      `Distinct literal codes: ${result.counts.distinctCodes}`,
+      ...result.occurrences.map((row) =>
+        `${row.file}:${row.lineRange.startLine}:${row.lineRange.startColumn} ${row.code ?? "(missing)"} [${row.state}]`)
+    ].join("\n"));
+    return;
+  }
   const input = await readReporterInput(config.analysisOut, config.labelsOut);
 
   switch (subcommand) {
@@ -1239,7 +1289,7 @@ async function runQuery(args: string[]): Promise<void> {
       return;
     }
     default:
-      throw new Error("Query command requires one of: jsp-impact | java-usages | tag-usages");
+      throw new Error("Query command requires one of: jsp-impact | java-usages | tag-usages | task-codes");
   }
 }
 
@@ -1390,6 +1440,7 @@ function printHelp(output: CommandOutput): void {
   output.text("  jsp-impact          Query JSP -> Java / TagHandler impact");
   output.text("  java-usages         Query callers/usages for a Java class");
   output.text("  tag-usages          Query JSP usages for a tag handler");
+  output.text("  task-codes          List TASK code occurrences and distinct literal values");
   output.text("\nOptions:");
   output.text("  --root <path>        Repository root");
   output.text("  --analysis <path>    Analysis directory (for build-graph/report/query)");

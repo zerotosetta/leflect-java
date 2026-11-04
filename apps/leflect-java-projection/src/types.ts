@@ -1,4 +1,4 @@
-export type ProjectionNodeType = "java" | "jsp" | "unresolved" | "entry";
+export type ProjectionNodeType = "java" | "jsp" | "external" | "unresolved" | "entry";
 export type ProjectionDirection = "outbound";
 export type ProjectionTreeMode = "classpath" | "directory";
 export type ProjectionTheme = "dark" | "light" | "sky";
@@ -20,6 +20,7 @@ export type ProjectionBootstrap = {
     totalFiles: number;
     javaFiles: number;
     jspFiles: number;
+    jspFragments?: number;
     entries: number;
     edges: number;
     classes: number;
@@ -33,6 +34,7 @@ export type ProjectionBootstrap = {
 export type ProjectionFileEntry = {
   path: string;
   nodeType: ProjectionNodeType;
+  sourceKind?: "jsp" | "jspf" | "tag" | "tagx";
   metadataPath?: string;
   packageName?: string;
   importCount?: number;
@@ -48,6 +50,11 @@ export type ProjectionFileEntry = {
   resolvedTagCount?: number;
   referenceCount: number;
   dependantCount: number;
+  external?: {
+    symbol: string;
+    provider: { name: string; version?: string; path?: string };
+    source: { status: string; archive?: string; entry?: string; version?: string };
+  };
 };
 
 export type ProjectionEntry = {
@@ -66,6 +73,15 @@ export type ProjectionEntry = {
   edgeCount: number;
   reachableCount: number;
   disabled: boolean;
+  http?: {
+    servletName: string;
+    className: string;
+    urlPattern: string;
+    sourcePath: string;
+    lineRange: { startLine: number; startColumn: number; endLine: number; endColumn: number };
+    handlerMethodIds: string[];
+    diagnostic?: string;
+  };
 };
 
 export type ProjectionGraphNode = {
@@ -165,6 +181,13 @@ export type ProjectionSourceHighlight = {
 export type ProjectionFileDetail = {
   file: ProjectionFileEntry;
   metadata?: Record<string, unknown> & {
+    taskCodes?: Array<{
+      code?: string;
+      state: string;
+      uri: string;
+      handlerClass: string;
+      lineRange: { startLine: number; startColumn: number; endLine: number; endColumn: number };
+    }>;
     includeReferences?: Array<{
       page: string;
       kind: "static" | "dynamic";
@@ -172,7 +195,7 @@ export type ProjectionFileDetail = {
       targetPath?: string;
       candidatePaths?: string[];
       parameters: Array<{ name: string; value: string }>;
-      evidence?: Array<{ description: string; path?: string }>;
+      evidence?: Array<{ description: string; path?: string; role?: string; variable?: string; objectType?: string }>;
       unresolvedReason?: string;
     }>;
     beanActions?: Array<{

@@ -6,6 +6,7 @@ import { parseJsp } from "@leflect-java/parser-jsp";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { resolveJspIncludes } from "../jsp-includes";
+import { describeJspBeans } from "../jsp-beans";
 
 describe("JSP include references", () => {
   let root: string;
@@ -97,5 +98,28 @@ describe("JSP include references", () => {
     expect(selected.candidatePaths).toBeUndefined();
     expect(boolean.targetPath).toBeUndefined();
     expect(boolean.candidatePaths).toBeUndefined();
+  });
+
+  it("collects standard actions inside attributes with parameter ownership and bean metadata", async () => {
+    const page = "web/layout.jsp";
+    const parsed = parseJsp([
+      '<a',
+      ' title="<jsp:include page=\'/fragments/panel.jsp\'><jsp:param name=\'slot\' value=\'header\'/></jsp:include>"',
+      ' data-clock="<jsp:useBean id=\'clock\' class=\'java.util.Date\'/>">after</a>'
+    ].join("\n"));
+    const docs = [{ path: page, ...parsed }];
+    const [includes, beans] = await Promise.all([
+      resolveJspIncludes({ root, analysisOut: path.join(root, "analysis"), jsp: { webappRoot: "web" } }, docs, []),
+      describeJspBeans(docs, { root })
+    ]);
+    expect(parsed.document.diagnostics).toEqual([]);
+    expect(includes.get(page)).toMatchObject([{
+      kind: "static", targetPath: "web/fragments/panel.jsp", location: { line: 2, column: 9 },
+      parameters: [{ name: "slot", value: "header", location: { line: 2 } }]
+    }]);
+    expect(beans.get(page)).toMatchObject([{
+      id: "clock", className: "java.util.Date", scope: "page", lineRange: { startLine: 3 },
+      actionDescription: expect.any(String)
+    }]);
   });
 });

@@ -2,7 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 
 import { TldIndex } from "@leflect-java/parser-tld";
-import { TldAttributeSchema, TldSourceKind } from "@leflect-java/schema";
+import { TldAttributeSchema, TldRegistryFunction, TldSourceKind } from "@leflect-java/schema";
 
 import { JspDocIndexEntry } from "./jsp-index";
 
@@ -14,6 +14,7 @@ export type TaglibIndexSource = TldIndex & {
 export type TaglibTagUsageEntry = {
   name: string;
   handlerClass?: string;
+  tagFilePath?: string;
   attributes?: TldAttributeSchema[];
   bodyContent?: string;
   dynamicAttributes?: boolean;
@@ -27,6 +28,7 @@ export type TaglibIndexEntry = {
   prefixes: string[];
   jspFiles: string[];
   tags: TaglibTagUsageEntry[];
+  functions?: Array<TldRegistryFunction & { jspFiles: string[] }>;
 };
 
 export type TaglibIndex = {
@@ -50,11 +52,13 @@ export function buildTaglibIndex(
       tags: (taglib.tags ?? []).map((tag) => ({
         name: tag.name,
         handlerClass: tag.handlerClass,
+        tagFilePath: tag.tagFilePath,
         attributes: tag.attributes,
         bodyContent: tag.bodyContent,
         dynamicAttributes: tag.dynamicAttributes,
         jspFiles: []
-      }))
+      })),
+      ...(taglib.functions?.length ? { functions: taglib.functions.map((fn) => ({ ...fn, jspFiles: [] })) } : {})
     });
   }
 
@@ -82,6 +86,11 @@ export function buildTaglibIndex(
       addUnique(entry.jspFiles, normalizedPath);
 
       const usedTags = doc.tags.filter((tag) => tag.prefix === directive.prefix);
+      for (const fn of entry.functions ?? []) {
+        if (doc.functionCalls?.some((call) => call.uri === directive.uri && call.name === fn.name)) {
+          addUnique(fn.jspFiles, normalizedPath);
+        }
+      }
       for (const tag of usedTags) {
         const resolved = resolvedByTag.get(`${tag.prefix}:${tag.name}`);
         const target = findOrCreateTagEntry(entry.tags, tag.name, resolved?.handlerClass);

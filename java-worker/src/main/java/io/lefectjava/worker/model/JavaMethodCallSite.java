@@ -6,6 +6,7 @@ public class JavaMethodCallSite {
   public String callerMethodId;
   public String callerClassId;
   public String callerKind;
+  public String invocationKind;
   public String target;
   public String targetText;
   public String targetClassId;

@@ -126,7 +126,20 @@ function collectIncludeSites(doc: IncludeDocument, document: JspDocumentRoot): I
   ): void => {
     const bindings = new Map(inherited);
     for (const node of children) {
-      if (node.kind === "HtmlElement") {
+      if ("attributeNodes" in node) {
+        visit(node.attributeNodes ?? [], bindings, conditions);
+      }
+      if (node.kind === "IncludeDirective" && node.target?.trim()) {
+        sites.push({
+          bindings: new Map(bindings),
+          reference: {
+            page: node.target.trim(), kind: "static", mode: "directive",
+            location: locationOf(node), parameters: [], evidence: [...conditions]
+          }
+        });
+        continue;
+      }
+      if (node.kind === "HtmlElement" || node.kind === "Attribute") {
         visit(node.children, bindings, conditions);
         continue;
       }
@@ -140,7 +153,7 @@ function collectIncludeSites(doc: IncludeDocument, document: JspDocumentRoot): I
         const { var: variable, value } = node.attributes;
         bindings.set(variable, {
           value,
-          evidence: { description: `Possible assignment: ${variable} is set from ${value}`, path: doc.path, location }
+          evidence: { description: `Possible assignment: ${variable} is set from ${value}`, path: doc.path, location, role: "assignment", variable }
         });
       }
       if (node.prefix === "jsp" && node.name === "include" && node.attributes.page?.trim()) {
@@ -151,6 +164,7 @@ function collectIncludeSites(doc: IncludeDocument, document: JspDocumentRoot): I
             page,
             location,
             kind: EL_START.test(page) || page.includes("<%") ? "dynamic" : "static",
+            mode: "action",
             parameters: node.children.flatMap((child) =>
               child.kind === "CustomTagElement" && child.prefix === "jsp" && child.name === "param" &&
                 child.attributes.name !== undefined && child.attributes.value !== undefined
@@ -163,13 +177,13 @@ function collectIncludeSites(doc: IncludeDocument, document: JspDocumentRoot): I
       const nested = new Map(bindings);
       const evidence = [...conditions];
       if (isJstl && (node.name === "if" || node.name === "when") && node.attributes.test) {
-        evidence.push({ description: `JSP condition: ${node.attributes.test}`, path: doc.path, location });
+        evidence.push({ description: `JSP condition: ${node.attributes.test}`, path: doc.path, location, role: "condition" });
       }
       if (isJstl && node.name === "forEach" && node.attributes.var && node.attributes.items) {
         const { var: variable, items } = node.attributes;
         nested.set(variable, {
           value: items,
-          evidence: { description: `${variable} iterates over ${items}`, path: doc.path, location }
+          evidence: { description: `${variable} iterates over ${items}`, path: doc.path, location, role: "declaration", variable }
         });
       }
       visit(node.children, nested, evidence);
@@ -228,7 +242,7 @@ function traceEl(page: string, bindings: ReadonlyMap<string, IncludeBinding>) {
           return undefined;
         }
         if (node.name === "param" || node.name === "paramValues") {
-          evidence.push({ description: `Request parameter${property ? `: ${property}` : ""}` });
+          evidence.push({ description: `Request parameter${property ? `: ${property}` : ""}`, role: "value", variable: property });
         } else {
           roots.set(`${node.name}.${property ?? ""}`, { attribute: node.name, property });
         }

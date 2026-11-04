@@ -79,6 +79,9 @@ export type SummaryReport = {
     javaTargets: string[];
     tagHandlers: string[];
     unresolvedTargets: string[];
+    fileTargets?: string[];
+    fileReferences?: GraphEdge[];
+    fileUsageCount?: number;
   }>;
 };
 
@@ -98,6 +101,9 @@ export type JspImpactQueryResult = {
   tagHandlers: string[];
   unresolvedTargets: string[];
   edges: GraphEdge[];
+  fileTargets?: string[];
+  fileReferences?: GraphEdge[];
+  fileUsageCount?: number;
 };
 
 export type JavaUsagesQueryResult = {

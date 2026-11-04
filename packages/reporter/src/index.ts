@@ -51,6 +51,7 @@ export type ReporterMethodRecord = {
 
 export type ReporterJspRecord = {
   path: string;
+  sourceKind?: string;
 };
 
 export type ReporterTaglibRecord = {
@@ -151,11 +152,11 @@ export function buildSummaryReport(input: ReporterInput): SummaryReport {
     counts: {
       classes: input.classes.length,
       methods: input.methods.length,
-      jsps: input.jsps.length,
+      jsps: input.jsps.filter((entry) => !entry.sourceKind || entry.sourceKind === "jsp").length,
       taglibs: input.taglibs.length,
       javaCallEdges: input.javaCallEdges.length,
       jspJavaEdges: input.jspJavaEdges.filter((edge) =>
-        edge.type === "JSP_SCRIPTLET_CALL" || edge.type === "JSP_USES_TAG"
+        edge.type === "JSP_SCRIPTLET_CALL" || edge.type === "JSP_USES_TAG" || edge.type === "JSP_FUNCTION_CALL"
       ).length,
       unresolvedEdges: unresolvedEdges.length
     },
@@ -211,6 +212,8 @@ export function buildImpactMarkdown(input: ReporterInput): string {
       sections.push(
         `- Tag handlers: ${impact.tagHandlers.length > 0 ? impact.tagHandlers.join(", ") : "-"}`
       );
+      sections.push(`- File targets: ${impact.fileTargets?.join(", ") || "-"}`);
+      sections.push(`- File reference uses: ${impact.fileUsageCount ?? 0}`);
       sections.push(
         `- Unresolved: ${
           impact.unresolvedTargets.length > 0 ? impact.unresolvedTargets.join(", ") : "-"
@@ -251,6 +254,8 @@ export function queryJspImpact(
 ): JspImpactQueryResult {
   const normalizedFile = normalizePath(file);
   const edges = input.jspJavaEdges.filter((edge) => normalizePath(edge.from) === normalizedFile);
+  const fileReferences = edges.filter((edge) =>
+    (edge.type === "JSP_USES_TAG_FILE" || edge.type === "JSP_INCLUDES") && edge.confidence !== "unresolved");
 
   return {
     file: normalizedFile,
@@ -270,7 +275,10 @@ export function queryJspImpact(
         .filter((edge) => edge.confidence === "unresolved")
         .map((edge) => edge.to)
     ),
-    edges
+    edges,
+    fileTargets: collectUnique(fileReferences.map((edge) => edge.toFile ?? edge.to)),
+    fileReferences,
+    fileUsageCount: fileReferences.length
   };
 }
 
@@ -325,6 +333,8 @@ export function formatJspImpactResult(result: JspImpactQueryResult): string {
     `Labels: ${formatList(result.labels)}`,
     `Java targets: ${formatList(result.javaTargets)}`,
     `Tag handlers: ${formatList(result.tagHandlers)}`,
+    `File targets: ${formatList(result.fileTargets ?? [])}`,
+    `File reference uses: ${result.fileUsageCount ?? 0}`,
     `Unresolved: ${formatList(result.unresolvedTargets)}`
   ].join("\n");
 }
@@ -356,7 +366,8 @@ function buildJspImpacts(
       (entry) =>
         entry.javaTargets.length > 0 ||
         entry.tagHandlers.length > 0 ||
-        entry.unresolvedTargets.length > 0
+        entry.unresolvedTargets.length > 0 ||
+        (entry.fileTargets?.length ?? 0) > 0
     )
     .sort((left, right) => {
       const leftSize =
@@ -370,7 +381,10 @@ function buildJspImpacts(
       labels: entry.labels,
       javaTargets: entry.javaTargets,
       tagHandlers: entry.tagHandlers,
-      unresolvedTargets: entry.unresolvedTargets
+      unresolvedTargets: entry.unresolvedTargets,
+      fileTargets: entry.fileTargets,
+      fileReferences: entry.fileReferences,
+      fileUsageCount: entry.fileUsageCount
     }));
 }
 

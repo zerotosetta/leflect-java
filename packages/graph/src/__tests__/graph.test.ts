@@ -514,7 +514,7 @@ describe("graph", () => {
         references: [
           {
             path: "java.util.List",
-            nodeType: "unresolved",
+            nodeType: "external",
             edgeTypes: ["JAVA_IMPORT"],
             symbols: ["java.util.List"]
           },
@@ -632,19 +632,19 @@ describe("graph", () => {
         references: [
           {
             path: "java.io.IOException",
-            nodeType: "unresolved",
+            nodeType: "external",
             edgeTypes: ["JAVA_TYPE_REFERENCE"],
             symbols: ["java.io.IOException"]
           },
           {
             path: "java.util.ArrayList",
-            nodeType: "unresolved",
+            nodeType: "external",
             edgeTypes: ["JAVA_NEW"],
             symbols: ["java.util.ArrayList"]
           },
           {
             path: "java.util.List",
-            nodeType: "unresolved",
+            nodeType: "external",
             edgeTypes: ["JAVA_IMPORT"],
             symbols: ["java.util.List"]
           }

@@ -6,6 +6,7 @@ public class JavaMethodSummary {
   public String id;
   public String name;
   public String returnType;
+  public List<String> modifiers;
   public List<String> parameters;
   public List<String> calls;
   public SourceLocation location;

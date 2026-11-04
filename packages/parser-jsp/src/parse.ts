@@ -1,12 +1,12 @@
 import fs from "fs/promises";
 import path from "path";
 
-import { JspAstMode, LineRange } from "@leflect-java/schema";
+import { JspAstMode, LineRange, TldAttributeSchema } from "@leflect-java/schema";
 
 import { parseEl } from "./el";
 
 export type JspDirective = {
-  kind: "taglib" | "page" | "include";
+  kind: "taglib" | "page" | "include" | "tag" | "attribute";
   attributes: Record<string, string>;
   raw: string;
   location: SourceLocation;
@@ -50,13 +50,31 @@ export type JspDocumentNode =
   | JspScriptletNode
   | JspExpressionNode
   | JspDeclarationNode
-  | JspElExpressionNode;
+  | JspElExpressionNode
+  | JspAttributeNode;
+
+export type JspParserDiagnostic = {
+  code: string;
+  message: string;
+  lineRange: LineRange;
+};
+
+export type JspAttributeNode = {
+  kind: "Attribute";
+  name?: string;
+  raw: string;
+  value?: string;
+  lineRange: LineRange;
+  children: JspDocumentNode[];
+  incomplete?: boolean;
+};
 
 export type JspDocumentRoot = {
   kind: "Document";
   raw: string;
   lineRange: LineRange;
   children: JspDocumentNode[];
+  diagnostics?: JspParserDiagnostic[];
 };
 
 export type JspTextNode = {
@@ -78,9 +96,11 @@ export type JspHtmlElementNode = {
   raw: string;
   tagName: string;
   attributes: Record<string, string>;
+  attributeNodes?: JspAttributeNode[];
   lineRange: LineRange;
   children: JspDocumentNode[];
   selfClosing?: boolean;
+  incomplete?: boolean;
 };
 
 export type JspCustomTagElementNode = {
@@ -89,9 +109,11 @@ export type JspCustomTagElementNode = {
   prefix: string;
   name: string;
   attributes: Record<string, string>;
+  attributeNodes?: JspAttributeNode[];
   lineRange: LineRange;
   children: JspDocumentNode[];
   selfClosing?: boolean;
+  incomplete?: boolean;
 };
 
 export type JspDirectiveNode = {
@@ -140,9 +162,12 @@ export type JspElExpressionNode = {
   expression: string;
   lineRange: LineRange;
   ast: ReturnType<typeof parseEl>;
+  incomplete?: boolean;
 };
 
 export type JspParseResult = {
+  sourceKind?: "jsp" | "jspf" | "tag" | "tagx";
+  tagAttributes?: TldAttributeSchema[];
   directives: JspDirective[];
   imports: string[];
   includes: string[];
@@ -153,9 +178,22 @@ export type JspParseResult = {
   ast?: JspAstReference;
 };
 
+export type JspParseOptions = {
+  sourceKind?: NonNullable<JspParseResult["sourceKind"]>;
+  syntax?: "html" | "xml";
+};
+
 const DIRECTIVE_REGEX = /<%@\s*([a-zA-Z0-9_]+)\s+([^%]*)%>/gi;
 const TAG_REGEX = /<([a-zA-Z0-9_]+):([a-zA-Z0-9_]+)(\s|>|\/)/g;
 const SCRIPTLET_REGEX = /<%([\s\S]*?)%>/g;
+const HTML_VOID_ELEMENTS = new Set([
+  "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta",
+  "param", "source", "track", "wbr"
+]);
+const HTML_OPTIONAL_END_ELEMENTS = new Set([
+  "html", "head", "body", "p", "li", "dt", "dd", "rb", "rt", "rtc", "rp",
+  "optgroup", "option", "colgroup", "thead", "tbody", "tfoot", "tr", "td", "th"
+]);
 
 export type SourceLocation = {
   line: number;
@@ -169,12 +207,17 @@ type ContainerNode = JspDocumentRoot | JspHtmlElementNode | JspCustomTagElementN
 type StackEntry = {
   node: Exclude<ContainerNode, JspDocumentRoot>;
   startOffset: number;
+  startTagEnd: number;
   identifier: string;
 };
 
-export function parseJsp(content: string): JspParseResult {
+export function parseJsp(content: string, options: JspParseOptions = {}): JspParseResult {
   const commentRanges: Array<{ start: number; end: number }> = [];
-  const document = parseDocument(content, commentRanges);
+  const diagnostics: JspParserDiagnostic[] = [];
+  const xml = options.syntax === "xml" || options.sourceKind === "tagx" ||
+    /^\s*<\?xml\b/.test(content) || /<jsp:root\b/.test(content);
+  const document = parseDocument(content, commentRanges, diagnostics, xml);
+  document.diagnostics = diagnostics;
   let visibleContent = "";
   let cursor = 0;
   for (const { start, end } of commentRanges) {
@@ -185,6 +228,14 @@ export function parseJsp(content: string): JspParseResult {
   visibleContent += content.slice(cursor);
   const directives = extractDirectives(visibleContent);
   return {
+    sourceKind: options.sourceKind ?? "jsp",
+    tagAttributes: directives.filter((directive) => directive.kind === "attribute" && directive.attributes.name)
+      .map(({ attributes }) => ({
+        name: attributes.name,
+        required: attributes.required === "true",
+        type: attributes.type ?? "java.lang.String",
+        runtimeExpressionValue: attributes.rtexprvalue !== "false"
+      })),
     directives,
     imports: extractImports(directives),
     includes: extractIncludes(directives),
@@ -229,7 +280,7 @@ function extractDirectives(content: string): JspDirective[] {
     const attrs = match[2];
     const attributes = extractLooseAttributes(attrs);
 
-    if (kind === "taglib" || kind === "page" || kind === "include") {
+    if (kind === "taglib" || kind === "page" || kind === "include" || kind === "tag" || kind === "attribute") {
       directives.push({
         kind,
         attributes,
@@ -246,7 +297,7 @@ function extractImports(directives: JspDirective[]): string[] {
   const imports = new Set<string>();
 
   for (const directive of directives) {
-    if (directive.kind !== "page") {
+    if (directive.kind !== "page" && directive.kind !== "tag") {
       continue;
     }
 
@@ -349,21 +400,29 @@ function extractScriptlets(content: string): ScriptletBlock[] {
   return blocks;
 }
 
-function parseDocument(content: string, commentRanges: Array<{ start: number; end: number }>): JspDocumentRoot {
+function parseDocument(
+  content: string,
+  commentRanges: Array<{ start: number; end: number }>,
+  diagnostics: JspParserDiagnostic[],
+  xml: boolean,
+  startOffset = 0,
+  endOffset = content.length,
+  attributeValue = false
+): JspDocumentRoot {
   const root: JspDocumentRoot = {
     kind: "Document",
-    raw: content,
-    lineRange: toLineRange(content, 0, content.length),
+    raw: content.slice(startOffset, endOffset),
+    lineRange: toLineRange(content, startOffset, endOffset),
     children: []
   };
   const stack: StackEntry[] = [];
-  let index = 0;
+  let index = startOffset;
 
-  while (index < content.length) {
+  while (index < endOffset) {
     const current = currentContainer(root, stack);
 
     if (content.startsWith("<%--", index)) {
-      const end = findSequenceEnd(content, index + 4, "--%>");
+      const end = Math.min(endOffset, findSequenceEnd(content, index + 4, "--%>"));
       const raw = content.slice(index, end);
       commentRanges.push({ start: index, end });
       current.children.push({
@@ -377,7 +436,7 @@ function parseDocument(content: string, commentRanges: Array<{ start: number; en
     }
 
     if (content.startsWith("<%@", index)) {
-      const end = findSequenceEnd(content, index, "%>");
+      const end = Math.min(endOffset, findSequenceEnd(content, index, "%>"));
       const raw = content.slice(index, end);
       const directive = parseDirectiveNode(content, raw, index, end);
       current.children.push(directive);
@@ -386,26 +445,32 @@ function parseDocument(content: string, commentRanges: Array<{ start: number; en
     }
 
     if (content.startsWith("<%=", index) || content.startsWith("<%!", index) || content.startsWith("<%", index)) {
-      const end = findSequenceEnd(content, index, "%>");
+      const end = Math.min(endOffset, findSequenceEnd(content, index, "%>"));
       const node = parseScriptletNode(content, index, end);
       current.children.push(node);
       index = end;
       continue;
     }
 
+    if (attributeValue && content[index] === "<" && !/^<\/?[\w-]+:/.test(content.slice(index))) {
+      const next = Math.min(endOffset, findNextSpecialIndex(content, index + 1, true));
+      index = pushTextNodes(content, current.children, index, next);
+      continue;
+    }
+
     if (content.startsWith("</", index)) {
-      const close = parseClosingTag(content, index);
+      const close = parseClosingTag(content, index, endOffset, xml);
       if (!close) {
         index = pushTextNodes(content, current.children, index, index + 2);
         continue;
       }
-      closeElement(stack, close.identifier, content, close.end);
+      closeElement(stack, close.identifier, content, close.end, diagnostics);
       index = close.end;
       continue;
     }
 
     if (content[index] === "<") {
-      const open = parseElementNode(content, index);
+      const open = parseElementNode(content, index, endOffset, commentRanges, diagnostics, xml);
       if (!open) {
         index = pushTextNodes(content, current.children, index, index + 1);
         continue;
@@ -413,10 +478,11 @@ function parseDocument(content: string, commentRanges: Array<{ start: number; en
 
       current.children.push(open.node);
       index = open.end;
-      if (!open.node.selfClosing) {
+      if (!open.node.selfClosing && !open.node.incomplete) {
         stack.push({
           node: open.node,
           startOffset: index - open.raw.length,
+          startTagEnd: open.end,
           identifier: open.identifier
         });
       }
@@ -424,17 +490,17 @@ function parseDocument(content: string, commentRanges: Array<{ start: number; en
     }
 
     if (content.startsWith("${", index) || content.startsWith("#{", index)) {
-      const end = findElExpressionEnd(content, index);
-      current.children.push(createElExpressionNode(content, index, end));
+      const end = findElExpressionEnd(content, index, endOffset);
+      current.children.push(createElExpressionNode(content, index, end, diagnostics));
       index = end;
       continue;
     }
 
-    const next = findNextSpecialIndex(content, index);
+    const next = Math.min(endOffset, findNextSpecialIndex(content, index, attributeValue));
     index = pushTextNodes(content, current.children, index, next);
   }
 
-  closeElement(stack, undefined, content, content.length);
+  closeElement(stack, undefined, content, endOffset, diagnostics);
   return root;
 }
 
@@ -487,13 +553,28 @@ function splitTextNodes(content: string, startOffset: number, endOffset: number)
   return nodes.filter((node) => !(node.kind === "Text" && node.raw.length === 0));
 }
 
-function createElExpressionNode(content: string, startOffset: number, endOffset: number): JspElExpressionNode {
+function createElExpressionNode(
+  content: string,
+  startOffset: number,
+  endOffset: number,
+  diagnostics?: JspParserDiagnostic[]
+): JspElExpressionNode {
   const raw = content.slice(startOffset, endOffset);
+  const ast = parseEl(raw);
+  const incomplete = !raw.endsWith("}");
+  if (incomplete || ast.kind === "RawExpression" || ast.kind === "UnknownExpression") {
+    diagnostics?.push({
+      code: incomplete ? "incomplete-el" : "unsupported-el",
+      message: incomplete ? "EL expression is not closed" : "EL expression could not be structured",
+      lineRange: toLineRange(content, startOffset, endOffset)
+    });
+  }
   return {
     kind: "ElExpression",
     raw,
     expression: raw,
-    ast: parseEl(raw),
+    ast,
+    ...(incomplete ? { incomplete: true } : {}),
     lineRange: toLineRange(content, startOffset, endOffset)
   };
 }
@@ -568,37 +649,55 @@ function parseScriptletNode(
   };
 }
 
-function parseClosingTag(content: string, startOffset: number): { identifier: string; end: number } | undefined {
-  const end = findTagBoundary(content, startOffset);
+function parseClosingTag(content: string, startOffset: number, limit: number, xml: boolean): { identifier: string; end: number } | undefined {
+  const end = findTagBoundary(content, startOffset, limit);
   const raw = content.slice(startOffset, end);
   const match = raw.match(/^<\/\s*([A-Za-z0-9:_-]+)[^>]*>$/);
   if (!match?.[1]) {
     return undefined;
   }
   return {
-    identifier: match[1],
+    identifier: xml || match[1].includes(":") ? match[1] : match[1].toLowerCase(),
     end
   };
 }
 
 function parseElementNode(
   content: string,
-  startOffset: number
+  startOffset: number,
+  limit: number,
+  commentRanges: Array<{ start: number; end: number }>,
+  diagnostics: JspParserDiagnostic[],
+  xml: boolean
 ): { node: JspHtmlElementNode | JspCustomTagElementNode; identifier: string; raw: string; end: number } | undefined {
   if (content.startsWith("<!--", startOffset) || content.startsWith("<!DOCTYPE", startOffset)) {
     return undefined;
   }
 
-  const end = findTagBoundary(content, startOffset);
+  const end = findTagBoundary(content, startOffset, limit);
   const raw = content.slice(startOffset, end);
-  const match = raw.match(/^<\s*([A-Za-z0-9:_-]+)([\s\S]*?)(\/?)>$/);
+  const match = raw.match(/^<\s*([A-Za-z0-9:_-]+)/);
   if (!match?.[1]) {
     return undefined;
   }
 
   const identifier = match[1];
-  const attributes = extractLooseAttributes(match[2] ?? "");
-  const selfClosing = Boolean(match[3]) || raw.endsWith("/>");
+  const complete = raw.endsWith(">");
+  const attributesStart = startOffset + match[0].length;
+  const attributesEnd = complete ? end - (raw.endsWith("/>") ? 2 : 1) : end;
+  const parsedAttributes = parseElementAttributes(
+    content, attributesStart, attributesEnd, commentRanges, diagnostics, xml
+  );
+  const attributes = parsedAttributes.attributes;
+  const selfClosing = raw.endsWith("/>") || (!xml && !identifier.includes(":") && HTML_VOID_ELEMENTS.has(identifier.toLowerCase()));
+  const incomplete = !complete || parsedAttributes.incomplete;
+  if (incomplete) {
+    diagnostics.push({
+      code: "incomplete-tag",
+      message: `Element ${identifier} has an incomplete start tag`,
+      lineRange: toLineRange(content, startOffset, end)
+    });
+  }
   const lineRange = toLineRange(content, startOffset, end);
 
   if (identifier.includes(":")) {
@@ -613,15 +712,17 @@ function parseElementNode(
         prefix,
         name,
         attributes,
+        attributeNodes: parsedAttributes.nodes,
         children: [],
         selfClosing,
+        ...(incomplete ? { incomplete: true } : {}),
         lineRange
       }
     };
   }
 
   return {
-    identifier,
+    identifier: xml ? identifier : identifier.toLowerCase(),
     raw,
     end,
     node: {
@@ -629,8 +730,10 @@ function parseElementNode(
       raw,
       tagName: identifier,
       attributes,
+      attributeNodes: parsedAttributes.nodes,
       children: [],
       selfClosing,
+      ...(incomplete ? { incomplete: true } : {}),
       lineRange
     }
   };
@@ -640,7 +743,8 @@ function closeElement(
   stack: StackEntry[],
   identifier: string | undefined,
   content: string,
-  endOffset: number
+  endOffset: number,
+  diagnostics: JspParserDiagnostic[]
 ): void {
   if (stack.length === 0) {
     return;
@@ -653,6 +757,7 @@ function closeElement(
         break;
       }
       finalizeContainerNode(entry.node, content, entry.startOffset, endOffset);
+      markUnclosed(entry, content, diagnostics);
     }
     return;
   }
@@ -669,10 +774,25 @@ function closeElement(
       break;
     }
     finalizeContainerNode(entry.node, content, entry.startOffset, endOffset);
+    if (entry.identifier !== identifier) {
+      markUnclosed(entry, content, diagnostics);
+    }
     if (entry.identifier === identifier) {
       break;
     }
   }
+}
+
+function markUnclosed(entry: StackEntry, content: string, diagnostics: JspParserDiagnostic[]): void {
+  if (entry.node.kind === "HtmlElement" && HTML_OPTIONAL_END_ELEMENTS.has(entry.node.tagName.toLowerCase())) {
+    return;
+  }
+  entry.node.incomplete = true;
+  diagnostics.push({
+    code: "unclosed-element",
+    message: `Element ${entry.identifier} has no matching end tag`,
+    lineRange: toLineRange(content, entry.startOffset, entry.startTagEnd)
+  });
 }
 
 function finalizeContainerNode(
@@ -759,13 +879,114 @@ function extractLooseAttributes(source: string): Record<string, string> {
   return attributes;
 }
 
-function findTagBoundary(content: string, startOffset: number): number {
+function parseElementAttributes(
+  content: string,
+  start: number,
+  end: number,
+  commentRanges: Array<{ start: number; end: number }>,
+  diagnostics: JspParserDiagnostic[],
+  xml: boolean
+): { attributes: Record<string, string>; nodes: JspAttributeNode[]; incomplete: boolean } {
+  const attributes: Record<string, string> = {};
+  const nodes: JspAttributeNode[] = [];
+  let index = start;
+  let incomplete = false;
+  while (index < end) {
+    while (index < end && /\s/.test(content[index])) index += 1;
+    if (index >= end) break;
+    const nodeStart = index;
+    if (content.startsWith("${", index) || content.startsWith("#{", index)) {
+      const expressionEnd = findElExpressionEnd(content, index, end);
+      const expression = createElExpressionNode(content, index, expressionEnd, diagnostics);
+      nodes.push({
+        kind: "Attribute",
+        raw: expression.raw,
+        lineRange: expression.lineRange,
+        children: [expression],
+        ...(expression.incomplete ? { incomplete: true } : {})
+      });
+      incomplete ||= Boolean(expression.incomplete);
+      index = expressionEnd;
+      continue;
+    }
+
+    while (index < end && /[^\s=/>]/.test(content[index])) index += 1;
+    const name = content.slice(nodeStart, index);
+    if (!name) {
+      index += 1;
+      continue;
+    }
+    while (index < end && /\s/.test(content[index])) index += 1;
+    if (content[index] !== "=" || index >= end) {
+      attributes[name] = "true";
+      nodes.push({
+        kind: "Attribute", name, raw: content.slice(nodeStart, index),
+        value: "true", lineRange: toLineRange(content, nodeStart, index), children: []
+      });
+      continue;
+    }
+    index += 1;
+    while (index < end && /\s/.test(content[index])) index += 1;
+    const quote = content[index];
+    const quoted = quote === "'" || quote === '"';
+    if (quoted) index += 1;
+    const valueStart = index;
+    while (index < end) {
+      if (content.startsWith("<%", index)) {
+        index = Math.min(end, findSequenceEnd(content, index, "%>"));
+        continue;
+      }
+      if (content.startsWith("${", index) || content.startsWith("#{", index)) {
+        index = findElExpressionEnd(content, index, end, quoted ? quote : undefined);
+        continue;
+      }
+      if (content[index] === "<" && /^<\s*[\w-]+:/.test(content.slice(index))) {
+        index = findTagBoundary(content, index, end);
+        continue;
+      }
+      if (quoted && content[index] === "\\") {
+        index = Math.min(end, index + 2);
+        continue;
+      }
+      if (quoted ? content[index] === quote : /\s/.test(content[index])) break;
+      index += 1;
+    }
+    const valueEnd = index;
+    const closed = !quoted || content[index] === quote;
+    if (quoted && closed) index += 1;
+    const value = content.slice(valueStart, valueEnd);
+    attributes[name] = value;
+    const children = parseDocument(content, commentRanges, diagnostics, xml, valueStart, valueEnd, true).children;
+    const valueIncomplete = !closed || children.some((node) => "incomplete" in node && node.incomplete);
+    nodes.push({
+      kind: "Attribute", name, value, raw: content.slice(nodeStart, index),
+      lineRange: toLineRange(content, nodeStart, index), children,
+      ...(valueIncomplete ? { incomplete: true } : {})
+    });
+    incomplete ||= valueIncomplete;
+  }
+  return { attributes, nodes, incomplete };
+}
+
+function findTagBoundary(content: string, startOffset: number, limit = content.length): number {
   let index = startOffset + 1;
   let quote: string | undefined;
 
-  while (index < content.length) {
+  while (index < limit) {
     const char = content[index];
+    if (content.startsWith("<%", index)) {
+      index = Math.min(limit, findSequenceEnd(content, index, "%>"));
+      continue;
+    }
+    if (content.startsWith("${", index) || content.startsWith("#{", index)) {
+      index = findElExpressionEnd(content, index, limit, quote);
+      continue;
+    }
     if (quote) {
+      if (char === "<" && /^<\s*[\w-]+:/.test(content.slice(index))) {
+        index = findTagBoundary(content, index, limit);
+        continue;
+      }
       if (char === "\\") {
         index += 2;
         continue;
@@ -775,6 +996,9 @@ function findTagBoundary(content: string, startOffset: number): number {
       }
       index += 1;
       continue;
+    }
+    if (char === "<") {
+      return index;
     }
 
     if (char === "\"" || char === "'") {
@@ -790,7 +1014,8 @@ function findTagBoundary(content: string, startOffset: number): number {
     index += 1;
   }
 
-  return content.length;
+  // A broken quoted start tag must not consume later sibling elements.
+  return findRecoveryMarkup(content, startOffset + 1, limit) ?? limit;
 }
 
 function findSequenceEnd(content: string, startOffset: number, terminator: string): number {
@@ -798,9 +1023,12 @@ function findSequenceEnd(content: string, startOffset: number, terminator: strin
   return index < 0 ? content.length : index + terminator.length;
 }
 
-function findNextSpecialIndex(content: string, startOffset: number): number {
+function findNextSpecialIndex(content: string, startOffset: number, attributeValue = false): number {
+  const jspMarkup = /<(?:%|\/?[\w-]+:)/g;
+  jspMarkup.lastIndex = startOffset;
+  const markup = attributeValue ? jspMarkup.exec(content)?.index ?? -1 : content.indexOf("<", startOffset);
   const candidates = [
-    content.indexOf("<", startOffset),
+    markup,
     content.indexOf("${", startOffset),
     content.indexOf("#{", startOffset)
   ].filter((value) => value >= 0);
@@ -814,11 +1042,12 @@ function findNextElStart(content: string, startOffset: number, endOffset: number
   return matches.length > 0 ? Math.min(...matches) : -1;
 }
 
-function findElExpressionEnd(content: string, startOffset: number): number {
+function findElExpressionEnd(content: string, startOffset: number, limit = content.length, attributeQuote?: string): number {
   let index = startOffset + 2;
   let quote: string | undefined;
+  let depth = 1;
 
-  while (index < content.length) {
+  while (index < limit) {
     const char = content[index];
     if (quote) {
       if (char === "\\") {
@@ -838,14 +1067,31 @@ function findElExpressionEnd(content: string, startOffset: number): number {
       continue;
     }
 
-    if (char === "}") {
-      return index + 1;
-    }
+    if (char === "{") depth += 1;
+    if (char === "}" && --depth === 0) return index + 1;
 
     index += 1;
   }
 
-  return content.length;
+  const recovery = findRecoveryMarkup(content, startOffset + 2, limit) ?? limit;
+  if (attributeQuote) {
+    for (let candidate = content.indexOf(attributeQuote, startOffset + 2); candidate >= 0 && candidate < recovery;
+      candidate = content.indexOf(attributeQuote, candidate + 1)) {
+      if (content[candidate - 1] !== "\\" && (candidate + 1 === limit || /^\s*(?:\/?>|[\w:-]+\s*=)/.test(content.slice(candidate + 1, limit)))) {
+        return candidate;
+      }
+    }
+  }
+  return recovery;
+}
+
+function findRecoveryMarkup(content: string, start: number, limit: number): number | undefined {
+  const markup = /<\/?[A-Za-z][\w:.-]*(?=[\s/>])/g;
+  markup.lastIndex = start;
+  const match = markup.exec(content);
+  if (!match || match.index >= limit) return undefined;
+  const preceding = content.slice(start, match.index).match(/\r?\n[\t ]*$/);
+  return preceding ? match.index - preceding[0].length : match.index;
 }
 
 function normalizePath(target: string): string {

@@ -9,6 +9,7 @@ export type LabelerClassRecord = {
   file: string;
   extendsTypes?: string[];
   implementsTypes?: string[];
+  registeredServlet?: boolean;
 };
 
 export type LabelerMethodRecord = {
@@ -80,7 +81,7 @@ export function labelClass(entry: LabelerClassRecord): ClassLabel[] {
   if (name.endsWith("dao")) {
     labels.add("DAO");
   }
-  if (name.endsWith("controller") || name.endsWith("action")) {
+  if (entry.registeredServlet || name.endsWith("controller") || name.endsWith("action")) {
     labels.add("CONTROLLER");
   }
   if (name.endsWith("util") || name.endsWith("utils")) {
@@ -134,6 +135,7 @@ export function labelJsp(entry: LabelerJspRecord): JspLabel[] {
   const labels = new Set<JspLabel>();
 
   if (
+    /\.(?:jspf|tagx?)$/.test(normalized) ||
     normalized.includes("/fragment/") ||
     normalized.includes("/include/") ||
     path.basename(normalized).startsWith("_")

@@ -1,6 +1,7 @@
 import { JspCustomTagElementNode, JspDeclarationNode, JspDocumentNode, JspDocumentRoot, JspExpressionNode, JspHtmlElementNode, JspIncludeDirectiveNode, JspScriptletNode, parseEl } from "@leflect-java/parser-jsp";
 import {
   ElAstNode,
+  JspAttributeSemanticNode,
   JspCustomTagNode,
   JspIfStatementNode,
   JspLoopNode,
@@ -57,6 +58,12 @@ export async function buildJspSemanticAsts(
     const diagnostics: JspSemanticDiagnostic[] = [];
     const fileMetadata = metadataByFile.get(doc.path);
     const document = doc.document ?? createEmptyDocument();
+    if ("diagnostics" in document && Array.isArray(document.diagnostics)) {
+      diagnostics.push(...document.diagnostics.map((diagnostic) => ({
+        ...diagnostic,
+        severity: "warning" as const
+      })));
+    }
     if (!doc.document) {
       diagnostics.push({
         severity: "warning",
@@ -163,7 +170,9 @@ async function transformNode(
         raw: node.raw,
         expression: node.expression,
         ast: node.ast,
-        lineRange: node.lineRange
+        lineRange: node.lineRange,
+        incomplete: "incomplete" in node ? Boolean(node.incomplete) : undefined,
+        functionCalls: ctx.doc.functionCalls?.filter((call) => isLocationInside(call.location, node.lineRange))
       }];
     case "HtmlElement":
       return [{
@@ -171,11 +180,23 @@ async function transformNode(
         raw: node.raw,
         tagName: node.tagName,
         attributes: node.attributes,
+        attributeNodes: await transformAttributes(node.attributeNodes, ctx),
+        incomplete: node.incomplete,
         lineRange: node.lineRange,
         children: await transformChildren(node.children, ctx)
       }];
     case "IncludeDirective":
-      return [buildIncludeNode(node)];
+      return [buildIncludeNode(node, ctx)];
+    case "Attribute":
+      return [{
+        kind: "AttributeNode",
+        name: node.name,
+        value: node.value,
+        raw: node.raw,
+        lineRange: node.lineRange,
+        incomplete: node.incomplete,
+        children: await transformChildren(node.children, ctx)
+      }];
     case "Scriptlet":
     case "Expression":
     case "Declaration":
@@ -189,17 +210,36 @@ async function transformNode(
   }
 }
 
+async function transformAttributes(
+  attributes: Array<{ name?: string; value?: string; raw: string; lineRange: LineRange; children: JspDocumentNode[]; incomplete?: boolean }> | undefined,
+  ctx: TransformContext
+): Promise<JspAttributeSemanticNode[]> {
+  return Promise.all((attributes ?? []).map(async (attribute) => ({
+    kind: "AttributeNode" as const,
+    raw: attribute.raw,
+    name: attribute.name,
+    value: attribute.value,
+    lineRange: attribute.lineRange,
+    incomplete: attribute.incomplete,
+    children: await transformChildren(attribute.children, ctx)
+  })));
+}
+
 async function resolveCustomTagNode(
   node: JspCustomTagElementNode,
   ctx: TransformContext
 ): Promise<JspSemanticNode[]> {
   const children = await transformChildren(node.children, ctx);
+  const attributeNodes = await transformAttributes(node.attributeNodes, ctx);
   const resolved = resolveTagMetadata(node, ctx.doc, ctx.registryByUri);
   const tag: JspResolverTagNode = {
     prefix: node.prefix,
     name: node.name,
     uri: resolved.uri,
     handlerClass: resolved.handlerClass,
+    tagFile: resolved.tagFile,
+    declarationPath: resolved.declarationPath,
+    unresolvedReason: resolved.unresolvedReason,
     raw: node.raw,
     attributes: node.attributes,
     attributeExpressions: Object.fromEntries(
@@ -207,8 +247,28 @@ async function resolveCustomTagNode(
     ),
     lineRange: node.lineRange,
     bodyText: collectBodyText(children),
-    children
+    children,
+    attributeNodes
   };
+
+  if (node.prefix === "jsp" && ["include", "param", "useBean"].includes(node.name)) {
+    return [{
+      kind: "StandardActionNode",
+      action: node.name as "include" | "param" | "useBean",
+      raw: node.raw,
+      attributes: node.attributes,
+      incomplete: node.incomplete,
+      attributeNodes,
+      lineRange: node.lineRange,
+      include: node.name === "include" ? ctx.doc.includeReferences?.find((entry) =>
+        entry.location.line === node.lineRange.startLine && entry.location.column === node.lineRange.startColumn
+      ) : undefined,
+      bean: node.name === "useBean" ? ctx.doc.beanActions?.find((entry) =>
+        entry.lineRange.startLine === node.lineRange.startLine && entry.lineRange.startColumn === node.lineRange.startColumn
+      ) : undefined,
+      children
+    }];
+  }
 
   const resolver = resolveUserTagResolver(ctx.taglibResolvers, tag);
   if (resolver) {
@@ -248,7 +308,12 @@ async function resolveCustomTagNode(
     sourceTag: tag,
     uri: resolved.uri,
     handlerClass: resolved.handlerClass,
+    tagFile: resolved.tagFile,
+    declarationPath: resolved.declarationPath,
+    unresolvedReason: resolved.unresolvedReason,
     attributes: node.attributes,
+    incomplete: node.incomplete,
+    attributeNodes,
     children
   }];
 }
@@ -337,11 +402,12 @@ function normalizeSemanticResolverResult(
   tag: JspResolverTagNode
 ): JspSemanticNode[] {
   const entries = Array.isArray(result) ? result : [result];
-  return entries.map((entry) => ({
+  return entries.map((entry, index) => ({
     ...entry,
     children: entry.children ?? children,
     raw: entry.raw ?? tag.raw,
-    lineRange: entry.lineRange ?? tag.lineRange
+    lineRange: entry.lineRange ?? tag.lineRange,
+    attributeNodes: entry.attributeNodes ?? (index === 0 ? tag.attributeNodes : undefined)
   }));
 }
 
@@ -395,12 +461,14 @@ function summarizeScriptlet(
   return { classReferences, methodCalls };
 }
 
-function buildIncludeNode(node: JspIncludeDirectiveNode): JspSemanticNode {
+function buildIncludeNode(node: JspIncludeDirectiveNode, ctx: TransformContext): JspSemanticNode {
   return {
     kind: "IncludeReference",
     raw: node.raw,
     lineRange: node.lineRange,
-    target: node.target ?? ""
+    target: node.target ?? "",
+    reference: ctx.doc.includeReferences?.find((entry) => entry.mode === "directive" &&
+      entry.location.line === node.lineRange.startLine && entry.location.column === node.lineRange.startColumn)
   };
 }
 
@@ -408,14 +476,17 @@ function resolveTagMetadata(
   node: JspCustomTagElementNode,
   doc: JspDocIndexEntry,
   registryByUri: Map<string, TldRegistryEntry>
-): { uri?: string; handlerClass?: string; tld?: TldRegistryEntry } {
+): { uri?: string; handlerClass?: string; tagFile?: string; declarationPath?: string; unresolvedReason?: string; tld?: TldRegistryEntry } {
   const resolved = doc.resolvedTags?.find((entry) => entry.prefix === node.prefix && entry.name === node.name);
   const explicitUri = doc.taglibs.find((taglib) => taglib.prefix === node.prefix)?.uri;
   const uri = resolved?.uri ?? explicitUri ?? inferStandardUri(node.prefix);
   const tld = uri ? registryByUri.get(uri) : undefined;
   const handlerClass = resolved?.handlerClass ?? tld?.tags.find((tag) => tag.name === node.name)?.handlerClass;
 
-  return { uri, handlerClass, tld };
+  return {
+    uri, handlerClass, tld, tagFile: resolved?.tagFile, unresolvedReason: resolved?.unresolvedReason,
+    declarationPath: tld?.sourcePath
+  };
 }
 
 function resolveUserTagResolver(
@@ -468,6 +539,9 @@ function summarizeSemanticAst(
     }
     for (const child of node.children ?? []) {
       visit(child);
+    }
+    if ("attributeNodes" in node) {
+      for (const attribute of node.attributeNodes ?? []) visit(attribute);
     }
   };
 

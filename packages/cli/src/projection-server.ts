@@ -50,7 +50,8 @@ export async function runProjectionServer(options: {
           counts: {
             totalFiles: snapshot.files.length,
             javaFiles: snapshot.files.filter((entry) => entry.nodeType === "java").length,
-            jspFiles: snapshot.files.filter((entry) => entry.nodeType === "jsp").length,
+            jspFiles: snapshot.files.filter((entry) => entry.nodeType === "jsp" && (!entry.sourceKind || entry.sourceKind === "jsp")).length,
+            jspFragments: snapshot.files.filter((entry) => entry.nodeType === "jsp" && entry.sourceKind && entry.sourceKind !== "jsp").length,
             entries: snapshot.entries.length,
             edges: snapshot.edgeCount,
             classes: snapshot.summary.counts.classes,
