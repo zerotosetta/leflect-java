@@ -1,0 +1,2223 @@
+{
+  "sourceCommit": "6ffaab8c23bd7f88abbeda4654580acccf697043",
+  "analysisRun": "20261104-164240",
+  "sourceProject": "legacy-bank-java8",
+  "snapshot": {
+    "files": 84,
+    "hashFailures": 0,
+    "fileHashes": [
+      {
+        "file": ".editorconfig",
+        "sha1": "sha1:6af1e5a3f9abfd35b3b06c2f8e2dcf4c1d341026",
+        "passed": true
+      },
+      {
+        "file": "db/01_business.sql",
+        "sha1": "sha1:4f6bbc0f42f1c39ff2c5b53f42dbb30521f2bcbf",
+        "passed": true
+      },
+      {
+        "file": "db/02_metadata.sql",
+        "sha1": "sha1:099a22e6bb7581f0237abeb01043be0432e71325",
+        "passed": true
+      },
+      {
+        "file": "db/03_expand_business.sql",
+        "sha1": "sha1:971ffb900764e5c904e51b5bf29c129d5ec36f79",
+        "passed": true
+      },
+      {
+        "file": "db/04_expand_metadata.sql",
+        "sha1": "sha1:c6a67ab469d82844a58870c2152046b6a8d42f97",
+        "passed": true
+      },
+      {
+        "file": "dependencies.json",
+        "sha1": "sha1:d7d94cbcb2974fd2f7e4b6559e7ef43d72a2e74e",
+        "passed": true
+      },
+      {
+        "file": "pom.xml",
+        "sha1": "sha1:a94107ad72d8823aee94cf8e0dfcc6cd635ef837",
+        "passed": true
+      },
+      {
+        "file": "README.md",
+        "sha1": "sha1:74bdcb1f9cdb3af473f3567a3f9ff5227eefdcc2",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/BankException.java",
+        "sha1": "sha1:d7e03f3484b01b57c0e47dbfef9e0ea38ad54070",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/BankServlet.java",
+        "sha1": "sha1:98002c9304b904dd37422a21ad2433f8d62faba2",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/BTConnector.java",
+        "sha1": "sha1:0988a3f30ac7a0d72f057690b8b9271333c36217",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/BTConnectorFactory.java",
+        "sha1": "sha1:babcf03a4182d9d43488dc82b53db8928e0b022d",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/CalleeExecutor.java",
+        "sha1": "sha1:a71fa2c86551c86f9ccf6799f1ca3434b745cfb9",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/callees/DepositClose.java",
+        "sha1": "sha1:71d70cf177fa01fe2b9526f20f34cbaca35802df",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/callees/DepositLedger.java",
+        "sha1": "sha1:9ea99452f6d172e08a421109e6c39a15018e3cc0",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/callees/DepositOpen.java",
+        "sha1": "sha1:f951c0327ffb8e1ac77662b0ac39d6704213a767",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/callees/TransferLedger.java",
+        "sha1": "sha1:dbd8949fce815fb1c04798974e5f09b98ee7525e",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/callees/TransferPolicy.java",
+        "sha1": "sha1:70dfdc84d93b438bd40f9d4420e74c582567157d",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/Cms.java",
+        "sha1": "sha1:cd472af62f4261ae56051635869fb037ed0621a3",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/Db.java",
+        "sha1": "sha1:f83fcb370efd9d9c629af23839f930ae49969bf3",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/EimsGateway.java",
+        "sha1": "sha1:b5736d3db6f11655f0e0b38558f55d3d1bb14215",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/HealthServlet.java",
+        "sha1": "sha1:6bc3cfbf5aeec8cc6aee87d5dc1e559246aed86f",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/Ledger.java",
+        "sha1": "sha1:c5f79564da7ad490fe6552e3fe0134d602b788c3",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/Operations.java",
+        "sha1": "sha1:adab2ccaf938e74c96d0f1f87920a29fd90e22d2",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/QueryEngine.java",
+        "sha1": "sha1:5e1e469190d0608205432804e8b0bd95b88f6f54",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/ServiceLocator.java",
+        "sha1": "sha1:dddb646b1f9561d49a9f9f6f079945ac022fb419",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/AccountListService.java",
+        "sha1": "sha1:f402b4efb1b9ffe1a2821e37c2c40cda9687e11a",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/BeneficiaryDeleteService.java",
+        "sha1": "sha1:9048dfa5b3c8ec66b04284e0a1c46f2c68a479d8",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/BeneficiaryService.java",
+        "sha1": "sha1:8de450049e82153352c8b4c57cc8c87d19dfc309",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/ChainService.java",
+        "sha1": "sha1:7a88f2bc4dac9167134cb1960a9d7b6ea1ea2157",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/DashboardService.java",
+        "sha1": "sha1:3320be3d4bf1d42948ae7f3d6804a30fc20540bd",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/DirectProductService.java",
+        "sha1": "sha1:f700875bb56f465d847d7e53470fa9a3a7430eb0",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/HistoryService.java",
+        "sha1": "sha1:04c84d288d809e45161f055f81c8b5edd521eb9e",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/LedgerService.java",
+        "sha1": "sha1:43ee1343e9e32e2095187dcbd489f818f0b1b895",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/LimitService.java",
+        "sha1": "sha1:167182918f458fe189cd8d00cd13fe033e3d2138",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/LoginService.java",
+        "sha1": "sha1:2beb9acde3df80514e01d0ecc7aa580249506bf7",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/NoticeService.java",
+        "sha1": "sha1:2fd4e23ef8834c47787bf455b32dfaf65141363a",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/QueryService.java",
+        "sha1": "sha1:b8d4724f730d2dd8304cf8930e6cdd4e8a663097",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/ReceiptService.java",
+        "sha1": "sha1:9a8fb21ad6538192af5ce051666d0ad96bcbeccc",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/TransferService.java",
+        "sha1": "sha1:57f342172be13690738550e590c7afb5e140cab5",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/tags/FieldTag.java",
+        "sha1": "sha1:f7f867f03740c9da8b02a249c6371afdc0649c9f",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/tags/QuoteTag.java",
+        "sha1": "sha1:ca4121678c028f164f6f657394e166b86bdb62b8",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/tags/RejectTag.java",
+        "sha1": "sha1:0456f9cc3dfb75d44a135aa63709d92ab512a90d",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/tags/TaskTag.java",
+        "sha1": "sha1:55662ca39a08aeef99f766e03ce4c27a2bb8bc20",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/tags/TokenTag.java",
+        "sha1": "sha1:d1b9fc38adc77b4a70a4f8e4e5900a5cd1a5b82e",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/tags/TransferDraftTag.java",
+        "sha1": "sha1:fa83be5b46c89f85c6cac94a0030e8e20e2480e9",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/TaskHandler.java",
+        "sha1": "sha1:158f9e0cf30ac90cbbdc9f16d6e793df3a16017e",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/TransferDraft.java",
+        "sha1": "sha1:3e78f9c64c01fbcafe31c33bf960a76730716b04",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/WBFRecord.java",
+        "sha1": "sha1:3892352349fb0284ec5cc331c95fe957cc3e6512",
+        "passed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/Web.java",
+        "sha1": "sha1:090272caec48f24f034b3798d25e9f9540c7b0f3",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/assets/bank.css",
+        "sha1": "sha1:0eebc4ab0021f276aa4ac04fd8f30db95216fbf2",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/assets/expanded.css",
+        "sha1": "sha1:10a769606d9024c7a885f10330a64fd0f19012bd",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/index.jsp",
+        "sha1": "sha1:8436b0cd988981b6c369a56ac3b16b0ceb3591c8",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/META-INF/context.xml",
+        "sha1": "sha1:b808676c65506ca73f818858206f7a2e1fecf519",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/accounts.jsp",
+        "sha1": "sha1:3d3cd8fae3e39459937d1ea3160da768386df76a",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/beneficiaries.jsp",
+        "sha1": "sha1:d1413ea1674d99e667ff0db9c8d44c4679aefd9b",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/dashboard.jsp",
+        "sha1": "sha1:5359ea16f3770264ffa3e6647c74179e6d991372",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+        "sha1": "sha1:f7e1222b5670c72b41611af23cba1fb02f3abdbf",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/history.jsp",
+        "sha1": "sha1:dacb8910a96adf2aa8919fe72740d669274039db",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+        "sha1": "sha1:f56d4e736be42ad055ece32c3213501b00f4ddc7",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/limits.jsp",
+        "sha1": "sha1:873cd6c213c46622c052a857a1ac3067c5860d20",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/login.jsp",
+        "sha1": "sha1:5a2e58fa8c9325ebf32e6eeddacc4e06719916ab",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/products.jsp",
+        "sha1": "sha1:e71e628f06377224bf892e4e1971ece77b902769",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/receipt.jsp",
+        "sha1": "sha1:f9c9c06ede65aac20eb6b6a932c7d998c46f4088",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/transfer-confirm.jsp",
+        "sha1": "sha1:afd524b21bec2c5e6e16b026d1cf93103244f1ae",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/transfer-input.jsp",
+        "sha1": "sha1:dfbab40bc0f837bea46fa7b515cdb28e9a1cb5fc",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/transfer-result.jsp",
+        "sha1": "sha1:e259569dd93439a6f9097f034e786686969f83ce",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/common/area.jsp",
+        "sha1": "sha1:9ed3f2e6fcd3ea46bec8c30fdc8855032c3fdac3",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/common/banner.jsp",
+        "sha1": "sha1:e66d4fa7435fddf70a2289deabd2117205b0ccab",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/common/footer.jsp",
+        "sha1": "sha1:efca26c6a8ea17027240256d81cbbc5ab2ad8e37",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/common/header.jsp",
+        "sha1": "sha1:8e5e88f7db7d9d73781be9603380f46c1278c0f0",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/common/help.jsp",
+        "sha1": "sha1:b8ccfa7cf13c4824026f9044d90378e00abd6226",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/common/taglibs.jspf",
+        "sha1": "sha1:3ebe13d0fc24a0841524ba4ca995f8e922ac4097",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/common/transfer-banner.jsp",
+        "sha1": "sha1:68cef0f541a72868cfb4d125942057a678d24266",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/layout.jsp",
+        "sha1": "sha1:c3f846c53614e633374dd6c40d068b060ad65e5f",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/tags/bank/amount.tag",
+        "sha1": "sha1:444cbcde904fb7205c2f40aedeec6d1429f98e19",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/tags/bank/csrf.tag",
+        "sha1": "sha1:71d2277a55c856496ead1f10e8490ff3471f9ce4",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/tags/bank/empty.tag",
+        "sha1": "sha1:c5ba5d9d0b53ee009111828e26b96177dc935903",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/tags/bank/status.tag",
+        "sha1": "sha1:460a9933ce84ce3e5ea537b20ff64cb01f7abd88",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/tags/bank/steps.tag",
+        "sha1": "sha1:af3d22c49943d23d9b59e04ff082318951ef15a5",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/tld/bank.tld",
+        "sha1": "sha1:dd52ff6dfb7473147cd427a26738a9a1b1c39ad3",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/tld/wfw.tld",
+        "sha1": "sha1:5c30af2f77caea84615c4509cee10e73c3a619a6",
+        "passed": true
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/web.xml",
+        "sha1": "sha1:a1ace1ecc206237981969ec24bfc7e19d78639c4",
+        "passed": true
+      },
+      {
+        "file": "target/legacy-bank.war",
+        "sha1": "sha1:6bf2277fb132b3d420acf6c14ad06c89a3da17f7",
+        "passed": true
+      }
+    ]
+  },
+  "java": {
+    "methodology": "Fresh independent javac --release8 attribution of all42sources, errors0. Source-first+index-first exact-position matching for declarations/calls/import/new and declared type expressions; source static qualifier and annotation rows additionally checked beyond old regression fixtures. Source positions are one-based and inclusive. Method target comparison allows erased varargs normalization only.",
+    "summary": {
+      "sourceFiles": 42,
+      "classes": 43,
+      "methods": 108,
+      "fields": 37,
+      "calls": 646,
+      "newSites": 121,
+      "imports": 154,
+      "rawReferences": 954,
+      "uniqueDeclaredTypeUses": 799,
+      "staticQualifiers": 105,
+      "missingStaticQualifierDependencies": 6,
+      "annotationUses": 7,
+      "annotationUsesRecorded": 0,
+      "missingOrderedCallSteps": 25,
+      "synchronizedBlocks": 4,
+      "assignmentExpressions": 51,
+      "misclassifiedAssignmentSteps": 6,
+      "declarationFailures": 0,
+      "callFailures": 0,
+      "rawReferenceFailures": 0,
+      "sourceDeclaredTypeOmissions": 0
+    },
+    "files": [
+      {
+        "file": "src/main/java/demo/bank/BankException.java",
+        "sha1": "sha1:d7e03f3484b01b57c0e47dbfef9e0ea38ad54070",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 2,
+          "calls": 1,
+          "new": 0,
+          "imports": 0,
+          "uniqueDeclaredTypeUses": 4,
+          "staticQualifiers": 0,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 2,
+          "calls": 1,
+          "classReferences": 4
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 1
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/BankServlet.java",
+        "sha1": "sha1:98002c9304b904dd37422a21ad2433f8d62faba2",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 1,
+          "calls": 50,
+          "new": 5,
+          "imports": 3,
+          "uniqueDeclaredTypeUses": 20,
+          "staticQualifiers": 10,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 1,
+          "calls": 50,
+          "classReferences": 23
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/BTConnector.java",
+        "sha1": "sha1:0988a3f30ac7a0d72f057690b8b9271333c36217",
+        "source": {
+          "classes": 1,
+          "methods": 2,
+          "fields": 1,
+          "calls": 57,
+          "new": 9,
+          "imports": 4,
+          "uniqueDeclaredTypeUses": 36,
+          "staticQualifiers": 8,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 2,
+          "fields": 1,
+          "calls": 57,
+          "classReferences": 40
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 2,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/BTConnectorFactory.java",
+        "sha1": "sha1:babcf03a4182d9d43488dc82b53db8928e0b022d",
+        "source": {
+          "classes": 1,
+          "methods": 3,
+          "fields": 1,
+          "calls": 1,
+          "new": 3,
+          "imports": 0,
+          "uniqueDeclaredTypeUses": 7,
+          "staticQualifiers": 0,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 3,
+          "fields": 1,
+          "calls": 1,
+          "classReferences": 7
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/CalleeExecutor.java",
+        "sha1": "sha1:a71fa2c86551c86f9ccf6799f1ca3434b745cfb9",
+        "source": {
+          "classes": 1,
+          "methods": 2,
+          "fields": 0,
+          "calls": 27,
+          "new": 9,
+          "imports": 3,
+          "uniqueDeclaredTypeUses": 34,
+          "staticQualifiers": 3,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 2,
+          "fields": 0,
+          "calls": 27,
+          "classReferences": 37
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/callees/DepositClose.java",
+        "sha1": "sha1:71d70cf177fa01fe2b9526f20f34cbaca35802df",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 14,
+          "new": 2,
+          "imports": 4,
+          "uniqueDeclaredTypeUses": 18,
+          "staticQualifiers": 2,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 14,
+          "classReferences": 22
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/callees/DepositLedger.java",
+        "sha1": "sha1:9ea99452f6d172e08a421109e6c39a15018e3cc0",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 7,
+          "new": 0,
+          "imports": 5,
+          "uniqueDeclaredTypeUses": 10,
+          "staticQualifiers": 1,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 7,
+          "classReferences": 15
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/callees/DepositOpen.java",
+        "sha1": "sha1:f951c0327ffb8e1ac77662b0ac39d6704213a767",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 25,
+          "new": 4,
+          "imports": 6,
+          "uniqueDeclaredTypeUses": 25,
+          "staticQualifiers": 4,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 25,
+          "classReferences": 31
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/callees/TransferLedger.java",
+        "sha1": "sha1:dbd8949fce815fb1c04798974e5f09b98ee7525e",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 5,
+          "new": 0,
+          "imports": 5,
+          "uniqueDeclaredTypeUses": 10,
+          "staticQualifiers": 1,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 5,
+          "classReferences": 15
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/callees/TransferPolicy.java",
+        "sha1": "sha1:70dfdc84d93b438bd40f9d4420e74c582567157d",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 23,
+          "new": 3,
+          "imports": 5,
+          "uniqueDeclaredTypeUses": 24,
+          "staticQualifiers": 5,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 23,
+          "classReferences": 29
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/Cms.java",
+        "sha1": "sha1:cd472af62f4261ae56051635869fb037ed0621a3",
+        "source": {
+          "classes": 2,
+          "methods": 10,
+          "fields": 6,
+          "calls": 69,
+          "new": 12,
+          "imports": 3,
+          "uniqueDeclaredTypeUses": 65,
+          "staticQualifiers": 1,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 2,
+          "methods": 10,
+          "fields": 6,
+          "calls": 69,
+          "classReferences": 68
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/Db.java",
+        "sha1": "sha1:f83fcb370efd9d9c629af23839f930ae49969bf3",
+        "source": {
+          "classes": 1,
+          "methods": 2,
+          "fields": 1,
+          "calls": 7,
+          "new": 3,
+          "imports": 5,
+          "uniqueDeclaredTypeUses": 8,
+          "staticQualifiers": 3,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 2,
+          "fields": 1,
+          "calls": 7,
+          "classReferences": 13
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/EimsGateway.java",
+        "sha1": "sha1:b5736d3db6f11655f0e0b38558f55d3d1bb14215",
+        "source": {
+          "classes": 1,
+          "methods": 2,
+          "fields": 0,
+          "calls": 20,
+          "new": 2,
+          "imports": 2,
+          "uniqueDeclaredTypeUses": 11,
+          "staticQualifiers": 2,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 2,
+          "fields": 0,
+          "calls": 20,
+          "classReferences": 13
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/HealthServlet.java",
+        "sha1": "sha1:6bc3cfbf5aeec8cc6aee87d5dc1e559246aed86f",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 1,
+          "calls": 29,
+          "new": 1,
+          "imports": 3,
+          "uniqueDeclaredTypeUses": 18,
+          "staticQualifiers": 3,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 1,
+          "calls": 29,
+          "classReferences": 21
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/Ledger.java",
+        "sha1": "sha1:c5f79564da7ad490fe6552e3fe0134d602b788c3",
+        "source": {
+          "classes": 1,
+          "methods": 4,
+          "fields": 0,
+          "calls": 18,
+          "new": 5,
+          "imports": 3,
+          "uniqueDeclaredTypeUses": 43,
+          "staticQualifiers": 4,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 4,
+          "fields": 0,
+          "calls": 18,
+          "classReferences": 46
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/Operations.java",
+        "sha1": "sha1:adab2ccaf938e74c96d0f1f87920a29fd90e22d2",
+        "source": {
+          "classes": 1,
+          "methods": 4,
+          "fields": 0,
+          "calls": 19,
+          "new": 2,
+          "imports": 2,
+          "uniqueDeclaredTypeUses": 30,
+          "staticQualifiers": 2,
+          "annotations": 1
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 4,
+          "fields": 0,
+          "calls": 19,
+          "classReferences": 32
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 14
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/QueryEngine.java",
+        "sha1": "sha1:5e1e469190d0608205432804e8b0bd95b88f6f54",
+        "source": {
+          "classes": 1,
+          "methods": 4,
+          "fields": 0,
+          "calls": 41,
+          "new": 9,
+          "imports": 2,
+          "uniqueDeclaredTypeUses": 55,
+          "staticQualifiers": 1,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 4,
+          "fields": 0,
+          "calls": 41,
+          "classReferences": 57
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 1,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/ServiceLocator.java",
+        "sha1": "sha1:dddb646b1f9561d49a9f9f6f079945ac022fb419",
+        "source": {
+          "classes": 1,
+          "methods": 2,
+          "fields": 0,
+          "calls": 7,
+          "new": 4,
+          "imports": 2,
+          "uniqueDeclaredTypeUses": 16,
+          "staticQualifiers": 0,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 2,
+          "fields": 0,
+          "calls": 7,
+          "classReferences": 18
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/AccountListService.java",
+        "sha1": "sha1:f402b4efb1b9ffe1a2821e37c2c40cda9687e11a",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 3,
+          "new": 1,
+          "imports": 4,
+          "uniqueDeclaredTypeUses": 10,
+          "staticQualifiers": 1,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 3,
+          "classReferences": 14
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/BeneficiaryDeleteService.java",
+        "sha1": "sha1:9048dfa5b3c8ec66b04284e0a1c46f2c68a479d8",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 2,
+          "new": 1,
+          "imports": 4,
+          "uniqueDeclaredTypeUses": 10,
+          "staticQualifiers": 1,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 2,
+          "classReferences": 14
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/BeneficiaryService.java",
+        "sha1": "sha1:8de450049e82153352c8b4c57cc8c87d19dfc309",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 19,
+          "new": 2,
+          "imports": 4,
+          "uniqueDeclaredTypeUses": 16,
+          "staticQualifiers": 5,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 19,
+          "classReferences": 20
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/ChainService.java",
+        "sha1": "sha1:7a88f2bc4dac9167134cb1960a9d7b6ea1ea2157",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 1,
+          "new": 0,
+          "imports": 4,
+          "uniqueDeclaredTypeUses": 9,
+          "staticQualifiers": 1,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 1,
+          "classReferences": 13
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/DashboardService.java",
+        "sha1": "sha1:3320be3d4bf1d42948ae7f3d6804a30fc20540bd",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 7,
+          "new": 0,
+          "imports": 4,
+          "uniqueDeclaredTypeUses": 16,
+          "staticQualifiers": 1,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 7,
+          "classReferences": 20
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/DirectProductService.java",
+        "sha1": "sha1:f700875bb56f465d847d7e53470fa9a3a7430eb0",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 19,
+          "new": 5,
+          "imports": 4,
+          "uniqueDeclaredTypeUses": 23,
+          "staticQualifiers": 4,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 19,
+          "classReferences": 27
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 1,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/HistoryService.java",
+        "sha1": "sha1:04c84d288d809e45161f055f81c8b5edd521eb9e",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 3,
+          "new": 1,
+          "imports": 4,
+          "uniqueDeclaredTypeUses": 10,
+          "staticQualifiers": 1,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 3,
+          "classReferences": 14
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/LedgerService.java",
+        "sha1": "sha1:43ee1343e9e32e2095187dcbd489f818f0b1b895",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 14,
+          "new": 3,
+          "imports": 6,
+          "uniqueDeclaredTypeUses": 18,
+          "staticQualifiers": 4,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 14,
+          "classReferences": 24
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/LimitService.java",
+        "sha1": "sha1:167182918f458fe189cd8d00cd13fe033e3d2138",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 13,
+          "new": 6,
+          "imports": 5,
+          "uniqueDeclaredTypeUses": 17,
+          "staticQualifiers": 3,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 13,
+          "classReferences": 22
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/LoginService.java",
+        "sha1": "sha1:2beb9acde3df80514e01d0ecc7aa580249506bf7",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 21,
+          "new": 2,
+          "imports": 4,
+          "uniqueDeclaredTypeUses": 15,
+          "staticQualifiers": 1,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 21,
+          "classReferences": 19
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/NoticeService.java",
+        "sha1": "sha1:2fd4e23ef8834c47787bf455b32dfaf65141363a",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 2,
+          "new": 1,
+          "imports": 4,
+          "uniqueDeclaredTypeUses": 9,
+          "staticQualifiers": 0,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 2,
+          "classReferences": 13
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/QueryService.java",
+        "sha1": "sha1:b8d4724f730d2dd8304cf8930e6cdd4e8a663097",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 3,
+          "new": 0,
+          "imports": 4,
+          "uniqueDeclaredTypeUses": 9,
+          "staticQualifiers": 1,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 3,
+          "classReferences": 13
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/ReceiptService.java",
+        "sha1": "sha1:9a8fb21ad6538192af5ce051666d0ad96bcbeccc",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 4,
+          "new": 2,
+          "imports": 4,
+          "uniqueDeclaredTypeUses": 15,
+          "staticQualifiers": 1,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 4,
+          "classReferences": 19
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/services/TransferService.java",
+        "sha1": "sha1:57f342172be13690738550e590c7afb5e140cab5",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 2,
+          "new": 0,
+          "imports": 5,
+          "uniqueDeclaredTypeUses": 9,
+          "staticQualifiers": 1,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 2,
+          "classReferences": 14
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/tags/FieldTag.java",
+        "sha1": "sha1:f7f867f03740c9da8b02a249c6371afdc0649c9f",
+        "source": {
+          "classes": 1,
+          "methods": 3,
+          "fields": 2,
+          "calls": 3,
+          "new": 1,
+          "imports": 2,
+          "uniqueDeclaredTypeUses": 9,
+          "staticQualifiers": 1,
+          "annotations": 1
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 3,
+          "fields": 2,
+          "calls": 3,
+          "classReferences": 12
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/tags/QuoteTag.java",
+        "sha1": "sha1:ca4121678c028f164f6f657394e166b86bdb62b8",
+        "source": {
+          "classes": 1,
+          "methods": 4,
+          "fields": 3,
+          "calls": 3,
+          "new": 2,
+          "imports": 4,
+          "uniqueDeclaredTypeUses": 12,
+          "staticQualifiers": 1,
+          "annotations": 1
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 4,
+          "fields": 3,
+          "calls": 3,
+          "classReferences": 16
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 1,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/tags/RejectTag.java",
+        "sha1": "sha1:0456f9cc3dfb75d44a135aa63709d92ab512a90d",
+        "source": {
+          "classes": 1,
+          "methods": 4,
+          "fields": 3,
+          "calls": 0,
+          "new": 1,
+          "imports": 2,
+          "uniqueDeclaredTypeUses": 6,
+          "staticQualifiers": 0,
+          "annotations": 1
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 4,
+          "fields": 3,
+          "calls": 0,
+          "classReferences": 8
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/tags/TaskTag.java",
+        "sha1": "sha1:55662ca39a08aeef99f766e03ce4c27a2bb8bc20",
+        "source": {
+          "classes": 1,
+          "methods": 6,
+          "fields": 4,
+          "calls": 14,
+          "new": 4,
+          "imports": 5,
+          "uniqueDeclaredTypeUses": 20,
+          "staticQualifiers": 4,
+          "annotations": 1
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 6,
+          "fields": 4,
+          "calls": 14,
+          "classReferences": 25
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/tags/TokenTag.java",
+        "sha1": "sha1:d1b9fc38adc77b4a70a4f8e4e5900a5cd1a5b82e",
+        "source": {
+          "classes": 1,
+          "methods": 4,
+          "fields": 3,
+          "calls": 11,
+          "new": 0,
+          "imports": 5,
+          "uniqueDeclaredTypeUses": 10,
+          "staticQualifiers": 5,
+          "annotations": 1
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 4,
+          "fields": 3,
+          "calls": 11,
+          "classReferences": 15
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/tags/TransferDraftTag.java",
+        "sha1": "sha1:fa83be5b46c89f85c6cac94a0030e8e20e2480e9",
+        "source": {
+          "classes": 1,
+          "methods": 3,
+          "fields": 2,
+          "calls": 9,
+          "new": 1,
+          "imports": 4,
+          "uniqueDeclaredTypeUses": 11,
+          "staticQualifiers": 4,
+          "annotations": 1
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 3,
+          "fields": 2,
+          "calls": 9,
+          "classReferences": 15
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/TaskHandler.java",
+        "sha1": "sha1:158f9e0cf30ac90cbbdc9f16d6e793df3a16017e",
+        "source": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 0,
+          "new": 0,
+          "imports": 3,
+          "uniqueDeclaredTypeUses": 8,
+          "staticQualifiers": 0,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 1,
+          "fields": 0,
+          "calls": 0,
+          "classReferences": 11
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/TransferDraft.java",
+        "sha1": "sha1:3e78f9c64c01fbcafe31c33bf960a76730716b04",
+        "source": {
+          "classes": 1,
+          "methods": 7,
+          "fields": 5,
+          "calls": 18,
+          "new": 3,
+          "imports": 3,
+          "uniqueDeclaredTypeUses": 22,
+          "staticQualifiers": 4,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 7,
+          "fields": 5,
+          "calls": 18,
+          "classReferences": 25
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 4
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/WBFRecord.java",
+        "sha1": "sha1:3892352349fb0284ec5cc331c95fe957cc3e6512",
+        "source": {
+          "classes": 1,
+          "methods": 8,
+          "fields": 2,
+          "calls": 7,
+          "new": 2,
+          "imports": 4,
+          "uniqueDeclaredTypeUses": 40,
+          "staticQualifiers": 2,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 8,
+          "fields": 2,
+          "calls": 7,
+          "classReferences": 44
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 0,
+          "missingOrderedCallSteps": 0
+        },
+        "reviewed": true
+      },
+      {
+        "file": "src/main/java/demo/bank/Web.java",
+        "sha1": "sha1:090272caec48f24f034b3798d25e9f9540c7b0f3",
+        "source": {
+          "classes": 1,
+          "methods": 11,
+          "fields": 0,
+          "calls": 48,
+          "new": 10,
+          "imports": 5,
+          "uniqueDeclaredTypeUses": 41,
+          "staticQualifiers": 9,
+          "annotations": 0
+        },
+        "indexed": {
+          "classes": 1,
+          "methods": 11,
+          "fields": 0,
+          "calls": 48,
+          "classReferences": 46
+        },
+        "issues": {
+          "missingStaticQualifierDependencies": 1,
+          "missingOrderedCallSteps": 6
+        },
+        "reviewed": true
+      }
+    ],
+    "scopeNotes": [
+      {
+        "kind": "coverage-limit",
+        "title": "Annotation references not indexed",
+        "occurrences": 7,
+        "sites": [
+          {
+            "kind": "annotation",
+            "file": "src/main/java/demo/bank/Operations.java",
+            "line": 9,
+            "column": 6,
+            "endLine": 9,
+            "endColumn": 21,
+            "target": "java.lang.SuppressWarnings",
+            "symbol": "",
+            "erased": "",
+            "name": "SuppressWarnings",
+            "rawRecorded": false
+          },
+          {
+            "kind": "annotation",
+            "file": "src/main/java/demo/bank/tags/FieldTag.java",
+            "line": 13,
+            "column": 6,
+            "endLine": 13,
+            "endColumn": 13,
+            "target": "java.lang.Override",
+            "symbol": "",
+            "erased": "",
+            "name": "Override",
+            "rawRecorded": false
+          },
+          {
+            "kind": "annotation",
+            "file": "src/main/java/demo/bank/tags/QuoteTag.java",
+            "line": 17,
+            "column": 6,
+            "endLine": 17,
+            "endColumn": 13,
+            "target": "java.lang.Override",
+            "symbol": "",
+            "erased": "",
+            "name": "Override",
+            "rawRecorded": false
+          },
+          {
+            "kind": "annotation",
+            "file": "src/main/java/demo/bank/tags/RejectTag.java",
+            "line": 14,
+            "column": 6,
+            "endLine": 14,
+            "endColumn": 13,
+            "target": "java.lang.Override",
+            "symbol": "",
+            "erased": "",
+            "name": "Override",
+            "rawRecorded": false
+          },
+          {
+            "kind": "annotation",
+            "file": "src/main/java/demo/bank/tags/TaskTag.java",
+            "line": 26,
+            "column": 6,
+            "endLine": 26,
+            "endColumn": 13,
+            "target": "java.lang.Override",
+            "symbol": "",
+            "erased": "",
+            "name": "Override",
+            "rawRecorded": false
+          },
+          {
+            "kind": "annotation",
+            "file": "src/main/java/demo/bank/tags/TokenTag.java",
+            "line": 18,
+            "column": 6,
+            "endLine": 18,
+            "endColumn": 13,
+            "target": "java.lang.Override",
+            "symbol": "",
+            "erased": "",
+            "name": "Override",
+            "rawRecorded": false
+          },
+          {
+            "kind": "annotation",
+            "file": "src/main/java/demo/bank/tags/TransferDraftTag.java",
+            "line": 14,
+            "column": 6,
+            "endLine": 14,
+            "endColumn": 13,
+            "target": "java.lang.Override",
+            "symbol": "",
+            "erased": "",
+            "name": "Override",
+            "rawRecorded": false
+          }
+        ],
+        "explanation": "7 annotations (6 @Override plus1 @SuppressWarnings) are present in source and full AST but absent in reference index/file graph. Kept as separate coverage limit because current worker reference taxonomy does not promise annotation dependencies."
+      }
+    ]
+  },
+  "jsp": {
+    "methodology": "Independent character scanner (not Leflect parser); source first, matched every original opening tag, attribute, EL, comment, directive in both raw and semantic trees. Only root.children/attributeNodes traversed; sourceTag metadata copies excluded.",
+    "summary": {
+      "files": 27,
+      "tags": 861,
+      "customTags": 290,
+      "attributes": 987,
+      "expressions": 286,
+      "comments": 4,
+      "directives": 45,
+      "scriptlets": 0,
+      "functions": 44,
+      "standardFunctions": 40,
+      "customFunctions": 4,
+      "structuralFailures": 0
+    },
+    "files": [
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/accounts.jsp",
+        "bytes": 2999,
+        "sourceMatch": true,
+        "tags": 51,
+        "customTags": 17,
+        "attributes": 52,
+        "expressions": 17,
+        "comments": 0,
+        "directives": 1,
+        "scriptlets": 0,
+        "rawNodes": 235,
+        "semanticNodes": 235,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/beneficiaries.jsp",
+        "bytes": 5339,
+        "sourceMatch": true,
+        "tags": 69,
+        "customTags": 25,
+        "attributes": 103,
+        "expressions": 22,
+        "comments": 0,
+        "directives": 1,
+        "scriptlets": 0,
+        "rawNodes": 389,
+        "semanticNodes": 389,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/dashboard.jsp",
+        "bytes": 3076,
+        "sourceMatch": true,
+        "tags": 51,
+        "customTags": 7,
+        "attributes": 40,
+        "expressions": 14,
+        "comments": 0,
+        "directives": 1,
+        "scriptlets": 0,
+        "rawNodes": 229,
+        "semanticNodes": 229,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+        "bytes": 9833,
+        "sourceMatch": true,
+        "tags": 137,
+        "customTags": 64,
+        "attributes": 178,
+        "expressions": 56,
+        "comments": 0,
+        "directives": 1,
+        "scriptlets": 0,
+        "rawNodes": 703,
+        "semanticNodes": 703,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/history.jsp",
+        "bytes": 2431,
+        "sourceMatch": true,
+        "tags": 44,
+        "customTags": 13,
+        "attributes": 42,
+        "expressions": 14,
+        "comments": 0,
+        "directives": 1,
+        "scriptlets": 0,
+        "rawNodes": 199,
+        "semanticNodes": 199,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+        "bytes": 4171,
+        "sourceMatch": true,
+        "tags": 70,
+        "customTags": 26,
+        "attributes": 90,
+        "expressions": 31,
+        "comments": 0,
+        "directives": 1,
+        "scriptlets": 0,
+        "rawNodes": 350,
+        "semanticNodes": 350,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/limits.jsp",
+        "bytes": 3549,
+        "sourceMatch": true,
+        "tags": 51,
+        "customTags": 12,
+        "attributes": 72,
+        "expressions": 11,
+        "comments": 0,
+        "directives": 1,
+        "scriptlets": 0,
+        "rawNodes": 282,
+        "semanticNodes": 282,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/login.jsp",
+        "bytes": 2837,
+        "sourceMatch": true,
+        "tags": 43,
+        "customTags": 8,
+        "attributes": 48,
+        "expressions": 7,
+        "comments": 0,
+        "directives": 1,
+        "scriptlets": 0,
+        "rawNodes": 212,
+        "semanticNodes": 212,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/products.jsp",
+        "bytes": 4960,
+        "sourceMatch": true,
+        "tags": 70,
+        "customTags": 21,
+        "attributes": 69,
+        "expressions": 26,
+        "comments": 1,
+        "directives": 1,
+        "scriptlets": 0,
+        "rawNodes": 314,
+        "semanticNodes": 314,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/receipt.jsp",
+        "bytes": 1471,
+        "sourceMatch": true,
+        "tags": 35,
+        "customTags": 9,
+        "attributes": 26,
+        "expressions": 10,
+        "comments": 0,
+        "directives": 1,
+        "scriptlets": 0,
+        "rawNodes": 130,
+        "semanticNodes": 130,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/transfer-confirm.jsp",
+        "bytes": 1803,
+        "sourceMatch": true,
+        "tags": 34,
+        "customTags": 6,
+        "attributes": 30,
+        "expressions": 6,
+        "comments": 1,
+        "directives": 1,
+        "scriptlets": 0,
+        "rawNodes": 145,
+        "semanticNodes": 145,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/transfer-input.jsp",
+        "bytes": 4401,
+        "sourceMatch": true,
+        "tags": 62,
+        "customTags": 20,
+        "attributes": 82,
+        "expressions": 21,
+        "comments": 0,
+        "directives": 1,
+        "scriptlets": 0,
+        "rawNodes": 322,
+        "semanticNodes": 322,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/bank/transfer-result.jsp",
+        "bytes": 2025,
+        "sourceMatch": true,
+        "tags": 36,
+        "customTags": 15,
+        "attributes": 43,
+        "expressions": 13,
+        "comments": 1,
+        "directives": 1,
+        "scriptlets": 0,
+        "rawNodes": 176,
+        "semanticNodes": 176,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/common/area.jsp",
+        "bytes": 281,
+        "sourceMatch": true,
+        "tags": 2,
+        "customTags": 2,
+        "attributes": 3,
+        "expressions": 2,
+        "comments": 1,
+        "directives": 1,
+        "scriptlets": 0,
+        "rawNodes": 16,
+        "semanticNodes": 16,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/common/banner.jsp",
+        "bytes": 332,
+        "sourceMatch": true,
+        "tags": 3,
+        "customTags": 0,
+        "attributes": 2,
+        "expressions": 0,
+        "comments": 0,
+        "directives": 1,
+        "scriptlets": 0,
+        "rawNodes": 16,
+        "semanticNodes": 15,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/common/footer.jsp",
+        "bytes": 389,
+        "sourceMatch": true,
+        "tags": 4,
+        "customTags": 0,
+        "attributes": 1,
+        "expressions": 0,
+        "comments": 0,
+        "directives": 1,
+        "scriptlets": 0,
+        "rawNodes": 17,
+        "semanticNodes": 16,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/common/header.jsp",
+        "bytes": 1606,
+        "sourceMatch": true,
+        "tags": 21,
+        "customTags": 11,
+        "attributes": 27,
+        "expressions": 14,
+        "comments": 0,
+        "directives": 1,
+        "scriptlets": 0,
+        "rawNodes": 118,
+        "semanticNodes": 118,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/common/help.jsp",
+        "bytes": 937,
+        "sourceMatch": true,
+        "tags": 11,
+        "customTags": 0,
+        "attributes": 3,
+        "expressions": 0,
+        "comments": 0,
+        "directives": 1,
+        "scriptlets": 0,
+        "rawNodes": 38,
+        "semanticNodes": 37,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/common/taglibs.jspf",
+        "bytes": 477,
+        "sourceMatch": true,
+        "tags": 2,
+        "customTags": 2,
+        "attributes": 4,
+        "expressions": 1,
+        "comments": 0,
+        "directives": 6,
+        "scriptlets": 0,
+        "rawNodes": 25,
+        "semanticNodes": 19,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/common/transfer-banner.jsp",
+        "bytes": 397,
+        "sourceMatch": true,
+        "tags": 3,
+        "customTags": 0,
+        "attributes": 3,
+        "expressions": 0,
+        "comments": 0,
+        "directives": 1,
+        "scriptlets": 0,
+        "rawNodes": 18,
+        "semanticNodes": 17,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/jsp/layout.jsp",
+        "bytes": 1703,
+        "sourceMatch": true,
+        "tags": 31,
+        "customTags": 14,
+        "attributes": 37,
+        "expressions": 5,
+        "comments": 0,
+        "directives": 1,
+        "scriptlets": 0,
+        "rawNodes": 152,
+        "semanticNodes": 152,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/tags/bank/amount.tag",
+        "bytes": 304,
+        "sourceMatch": true,
+        "tags": 1,
+        "customTags": 1,
+        "attributes": 4,
+        "expressions": 1,
+        "comments": 0,
+        "directives": 3,
+        "scriptlets": 0,
+        "rawNodes": 17,
+        "semanticNodes": 14,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/tags/bank/csrf.tag",
+        "bytes": 182,
+        "sourceMatch": true,
+        "tags": 1,
+        "customTags": 0,
+        "attributes": 3,
+        "expressions": 1,
+        "comments": 0,
+        "directives": 2,
+        "scriptlets": 0,
+        "rawNodes": 13,
+        "semanticNodes": 11,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/tags/bank/empty.tag",
+        "bytes": 805,
+        "sourceMatch": true,
+        "tags": 14,
+        "customTags": 7,
+        "attributes": 8,
+        "expressions": 6,
+        "comments": 0,
+        "directives": 5,
+        "scriptlets": 0,
+        "rawNodes": 57,
+        "semanticNodes": 52,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/tags/bank/status.tag",
+        "bytes": 420,
+        "sourceMatch": true,
+        "tags": 2,
+        "customTags": 1,
+        "attributes": 3,
+        "expressions": 2,
+        "comments": 0,
+        "directives": 5,
+        "scriptlets": 0,
+        "rawNodes": 22,
+        "semanticNodes": 17,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/WEB-INF/tags/bank/steps.tag",
+        "bytes": 713,
+        "sourceMatch": true,
+        "tags": 11,
+        "customTags": 7,
+        "attributes": 11,
+        "expressions": 6,
+        "comments": 0,
+        "directives": 3,
+        "scriptlets": 0,
+        "rawNodes": 55,
+        "semanticNodes": 52,
+        "failures": 0
+      },
+      {
+        "file": "src/main/webapp/index.jsp",
+        "bytes": 144,
+        "sourceMatch": true,
+        "tags": 2,
+        "customTags": 2,
+        "attributes": 3,
+        "expressions": 0,
+        "comments": 0,
+        "directives": 1,
+        "scriptlets": 0,
+        "rawNodes": 14,
+        "semanticNodes": 14,
+        "failures": 0
+      }
+    ],
+    "tld": {
+      "sourceTlds": 2,
+      "tags": 11,
+      "attributes": 17,
+      "functions": 4,
+      "tldMismatches": 0,
+      "standardFunctions": 40,
+      "standardFunctionsRecoveredWithAutoLoad": 40
+    },
+    "coverageLimitations": [
+      "Lexical/structural source correspondence is exhaustive; runtime values are not asserted.",
+      "Classpath JSTL TLDs omitted by current autoLoad configuration;40fn calls and178JSTL handlers retain semantic syntax but no library target connection."
+    ]
+  },
+  "graph": {
+    "counts": {
+      "graphEdges": 1206,
+      "rawEdges": 1206,
+      "fileNodes": 69,
+      "projectionRoots": 143,
+      "edgeTypes": {
+        "JAVA_CALL": 645,
+        "JAVA_CONSTRUCTOR_CALL": 1,
+        "JAVA_IMPORT": 38,
+        "JAVA_NEW": 70,
+        "JAVA_TYPE_REFERENCE": 326,
+        "JSP_FUNCTION_CALL": 4,
+        "JSP_INCLUDES": 21,
+        "JSP_USES_TAG": 59,
+        "JSP_USES_TAG_FILE": 42
+      },
+      "confidence": {
+        "high": 1206
+      },
+      "referencePairs": 541,
+      "internalReversePairs": 205,
+      "externalSymbols": 74,
+      "externalProviders": {
+        "javax.servlet": 10,
+        "javax.servlet.jsp": 5,
+        "jdk": 59
+      },
+      "externalSourceStates": {
+        "available": 16,
+        "not-found": 58
+      },
+      "rawJavaReferences": 954,
+      "referencePromotionStates": {
+        "promoted": 823,
+        "same-file-reference": 15,
+        "wildcard-package-import": 116
+      },
+      "contextResourceBindings": 17,
+      "contextResourceUniqueClasses": 13
+    },
+    "integrityFailures": [],
+    "scopeNotes": [
+      "Java import/type/new graph edges aggregate duplicate positions; detailed per-position references stay in index/java.",
+      "Self-file type/new links are suppressed by file dependency model.",
+      "Projection is a tree: visited-node cross edges are omitted, raw file graph remains complete.",
+      "CMS forwarding, SQL definitions and metadata-selected reflection targets stay deferred.",
+      "Standard JSTL graph targets are deliberately excluded by current standard-library policy; JSP source audit reviews that coverage separately."
+    ]
+  },
+  "dynamicIncludes": [
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/layout.jsp",
+      "page": "${cmsPage.help}",
+      "unresolvedReason": "The include target depends on a runtime value",
+      "evidenceCount": 17,
+      "rangeFailures": [],
+      "componentValue": true,
+      "jdbcResource": true,
+      "sqlSource": true,
+      "traceLimitDisclosed": true
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/common/area.jsp",
+      "page": "${componentPath}",
+      "unresolvedReason": "The include target depends on a runtime value",
+      "evidenceCount": 24,
+      "rangeFailures": [],
+      "componentValue": true,
+      "jdbcResource": true,
+      "sqlSource": true,
+      "traceLimitDisclosed": true
+    }
+  ],
+  "deferred": [
+    {
+      "key": "AUD-ENTRY-03",
+      "state": "deferred",
+      "description": "CMS database-selected actual forward paths"
+    },
+    {
+      "key": "AUD-DB-01",
+      "state": "deferred",
+      "description": "SQL definition and parameter/table links",
+      "literalDefinitions": 33
+    },
+    {
+      "key": "AUD-DB-02",
+      "state": "deferred",
+      "description": "Metadata-selected reflection targets"
+    }
+  ]
+}
