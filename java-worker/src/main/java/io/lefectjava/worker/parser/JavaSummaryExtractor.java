@@ -258,14 +258,12 @@ public class JavaSummaryExtractor {
       }
       try {
         ResolvedValueDeclaration member = access.resolve();
-        String owner;
-        if (member.isEnumConstant()) {
-          owner = member.getType().asReferenceType().getQualifiedName();
-        } else if (member.isField() && member.asField().isStatic()) {
-          owner = member.asField().declaringType().getQualifiedName();
-        } else {
-          continue;
-        }
+        if (!member.isEnumConstant() && !(member.isField() && member.asField().isStatic())) continue;
+        ResolvedType qualifier = scope.calculateResolvedType();
+        if (!qualifier.isReferenceType()) continue;
+        // The written qualifier can be a subclass inheriting the static member.
+        // Its source range belongs to that type, not the member's declaring type.
+        String owner = qualifier.asReferenceType().getQualifiedName();
         JavaClassReference reference = new JavaClassReference(
             scope.toString(), extractSimpleTypeName(scope.toString()), owner, owner,
             "static-qualifier", scope.toString(), toSourceLocation(scope), toLineRange(scope)

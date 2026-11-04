@@ -9,6 +9,21 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class JavaRevisionAccuracyTest {
   @Test
+  void inheritedStaticMemberRetainsTheWrittenQualifierType() throws Exception {
+    AstFileResult result = export("""
+        package demo;
+        class Base { static int VALUE = 1; }
+        class Child extends Base {}
+        class Uses { int read() { return Child.VALUE; } }
+        """);
+    var qualifier = result.classReferences.stream().filter(r -> "static-qualifier".equals(r.kind))
+        .findFirst().orElseThrow();
+    assertEquals("Child", qualifier.symbol);
+    assertEquals("demo.Child", qualifier.resolvedClassId);
+    assertEquals(4, qualifier.location.line);
+  }
+
+  @Test
   void explicitThisWritesResolveFieldOwnersDespiteParameterAndLocalShadowing() throws Exception {
     AstFileResult result = export("""
         package demo;
