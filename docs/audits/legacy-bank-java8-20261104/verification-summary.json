@@ -1,0 +1,146 @@
+{
+  "sourceCommit": "6ffaab8c23bd7f88abbeda4654580acccf697043",
+  "analysisRun": "20261104-164240",
+  "scope": "Recorded rerun regression checks; these do not include the six newly confirmed findings as completed fixes.",
+  "cliBuild": "passed",
+  "workerTests": {
+    "errors": 0,
+    "passed": 13,
+    "failures": 0
+  },
+  "originalFiles": {
+    "baseline": 84,
+    "current": 84,
+    "hashDifferences": 0
+  },
+  "baseline117": {
+    "passed": 117,
+    "failures": 0
+  },
+  "javaCalls": {
+    "passed": 645,
+    "failures": 0
+  },
+  "objectCreations": {
+    "passed": 121,
+    "failures": 0
+  },
+  "imports": {
+    "passed": 154,
+    "failures": 0
+  },
+  "semanticChecks": {
+    "passed": 314,
+    "failures": 0
+  },
+  "incrementalComparison": {
+    "differences": 0,
+    "artifacts": 144
+  },
+  "summary": {
+    "classes": 43,
+    "methods": 108,
+    "jsps": 21,
+    "taglibs": 5,
+    "javaCallEdges": 646,
+    "jspJavaEdges": 63,
+    "unresolvedEdges": 0
+  },
+  "baseline117ByType": {
+    "JSP-01": {
+      "baseline": 59,
+      "passed": 59
+    },
+    "JSP-02": {
+      "baseline": 42,
+      "passed": 42
+    },
+    "JSP-03": {
+      "baseline": 4,
+      "passed": 4
+    },
+    "JSP-04": {
+      "baseline": 2,
+      "passed": 2
+    },
+    "JSP-05": {
+      "baseline": 4,
+      "passed": 4
+    },
+    "JSP-06": {
+      "baseline": 1,
+      "passed": 1
+    },
+    "JSP-07": {
+      "baseline": 2,
+      "passed": 2
+    },
+    "JAVA-01": {
+      "baseline": 3,
+      "passed": 3
+    }
+  },
+  "parser": {
+    "AUD-JSP-01": {
+      "expected": 38,
+      "passed": 38
+    },
+    "AUD-JSP-02": {
+      "source": 269,
+      "raw": 269,
+      "semantic": 269,
+      "matched": 269
+    },
+    "AUD-JSP-03": {
+      "expected": 2,
+      "passed": 2
+    },
+    "AUD-JSP-08": {
+      "expectedFiles": 27,
+      "files": 27,
+      "filesWithAllShards": 27,
+      "tagAttributes": 6,
+      "matchedTagAttributes": 6
+    },
+    "negativeFixtures": {
+      "total": 5,
+      "passed": 5
+    },
+    "failures": 0
+  },
+  "reportEntryTask": {
+    "AUD-REPORT-01": {
+      "tagFileUses": 42,
+      "fixedIncludeUses": 4,
+      "matched": 46,
+      "files": 17
+    },
+    "AUD-ENTRY-01": {
+      "routes": 2,
+      "matched": 2
+    },
+    "AUD-ENTRY-02": {
+      "originalJavaFiles": 42,
+      "currentJavaFiles": 42,
+      "originalHandlers": 59,
+      "originalTags": 272,
+      "matchedTags": 272,
+      "controllers": 2
+    },
+    "AUD-TASK-01": {
+      "occurrences": 22,
+      "literalOccurrences": 22,
+      "distinctCodes": 17,
+      "dynamicOccurrences": 0,
+      "invalidOccurrences": 0,
+      "matched": 22,
+      "files": 12
+    },
+    "failures": 0
+  },
+  "deferred": [
+    "AUD-ENTRY-03",
+    "AUD-DB-01",
+    "AUD-DB-02"
+  ]
+}

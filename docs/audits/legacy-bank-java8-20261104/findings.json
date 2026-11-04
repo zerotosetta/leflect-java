@@ -1,0 +1,2472 @@
+{
+  "sourceCommit": "6ffaab8c23bd7f88abbeda4654580acccf697043",
+  "analysisRun": "20261104-164240",
+  "sourceProject": "legacy-bank-java8",
+  "pathConvention": "All src/... paths are relative to the external source project. Local roots are replaced with placeholders.",
+  "status": "confirmed findings; correction plan is a draft; fixes not applied",
+  "findings": [
+    {
+      "key": "REV-JAVA-01",
+      "type": "omission",
+      "title": "Static constant and enum qualifier type dependencies omitted",
+      "sites": [
+        {
+          "kind": "qualifier",
+          "file": "src/main/java/demo/bank/BTConnector.java",
+          "line": 29,
+          "column": 56,
+          "endLine": 29,
+          "endColumn": 64,
+          "target": "java.time.DayOfWeek",
+          "symbol": "",
+          "erased": "",
+          "name": "DayOfWeek",
+          "source": "                        int offset=now.getDayOfWeek()==DayOfWeek.SUNDAY?8:now.getDayOfWeek()==DayOfWeek.SATURDAY?6:4;",
+          "rawRecorded": false,
+          "dependencyRecorded": false
+        },
+        {
+          "kind": "qualifier",
+          "file": "src/main/java/demo/bank/BTConnector.java",
+          "line": 29,
+          "column": 95,
+          "endLine": 29,
+          "endColumn": 103,
+          "target": "java.time.DayOfWeek",
+          "symbol": "",
+          "erased": "",
+          "name": "DayOfWeek",
+          "source": "                        int offset=now.getDayOfWeek()==DayOfWeek.SUNDAY?8:now.getDayOfWeek()==DayOfWeek.SATURDAY?6:4;",
+          "rawRecorded": false,
+          "dependencyRecorded": false
+        },
+        {
+          "kind": "qualifier",
+          "file": "src/main/java/demo/bank/QueryEngine.java",
+          "line": 23,
+          "column": 50,
+          "endLine": 23,
+          "endColumn": 55,
+          "target": "java.util.Locale",
+          "symbol": "",
+          "erased": "",
+          "name": "Locale",
+          "source": "        String normalized=sql.trim().toUpperCase(Locale.ROOT);",
+          "rawRecorded": false,
+          "dependencyRecorded": false
+        },
+        {
+          "kind": "qualifier",
+          "file": "src/main/java/demo/bank/services/DirectProductService.java",
+          "line": 17,
+          "column": 173,
+          "endLine": 17,
+          "endColumn": 184,
+          "target": "java.math.RoundingMode",
+          "symbol": "",
+          "erased": "",
+          "name": "RoundingMode",
+          "source": "            BigDecimal interest=principal.multiply((BigDecimal)product.get(\"ANNUAL_RATE\")).multiply((BigDecimal)product.get(\"TERM_MONTHS\")).divide(new BigDecimal(\"1200\"),2,RoundingMode.DOWN);",
+          "rawRecorded": false,
+          "dependencyRecorded": false
+        },
+        {
+          "kind": "qualifier",
+          "file": "src/main/java/demo/bank/tags/QuoteTag.java",
+          "line": 21,
+          "column": 54,
+          "endLine": 21,
+          "endColumn": 64,
+          "target": "javax.servlet.jsp.PageContext",
+          "symbol": "",
+          "erased": "",
+          "name": "PageContext",
+          "source": "            getJspContext().setAttribute(var, quote, PageContext.PAGE_SCOPE);",
+          "rawRecorded": false,
+          "dependencyRecorded": false
+        },
+        {
+          "kind": "qualifier",
+          "file": "src/main/java/demo/bank/Web.java",
+          "line": 17,
+          "column": 82,
+          "endLine": 17,
+          "endColumn": 87,
+          "target": "java.util.Locale",
+          "symbol": "",
+          "erased": "",
+          "name": "Locale",
+          "source": "        java.text.NumberFormat format = java.text.NumberFormat.getNumberInstance(Locale.KOREA);",
+          "rawRecorded": false,
+          "dependencyRecorded": false
+        }
+      ],
+      "occurrences": 6,
+      "uniqueFileTargets": 5,
+      "explanation": "ClassOrInterfaceType extraction does not see owner types used only as static field/enum qualifiers. Method-call owner edges cover most static qualifiers, but these6locations have no alternative dependency."
+    },
+    {
+      "key": "REV-JAVA-02",
+      "type": "omission",
+      "title": "Synchronized bodies omitted from orderedSteps",
+      "sites": [
+        {
+          "file": "src/main/java/demo/bank/Operations.java",
+          "methodId": "demo.bank.Operations#consume(HttpServletRequest,String)",
+          "methodName": "tickets",
+          "location": {
+            "line": 23,
+            "column": 89,
+            "endLine": 23,
+            "endColumn": 98
+          },
+          "target": "demo.bank.Operations#tickets(javax.servlet.http.HttpSession)",
+          "matched": false,
+          "source": "            String token=request.getParameter(\"operationToken\"); Map<String,String> map=tickets(s);"
+        },
+        {
+          "file": "src/main/java/demo/bank/Operations.java",
+          "methodId": "demo.bank.Operations#consume(HttpServletRequest,String)",
+          "methodName": "equals",
+          "location": {
+            "line": 24,
+            "column": 32,
+            "endLine": 24,
+            "endColumn": 61
+          },
+          "target": "java.lang.String#equals(java.lang.Object)",
+          "matched": false,
+          "source": "            if(token==null || !purpose.equals(map.get(token))) throw new BankException(409,\"DUPLICATE\",\"이미 처리되었거나 만료된 요청입니다. 화면을 다시 열어주세요.\");"
+        },
+        {
+          "file": "src/main/java/demo/bank/Operations.java",
+          "methodId": "demo.bank.Operations#consume(HttpServletRequest,String)",
+          "methodName": "get",
+          "location": {
+            "line": 24,
+            "column": 47,
+            "endLine": 24,
+            "endColumn": 60
+          },
+          "target": "java.util.Map#get(java.lang.Object)",
+          "matched": false,
+          "source": "            if(token==null || !purpose.equals(map.get(token))) throw new BankException(409,\"DUPLICATE\",\"이미 처리되었거나 만료된 요청입니다. 화면을 다시 열어주세요.\");"
+        },
+        {
+          "file": "src/main/java/demo/bank/Operations.java",
+          "methodId": "demo.bank.Operations#consume(HttpServletRequest,String)",
+          "methodName": "remove",
+          "location": {
+            "line": 25,
+            "column": 13,
+            "endLine": 25,
+            "endColumn": 29
+          },
+          "target": "java.util.Map#remove(java.lang.Object)",
+          "matched": false,
+          "source": "            map.remove(token); return token;"
+        },
+        {
+          "file": "src/main/java/demo/bank/Operations.java",
+          "methodId": "demo.bank.Operations#consume(HttpServletRequest,String)",
+          "methodName": "getParameter",
+          "location": {
+            "line": 23,
+            "column": 26,
+            "endLine": 23,
+            "endColumn": 63
+          },
+          "target": "javax.servlet.ServletRequest#getParameter(java.lang.String)",
+          "matched": false,
+          "source": "            String token=request.getParameter(\"operationToken\"); Map<String,String> map=tickets(s);"
+        },
+        {
+          "file": "src/main/java/demo/bank/Operations.java",
+          "methodId": "demo.bank.Operations#issue(HttpServletRequest,String)",
+          "methodName": "tickets",
+          "location": {
+            "line": 17,
+            "column": 36,
+            "endLine": 17,
+            "endColumn": 45
+          },
+          "target": "demo.bank.Operations#tickets(javax.servlet.http.HttpSession)",
+          "matched": false,
+          "source": "            Map<String,String> map=tickets(s); while(map.size()>=32) map.remove(map.keySet().iterator().next());"
+        },
+        {
+          "file": "src/main/java/demo/bank/Operations.java",
+          "methodId": "demo.bank.Operations#issue(HttpServletRequest,String)",
+          "methodName": "next",
+          "location": {
+            "line": 17,
+            "column": 81,
+            "endLine": 17,
+            "endColumn": 110
+          },
+          "target": "java.util.Iterator#next()",
+          "matched": false,
+          "source": "            Map<String,String> map=tickets(s); while(map.size()>=32) map.remove(map.keySet().iterator().next());"
+        },
+        {
+          "file": "src/main/java/demo/bank/Operations.java",
+          "methodId": "demo.bank.Operations#issue(HttpServletRequest,String)",
+          "methodName": "keySet",
+          "location": {
+            "line": 17,
+            "column": 81,
+            "endLine": 17,
+            "endColumn": 92
+          },
+          "target": "java.util.Map#keySet()",
+          "matched": false,
+          "source": "            Map<String,String> map=tickets(s); while(map.size()>=32) map.remove(map.keySet().iterator().next());"
+        },
+        {
+          "file": "src/main/java/demo/bank/Operations.java",
+          "methodId": "demo.bank.Operations#issue(HttpServletRequest,String)",
+          "methodName": "put",
+          "location": {
+            "line": 18,
+            "column": 56,
+            "endLine": 18,
+            "endColumn": 77
+          },
+          "target": "java.util.Map#put(K, V)",
+          "matched": false,
+          "source": "            String token=UUID.randomUUID().toString(); map.put(token,purpose); return token;"
+        },
+        {
+          "file": "src/main/java/demo/bank/Operations.java",
+          "methodId": "demo.bank.Operations#issue(HttpServletRequest,String)",
+          "methodName": "remove",
+          "location": {
+            "line": 17,
+            "column": 70,
+            "endLine": 17,
+            "endColumn": 111
+          },
+          "target": "java.util.Map#remove(java.lang.Object)",
+          "matched": false,
+          "source": "            Map<String,String> map=tickets(s); while(map.size()>=32) map.remove(map.keySet().iterator().next());"
+        },
+        {
+          "file": "src/main/java/demo/bank/Operations.java",
+          "methodId": "demo.bank.Operations#issue(HttpServletRequest,String)",
+          "methodName": "size",
+          "location": {
+            "line": 17,
+            "column": 54,
+            "endLine": 17,
+            "endColumn": 63
+          },
+          "target": "java.util.Map#size()",
+          "matched": false,
+          "source": "            Map<String,String> map=tickets(s); while(map.size()>=32) map.remove(map.keySet().iterator().next());"
+        },
+        {
+          "file": "src/main/java/demo/bank/Operations.java",
+          "methodId": "demo.bank.Operations#issue(HttpServletRequest,String)",
+          "methodName": "iterator",
+          "location": {
+            "line": 17,
+            "column": 81,
+            "endLine": 17,
+            "endColumn": 103
+          },
+          "target": "java.util.Set#iterator()",
+          "matched": false,
+          "source": "            Map<String,String> map=tickets(s); while(map.size()>=32) map.remove(map.keySet().iterator().next());"
+        },
+        {
+          "file": "src/main/java/demo/bank/Operations.java",
+          "methodId": "demo.bank.Operations#issue(HttpServletRequest,String)",
+          "methodName": "randomUUID",
+          "location": {
+            "line": 18,
+            "column": 26,
+            "endLine": 18,
+            "endColumn": 42
+          },
+          "target": "java.util.UUID#randomUUID()",
+          "matched": false,
+          "source": "            String token=UUID.randomUUID().toString(); map.put(token,purpose); return token;"
+        },
+        {
+          "file": "src/main/java/demo/bank/Operations.java",
+          "methodId": "demo.bank.Operations#issue(HttpServletRequest,String)",
+          "methodName": "toString",
+          "location": {
+            "line": 18,
+            "column": 26,
+            "endLine": 18,
+            "endColumn": 53
+          },
+          "target": "java.util.UUID#toString()",
+          "matched": false,
+          "source": "            String token=UUID.randomUUID().toString(); map.put(token,purpose); return token;"
+        },
+        {
+          "file": "src/main/java/demo/bank/TransferDraft.java",
+          "methodId": "demo.bank.TransferDraft#consume(HttpServletRequest)",
+          "methodName": "equals",
+          "location": {
+            "line": 30,
+            "column": 32,
+            "endLine": 30,
+            "endColumn": 81
+          },
+          "target": "java.lang.String#equals(java.lang.Object)",
+          "matched": false,
+          "source": "            if(draft==null || !draft.id.equals(request.getParameter(\"requestId\")))"
+        },
+        {
+          "file": "src/main/java/demo/bank/TransferDraft.java",
+          "methodId": "demo.bank.TransferDraft#consume(HttpServletRequest)",
+          "methodName": "getAttribute",
+          "location": {
+            "line": 29,
+            "column": 48,
+            "endLine": 29,
+            "endColumn": 85
+          },
+          "target": "javax.servlet.http.HttpSession#getAttribute(java.lang.String)",
+          "matched": false,
+          "source": "            TransferDraft draft=(TransferDraft)session.getAttribute(\"TRANSFER_DRAFT\");"
+        },
+        {
+          "file": "src/main/java/demo/bank/TransferDraft.java",
+          "methodId": "demo.bank.TransferDraft#consume(HttpServletRequest)",
+          "methodName": "removeAttribute",
+          "location": {
+            "line": 32,
+            "column": 13,
+            "endLine": 32,
+            "endColumn": 53
+          },
+          "target": "javax.servlet.http.HttpSession#removeAttribute(java.lang.String)",
+          "matched": false,
+          "source": "            session.removeAttribute(\"TRANSFER_DRAFT\");"
+        },
+        {
+          "file": "src/main/java/demo/bank/TransferDraft.java",
+          "methodId": "demo.bank.TransferDraft#consume(HttpServletRequest)",
+          "methodName": "getParameter",
+          "location": {
+            "line": 30,
+            "column": 48,
+            "endLine": 30,
+            "endColumn": 80
+          },
+          "target": "javax.servlet.ServletRequest#getParameter(java.lang.String)",
+          "matched": false,
+          "source": "            if(draft==null || !draft.id.equals(request.getParameter(\"requestId\")))"
+        },
+        {
+          "file": "src/main/java/demo/bank/Web.java",
+          "methodId": "demo.bank.Web#csrf(HttpServletRequest)",
+          "methodName": "nextBytes",
+          "location": {
+            "line": 44,
+            "column": 58,
+            "endLine": 44,
+            "endColumn": 92
+          },
+          "target": "java.security.SecureRandom#nextBytes(byte[])",
+          "matched": false,
+          "source": "            if(token==null) { byte[] bytes=new byte[24]; new SecureRandom().nextBytes(bytes); token=Base64.getUrlEncoder().withoutPadding().encodeToString(bytes); session.setAttribute(\"CSRF\",token); }"
+        },
+        {
+          "file": "src/main/java/demo/bank/Web.java",
+          "methodId": "demo.bank.Web#csrf(HttpServletRequest)",
+          "methodName": "encodeToString",
+          "location": {
+            "line": 44,
+            "column": 101,
+            "endLine": 44,
+            "endColumn": 161
+          },
+          "target": "java.util.Base64.Encoder#encodeToString(byte[])",
+          "matched": false,
+          "source": "            if(token==null) { byte[] bytes=new byte[24]; new SecureRandom().nextBytes(bytes); token=Base64.getUrlEncoder().withoutPadding().encodeToString(bytes); session.setAttribute(\"CSRF\",token); }"
+        },
+        {
+          "file": "src/main/java/demo/bank/Web.java",
+          "methodId": "demo.bank.Web#csrf(HttpServletRequest)",
+          "methodName": "withoutPadding",
+          "location": {
+            "line": 44,
+            "column": 101,
+            "endLine": 44,
+            "endColumn": 139
+          },
+          "target": "java.util.Base64.Encoder#withoutPadding()",
+          "matched": false,
+          "source": "            if(token==null) { byte[] bytes=new byte[24]; new SecureRandom().nextBytes(bytes); token=Base64.getUrlEncoder().withoutPadding().encodeToString(bytes); session.setAttribute(\"CSRF\",token); }"
+        },
+        {
+          "file": "src/main/java/demo/bank/Web.java",
+          "methodId": "demo.bank.Web#csrf(HttpServletRequest)",
+          "methodName": "getUrlEncoder",
+          "location": {
+            "line": 44,
+            "column": 101,
+            "endLine": 44,
+            "endColumn": 122
+          },
+          "target": "java.util.Base64#getUrlEncoder()",
+          "matched": false,
+          "source": "            if(token==null) { byte[] bytes=new byte[24]; new SecureRandom().nextBytes(bytes); token=Base64.getUrlEncoder().withoutPadding().encodeToString(bytes); session.setAttribute(\"CSRF\",token); }"
+        },
+        {
+          "file": "src/main/java/demo/bank/Web.java",
+          "methodId": "demo.bank.Web#csrf(HttpServletRequest)",
+          "methodName": "getAttribute",
+          "location": {
+            "line": 43,
+            "column": 34,
+            "endLine": 43,
+            "endColumn": 61
+          },
+          "target": "javax.servlet.http.HttpSession#getAttribute(java.lang.String)",
+          "matched": false,
+          "source": "            String token=(String)session.getAttribute(\"CSRF\");"
+        },
+        {
+          "file": "src/main/java/demo/bank/Web.java",
+          "methodId": "demo.bank.Web#csrf(HttpServletRequest)",
+          "methodName": "setAttribute",
+          "location": {
+            "line": 44,
+            "column": 164,
+            "endLine": 44,
+            "endColumn": 197
+          },
+          "target": "javax.servlet.http.HttpSession#setAttribute(java.lang.String, java.lang.Object)",
+          "matched": false,
+          "source": "            if(token==null) { byte[] bytes=new byte[24]; new SecureRandom().nextBytes(bytes); token=Base64.getUrlEncoder().withoutPadding().encodeToString(bytes); session.setAttribute(\"CSRF\",token); }"
+        }
+      ],
+      "occurrences": 24,
+      "explanation": "The raw call index and call graph are correct; method orderedSteps stops before synchronized statements and loses calls/conditions/assignments/returns inside4blocks across Operations,TransferDraft,Web."
+    },
+    {
+      "key": "REV-JAVA-03",
+      "type": "representation-inconsistency",
+      "title": "Explicit superclass constructor omitted from method orderedSteps and callTargets",
+      "sites": [
+        {
+          "file": "src/main/java/demo/bank/BankException.java",
+          "methodId": "demo.bank.BankException#BankException(int,String,String)",
+          "methodName": "<init>",
+          "location": {
+            "line": 7,
+            "column": 9,
+            "endLine": 7,
+            "endColumn": 22
+          },
+          "target": "java.lang.RuntimeException#<init>(java.lang.String)",
+          "matched": false,
+          "source": "        super(message); this.status = status; this.code = code;",
+          "methodCallTargets": []
+        }
+      ],
+      "occurrences": 1,
+      "explanation": "BankException super(message) now resolves in the call index and graph, but its method callTargets is empty and orderedSteps has only subsequent assignments."
+    },
+    {
+      "key": "REV-JAVA-04",
+      "type": "misclassification",
+      "title": "Explicit this.field writes misclassified as local assignments when a parameter shares the field name",
+      "sites": [
+        {
+          "kind": "assignment",
+          "file": "src/main/java/demo/bank/BankException.java",
+          "line": 7,
+          "column": 25,
+          "endLine": 7,
+          "endColumn": 44,
+          "target": "demo.bank.BankException",
+          "symbol": "status",
+          "erased": "FIELD",
+          "name": "this.status",
+          "expectedKind": "field-write",
+          "actualKind": "assignment",
+          "source": "this.status = status",
+          "methodId": "demo.bank.BankException#BankException(int,String,String)",
+          "matched": false
+        },
+        {
+          "kind": "assignment",
+          "file": "src/main/java/demo/bank/BankException.java",
+          "line": 7,
+          "column": 47,
+          "endLine": 7,
+          "endColumn": 62,
+          "target": "demo.bank.BankException",
+          "symbol": "code",
+          "erased": "FIELD",
+          "name": "this.code",
+          "expectedKind": "field-write",
+          "actualKind": "assignment",
+          "source": "this.code = code",
+          "methodId": "demo.bank.BankException#BankException(int,String,String)",
+          "matched": false
+        },
+        {
+          "kind": "assignment",
+          "file": "src/main/java/demo/bank/BTConnector.java",
+          "line": 10,
+          "column": 32,
+          "endLine": 10,
+          "endColumn": 45,
+          "target": "demo.bank.BTConnector",
+          "symbol": "code",
+          "erased": "FIELD",
+          "name": "this.code",
+          "expectedKind": "field-write",
+          "actualKind": "assignment",
+          "source": "this.code=code",
+          "methodId": "demo.bank.BTConnector#BTConnector(String)",
+          "matched": false
+        },
+        {
+          "kind": "assignment",
+          "file": "src/main/java/demo/bank/TransferDraft.java",
+          "line": 15,
+          "column": 108,
+          "endLine": 15,
+          "endColumn": 121,
+          "target": "demo.bank.TransferDraft",
+          "symbol": "from",
+          "erased": "FIELD",
+          "name": "this.from",
+          "expectedKind": "field-write",
+          "actualKind": "assignment",
+          "source": "this.from=from",
+          "methodId": "demo.bank.TransferDraft#TransferDraft(String,String,BigDecimal)",
+          "matched": false
+        },
+        {
+          "kind": "assignment",
+          "file": "src/main/java/demo/bank/TransferDraft.java",
+          "line": 15,
+          "column": 124,
+          "endLine": 15,
+          "endColumn": 133,
+          "target": "demo.bank.TransferDraft",
+          "symbol": "to",
+          "erased": "FIELD",
+          "name": "this.to",
+          "expectedKind": "field-write",
+          "actualKind": "assignment",
+          "source": "this.to=to",
+          "methodId": "demo.bank.TransferDraft#TransferDraft(String,String,BigDecimal)",
+          "matched": false
+        },
+        {
+          "kind": "assignment",
+          "file": "src/main/java/demo/bank/TransferDraft.java",
+          "line": 15,
+          "column": 136,
+          "endLine": 15,
+          "endColumn": 153,
+          "target": "demo.bank.TransferDraft",
+          "symbol": "amount",
+          "erased": "FIELD",
+          "name": "this.amount",
+          "expectedKind": "field-write",
+          "actualKind": "assignment",
+          "source": "this.amount=amount",
+          "methodId": "demo.bank.TransferDraft#TransferDraft(String,String,BigDecimal)",
+          "matched": false
+        }
+      ],
+      "occurrences": 6,
+      "explanation": "Java name resolution for this.field is unambiguously the field; the extractor tests parameter shadowing before considering the explicit this scope. Six writes are labeled assignment while this.id without a matching parameter is correctly field-write."
+    },
+    {
+      "key": "REV-JSP-01",
+      "classification": "dependency-coverage-gap",
+      "severity": "medium",
+      "title": "JSTL fn 함수40곳은 EL AST에 보존되지만 의존성·해석상태에서 제외",
+      "count": 40,
+      "byName": {
+        "length": 8,
+        "escapeXml": 30,
+        "split": 2
+      },
+      "currentConfig": {
+        "autoLoad": false,
+        "registryUris": [
+          "urn:demo:bank",
+          "urn:demo:wfw"
+        ]
+      },
+      "implementation": "packages/cli/src/jsp-functions.ts:68 skip standard function URI when no TLD registry entry",
+      "currentMetadataMatches": 0,
+      "dryRun": {
+        "mode": "in-memory-only loadTldRegistry autoLoad:true plus resolveJspFunctions; persisted analysis unchanged",
+        "registryEntries": 14,
+        "functions": 40,
+        "validatedClasspath": 40,
+        "unresolved": []
+      },
+      "jarFunctions": [
+        {
+          "name": "escapeXml",
+          "functionClass": "org.apache.taglibs.standard.functions.Functions",
+          "functionSignature": "java.lang.String escapeXml(java.lang.String)"
+        },
+        {
+          "name": "length",
+          "functionClass": "org.apache.taglibs.standard.functions.Functions",
+          "functionSignature": "int length(java.lang.Object)"
+        },
+        {
+          "name": "split",
+          "functionClass": "org.apache.taglibs.standard.functions.Functions",
+          "functionSignature": "java.lang.String[] split(java.lang.String, java.lang.String)"
+        }
+      ],
+      "sites": [
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/accounts.jsp",
+          "prefix": "fn",
+          "name": "length",
+          "location": {
+            "line": 19,
+            "column": 27
+          },
+          "source": "${fn:length(accounts)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/accounts.jsp",
+          "prefix": "fn",
+          "name": "length",
+          "location": {
+            "line": 25,
+            "column": 30
+          },
+          "source": "${fn:length(accounts)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/accounts.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 44,
+            "column": 37
+          },
+          "source": "${fn:escapeXml(row.ACCOUNT_NO)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/accounts.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 50,
+            "column": 36
+          },
+          "source": "${fn:escapeXml(ledgerUrl)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/beneficiaries.jsp",
+          "prefix": "fn",
+          "name": "length",
+          "location": {
+            "line": 37,
+            "column": 30
+          },
+          "source": "${fn:length(beneficiaries)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/beneficiaries.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 47,
+            "column": 44
+          },
+          "source": "${fn:escapeXml(row.BENEFICIARY_ID)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/beneficiaries.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 51,
+            "column": 63
+          },
+          "source": "${fn:escapeXml(row.BENEFICIARY_ID)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/beneficiaries.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 55,
+            "column": 80
+          },
+          "source": "${fn:escapeXml(row.BENEFICIARY_ID)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/beneficiaries.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 59,
+            "column": 51
+          },
+          "source": "${fn:escapeXml(row.NICKNAME)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 41,
+            "column": 29
+          },
+          "source": "${fn:escapeXml(openedDeposit.fields.DEPOSIT_ID)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+          "prefix": "fn",
+          "name": "length",
+          "location": {
+            "line": 64,
+            "column": 27
+          },
+          "source": "${fn:length(deposits)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 89,
+            "column": 41
+          },
+          "source": "${fn:escapeXml(row.DEPOSIT_ID)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 92,
+            "column": 67
+          },
+          "source": "${fn:escapeXml(ledgerUrl)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 104,
+            "column": 66
+          },
+          "source": "${fn:escapeXml(row.DEPOSIT_ID)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 108,
+            "column": 84
+          },
+          "source": "${fn:escapeXml(row.DEPOSIT_ID)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 112,
+            "column": 59
+          },
+          "source": "${fn:escapeXml(row.ACCOUNT_NO)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 142,
+            "column": 46
+          },
+          "source": "${fn:escapeXml(account.ACCOUNT_NO)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 152,
+            "column": 46
+          },
+          "source": "${fn:escapeXml(product.PRODUCT_ID)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/history.jsp",
+          "prefix": "fn",
+          "name": "length",
+          "location": {
+            "line": 14,
+            "column": 27
+          },
+          "source": "${fn:length(transfers)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/history.jsp",
+          "prefix": "fn",
+          "name": "length",
+          "location": {
+            "line": 20,
+            "column": 30
+          },
+          "source": "${fn:length(transfers)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/history.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 47,
+            "column": 36
+          },
+          "source": "${fn:escapeXml(receiptUrl)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 31,
+            "column": 52
+          },
+          "source": "${fn:escapeXml(accountNo)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 34,
+            "column": 70
+          },
+          "source": "${fn:escapeXml(fromDate)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 38,
+            "column": 66
+          },
+          "source": "${fn:escapeXml(toDate)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+          "prefix": "fn",
+          "name": "length",
+          "location": {
+            "line": 45,
+            "column": 27
+          },
+          "source": "${fn:length(entries)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 66,
+            "column": 39
+          },
+          "source": "${fn:escapeXml(row.ENTRY_ID)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 68,
+            "column": 44
+          },
+          "source": "${fn:escapeXml(row.ENTRY_KIND)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/products.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 28,
+            "column": 61
+          },
+          "source": "${fn:escapeXml(product.PRODUCT_ID)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/products.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 50,
+            "column": 46
+          },
+          "source": "${fn:escapeXml(product.PRODUCT_ID)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/products.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 60,
+            "column": 49
+          },
+          "source": "${fn:escapeXml(param.quoteAmount eq null ? '10000' : param.quoteAmount)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/transfer-confirm.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 23,
+            "column": 52
+          },
+          "source": "${fn:escapeXml(draft.id)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/transfer-input.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 34,
+            "column": 42
+          },
+          "source": "${fn:escapeXml(row.ACCOUNT_NO)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/transfer-input.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 47,
+            "column": 42
+          },
+          "source": "${fn:escapeXml(row.ACCOUNT_NO)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/transfer-input.jsp",
+          "prefix": "fn",
+          "name": "length",
+          "location": {
+            "line": 75,
+            "column": 48
+          },
+          "source": "${fn:length(recipients)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/transfer-result.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 28,
+            "column": 39
+          },
+          "source": "${fn:escapeXml(transferResult.fields.TRANSFER_ID)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/transfer-result.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 40,
+            "column": 31
+          },
+          "source": "${fn:escapeXml(receiptUrl)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/common/header.jsp",
+          "prefix": "fn",
+          "name": "split",
+          "location": {
+            "line": 3,
+            "column": 17
+          },
+          "source": "${fn:split('DBANK_DASHBOARD,DBANK_ACCOUNTS,DBANK_TRANSFER,DBANK_HISTORY,DBANK_BENEFICIARIES,DBANK_PRODUCTS,DBANK_DEPOSITS,DBANK_LIMITS', ',')}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/common/header.jsp",
+          "prefix": "fn",
+          "name": "split",
+          "location": {
+            "line": 4,
+            "column": 34
+          },
+          "source": "${fn:split('홈,계좌,이체,내역,수취인,상품,내 예금,한도', ',')}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/layout.jsp",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 29,
+            "column": 46
+          },
+          "source": "${fn:escapeXml(cmsPage.title)}",
+          "metadataMatches": 0
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/tags/bank/status.tag",
+          "prefix": "fn",
+          "name": "escapeXml",
+          "location": {
+            "line": 6,
+            "column": 35
+          },
+          "source": "${fn:escapeXml(value)}",
+          "metadataMatches": 0
+        }
+      ],
+      "proposedRemedy": "분석 설정에 jsp.tld.autoLoad:true를 적용하거나 classpath JSTL TLD를 명시적으로 등록하여 재분석하고, 의도적으로 제외하는 경우 coverage/excluded 상태와 이유를 결과에 표시한다."
+    },
+    {
+      "key": "REV-REPORT-01",
+      "classification": "omission",
+      "title": "EL 함수 연결이 JSP 영향 요약과 Java 사용 조회에서 빠짐",
+      "sourceSites": [
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+          "line": 69,
+          "code": "                        <c:out value=\"${bank:entryLabel(row.ENTRY_KIND)}\"/>"
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/jsp/bank/login.jsp",
+          "line": 5,
+          "code": "        <wfw:field name=\"PASSWORD_HASH\" value=\"${bank:sha256(param.password)}\"/>"
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/tags/bank/csrf.tag",
+          "line": 3,
+          "code": "<input type=\"hidden\" name=\"csrf\" value=\"${bank:csrfToken(pageContext.request)}\">"
+        },
+        {
+          "file": "src/main/webapp/WEB-INF/tags/bank/status.tag",
+          "line": 7,
+          "code": "    <c:out value=\"${bank:statusLabel(value)}\"/>"
+        }
+      ],
+      "expected": {
+        "javaTarget": "demo.bank.Web",
+        "jspCallers": [
+          "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+          "src/main/webapp/WEB-INF/jsp/bank/login.jsp",
+          "src/main/webapp/WEB-INF/tags/bank/csrf.tag",
+          "src/main/webapp/WEB-INF/tags/bank/status.tag"
+        ]
+      },
+      "actual": {
+        "rawFunctionEdges": [
+          {
+            "from": "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+            "to": "demo.bank.Web",
+            "type": "JSP_FUNCTION_CALL",
+            "confidence": "high",
+            "fromFile": "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+            "toFile": "src/main/java/demo/bank/Web.java",
+            "fromSymbol": "bank:entryLabel",
+            "toSymbol": "demo.bank.Web#entryLabel(java.lang.Object)",
+            "fromLocation": {
+              "line": 69,
+              "column": 41,
+              "endLine": 69,
+              "endColumn": 55
+            }
+          },
+          {
+            "from": "src/main/webapp/WEB-INF/jsp/bank/login.jsp",
+            "to": "demo.bank.Web",
+            "type": "JSP_FUNCTION_CALL",
+            "confidence": "high",
+            "fromFile": "src/main/webapp/WEB-INF/jsp/bank/login.jsp",
+            "toFile": "src/main/java/demo/bank/Web.java",
+            "fromSymbol": "bank:sha256",
+            "toSymbol": "demo.bank.Web#sha256(java.lang.String)",
+            "fromLocation": {
+              "line": 5,
+              "column": 50,
+              "endLine": 5,
+              "endColumn": 60
+            }
+          },
+          {
+            "from": "src/main/webapp/WEB-INF/tags/bank/csrf.tag",
+            "to": "demo.bank.Web",
+            "type": "JSP_FUNCTION_CALL",
+            "confidence": "high",
+            "fromFile": "src/main/webapp/WEB-INF/tags/bank/csrf.tag",
+            "toFile": "src/main/java/demo/bank/Web.java",
+            "fromSymbol": "bank:csrfToken",
+            "toSymbol": "demo.bank.Web#csrf(javax.servlet.http.HttpServletRequest)",
+            "fromLocation": {
+              "line": 3,
+              "column": 43,
+              "endLine": 3,
+              "endColumn": 56
+            }
+          },
+          {
+            "from": "src/main/webapp/WEB-INF/tags/bank/status.tag",
+            "to": "demo.bank.Web",
+            "type": "JSP_FUNCTION_CALL",
+            "confidence": "high",
+            "fromFile": "src/main/webapp/WEB-INF/tags/bank/status.tag",
+            "toFile": "src/main/java/demo/bank/Web.java",
+            "fromSymbol": "bank:statusLabel",
+            "toSymbol": "demo.bank.Web#statusLabel(java.lang.Object)",
+            "fromLocation": {
+              "line": 7,
+              "column": 21,
+              "endLine": 7,
+              "endColumn": 36
+            }
+          }
+        ],
+        "impactRows": [
+          {
+            "file": "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+            "javaTargets": [],
+            "functionEdges": [
+              {
+                "from": "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+                "to": "demo.bank.Web",
+                "type": "JSP_FUNCTION_CALL",
+                "confidence": "high",
+                "fromFile": "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+                "toFile": "src/main/java/demo/bank/Web.java",
+                "fromSymbol": "bank:entryLabel",
+                "toSymbol": "demo.bank.Web#entryLabel(java.lang.Object)",
+                "fromLocation": {
+                  "line": 69,
+                  "column": 41,
+                  "endLine": 69,
+                  "endColumn": 55
+                }
+              }
+            ]
+          },
+          {
+            "file": "src/main/webapp/WEB-INF/jsp/bank/login.jsp",
+            "javaTargets": [],
+            "functionEdges": [
+              {
+                "from": "src/main/webapp/WEB-INF/jsp/bank/login.jsp",
+                "to": "demo.bank.Web",
+                "type": "JSP_FUNCTION_CALL",
+                "confidence": "high",
+                "fromFile": "src/main/webapp/WEB-INF/jsp/bank/login.jsp",
+                "toFile": "src/main/java/demo/bank/Web.java",
+                "fromSymbol": "bank:sha256",
+                "toSymbol": "demo.bank.Web#sha256(java.lang.String)",
+                "fromLocation": {
+                  "line": 5,
+                  "column": 50,
+                  "endLine": 5,
+                  "endColumn": 60
+                }
+              }
+            ]
+          },
+          {
+            "file": "src/main/webapp/WEB-INF/tags/bank/csrf.tag",
+            "javaTargets": [],
+            "functionEdges": [
+              {
+                "from": "src/main/webapp/WEB-INF/tags/bank/csrf.tag",
+                "to": "demo.bank.Web",
+                "type": "JSP_FUNCTION_CALL",
+                "confidence": "high",
+                "fromFile": "src/main/webapp/WEB-INF/tags/bank/csrf.tag",
+                "toFile": "src/main/java/demo/bank/Web.java",
+                "fromSymbol": "bank:csrfToken",
+                "toSymbol": "demo.bank.Web#csrf(javax.servlet.http.HttpServletRequest)",
+                "fromLocation": {
+                  "line": 3,
+                  "column": 43,
+                  "endLine": 3,
+                  "endColumn": 56
+                }
+              }
+            ]
+          },
+          {
+            "file": "src/main/webapp/WEB-INF/tags/bank/status.tag",
+            "javaTargets": [],
+            "functionEdges": [
+              {
+                "from": "src/main/webapp/WEB-INF/tags/bank/status.tag",
+                "to": "demo.bank.Web",
+                "type": "JSP_FUNCTION_CALL",
+                "confidence": "high",
+                "fromFile": "src/main/webapp/WEB-INF/tags/bank/status.tag",
+                "toFile": "src/main/java/demo/bank/Web.java",
+                "fromSymbol": "bank:statusLabel",
+                "toSymbol": "demo.bank.Web#statusLabel(java.lang.Object)",
+                "fromLocation": {
+                  "line": 7,
+                  "column": 21,
+                  "endLine": 7,
+                  "endColumn": 36
+                }
+              }
+            ]
+          }
+        ],
+        "javaUsages": {
+          "classId": "demo.bank.Web",
+          "jspCallers": []
+        }
+      },
+      "affectedSites": 4,
+      "reason": "queryJspImpact.javaTargets와 queryJavaUsages.jspCallers는 JSP_SCRIPTLET_CALL만 포함하고 새 JSP_FUNCTION_CALL을 제외함. 원시 그래프와 파일 역참조는 올바름."
+    }
+  ],
+  "standardFunctionDryRun": [
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/accounts.jsp",
+      "prefix": "fn",
+      "name": "length",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "length",
+      "parameterTypes": [
+        "java.lang.Object"
+      ],
+      "returnType": "int",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 101,
+        "startColumn": 5,
+        "endLine": 111,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 19,
+        "column": 27,
+        "endLine": 19,
+        "endColumn": 35
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#length(java.lang.Object)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/accounts.jsp",
+      "prefix": "fn",
+      "name": "length",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "length",
+      "parameterTypes": [
+        "java.lang.Object"
+      ],
+      "returnType": "int",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 101,
+        "startColumn": 5,
+        "endLine": 111,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 25,
+        "column": 30,
+        "endLine": 25,
+        "endColumn": 38
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#length(java.lang.Object)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/accounts.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 50,
+        "column": 36,
+        "endLine": 50,
+        "endColumn": 47
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/accounts.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 44,
+        "column": 37,
+        "endLine": 44,
+        "endColumn": 48
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/beneficiaries.jsp",
+      "prefix": "fn",
+      "name": "length",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "length",
+      "parameterTypes": [
+        "java.lang.Object"
+      ],
+      "returnType": "int",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 101,
+        "startColumn": 5,
+        "endLine": 111,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 37,
+        "column": 30,
+        "endLine": 37,
+        "endColumn": 38
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#length(java.lang.Object)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/beneficiaries.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 55,
+        "column": 80,
+        "endLine": 55,
+        "endColumn": 91
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/beneficiaries.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 59,
+        "column": 51,
+        "endLine": 59,
+        "endColumn": 62
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/beneficiaries.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 51,
+        "column": 63,
+        "endLine": 51,
+        "endColumn": 74
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/beneficiaries.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 47,
+        "column": 44,
+        "endLine": 47,
+        "endColumn": 55
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 41,
+        "column": 29,
+        "endLine": 41,
+        "endColumn": 40
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+      "prefix": "fn",
+      "name": "length",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "length",
+      "parameterTypes": [
+        "java.lang.Object"
+      ],
+      "returnType": "int",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 101,
+        "startColumn": 5,
+        "endLine": 111,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 64,
+        "column": 27,
+        "endLine": 64,
+        "endColumn": 35
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#length(java.lang.Object)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 92,
+        "column": 67,
+        "endLine": 92,
+        "endColumn": 78
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 108,
+        "column": 84,
+        "endLine": 108,
+        "endColumn": 95
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 112,
+        "column": 59,
+        "endLine": 112,
+        "endColumn": 70
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 104,
+        "column": 66,
+        "endLine": 104,
+        "endColumn": 77
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 89,
+        "column": 41,
+        "endLine": 89,
+        "endColumn": 52
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 142,
+        "column": 46,
+        "endLine": 142,
+        "endColumn": 57
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 152,
+        "column": 46,
+        "endLine": 152,
+        "endColumn": 57
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/history.jsp",
+      "prefix": "fn",
+      "name": "length",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "length",
+      "parameterTypes": [
+        "java.lang.Object"
+      ],
+      "returnType": "int",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 101,
+        "startColumn": 5,
+        "endLine": 111,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 14,
+        "column": 27,
+        "endLine": 14,
+        "endColumn": 35
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#length(java.lang.Object)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/history.jsp",
+      "prefix": "fn",
+      "name": "length",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "length",
+      "parameterTypes": [
+        "java.lang.Object"
+      ],
+      "returnType": "int",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 101,
+        "startColumn": 5,
+        "endLine": 111,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 20,
+        "column": 30,
+        "endLine": 20,
+        "endColumn": 38
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#length(java.lang.Object)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/history.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 47,
+        "column": 36,
+        "endLine": 47,
+        "endColumn": 47
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 31,
+        "column": 52,
+        "endLine": 31,
+        "endColumn": 63
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 34,
+        "column": 70,
+        "endLine": 34,
+        "endColumn": 81
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 38,
+        "column": 66,
+        "endLine": 38,
+        "endColumn": 77
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+      "prefix": "fn",
+      "name": "length",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "length",
+      "parameterTypes": [
+        "java.lang.Object"
+      ],
+      "returnType": "int",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 101,
+        "startColumn": 5,
+        "endLine": 111,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 45,
+        "column": 27,
+        "endLine": 45,
+        "endColumn": 35
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#length(java.lang.Object)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+      "prefix": "bank",
+      "name": "entryLabel",
+      "uri": "urn:demo:bank",
+      "className": "demo.bank.Web",
+      "methodName": "entryLabel",
+      "parameterTypes": [
+        "java.lang.Object"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "src/main/webapp/WEB-INF/tld/bank.tld",
+      "declarationLineRange": {
+        "startLine": 127,
+        "startColumn": 5,
+        "endLine": 131,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 69,
+        "column": 41,
+        "endLine": 69,
+        "endColumn": 55
+      },
+      "validation": "source",
+      "targetFile": "src/main/java/demo/bank/Web.java",
+      "methodId": "demo.bank.Web#entryLabel(java.lang.Object)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 68,
+        "column": 44,
+        "endLine": 68,
+        "endColumn": 55
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 66,
+        "column": 39,
+        "endLine": 66,
+        "endColumn": 50
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/login.jsp",
+      "prefix": "bank",
+      "name": "sha256",
+      "uri": "urn:demo:bank",
+      "className": "demo.bank.Web",
+      "methodName": "sha256",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "src/main/webapp/WEB-INF/tld/bank.tld",
+      "declarationLineRange": {
+        "startLine": 117,
+        "startColumn": 5,
+        "endLine": 121,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 5,
+        "column": 50,
+        "endLine": 5,
+        "endColumn": 60
+      },
+      "validation": "source",
+      "targetFile": "src/main/java/demo/bank/Web.java",
+      "methodId": "demo.bank.Web#sha256(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/products.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 28,
+        "column": 61,
+        "endLine": 28,
+        "endColumn": 72
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/products.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 50,
+        "column": 46,
+        "endLine": 50,
+        "endColumn": 57
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/products.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 60,
+        "column": 49,
+        "endLine": 60,
+        "endColumn": 60
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/transfer-confirm.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 23,
+        "column": 52,
+        "endLine": 23,
+        "endColumn": 63
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/transfer-input.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 34,
+        "column": 42,
+        "endLine": 34,
+        "endColumn": 53
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/transfer-input.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 47,
+        "column": 42,
+        "endLine": 47,
+        "endColumn": 53
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/transfer-input.jsp",
+      "prefix": "fn",
+      "name": "length",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "length",
+      "parameterTypes": [
+        "java.lang.Object"
+      ],
+      "returnType": "int",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 101,
+        "startColumn": 5,
+        "endLine": 111,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 75,
+        "column": 48,
+        "endLine": 75,
+        "endColumn": 56
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#length(java.lang.Object)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/transfer-result.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 28,
+        "column": 39,
+        "endLine": 28,
+        "endColumn": 50
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/bank/transfer-result.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 40,
+        "column": 31,
+        "endLine": 40,
+        "endColumn": 42
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/common/header.jsp",
+      "prefix": "fn",
+      "name": "split",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "split",
+      "parameterTypes": [
+        "java.lang.String",
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String[]",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 126,
+        "startColumn": 5,
+        "endLine": 136,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 3,
+        "column": 17,
+        "endLine": 3,
+        "endColumn": 24
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#split(java.lang.String,java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/common/header.jsp",
+      "prefix": "fn",
+      "name": "split",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "split",
+      "parameterTypes": [
+        "java.lang.String",
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String[]",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 126,
+        "startColumn": 5,
+        "endLine": 136,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 4,
+        "column": 34,
+        "endLine": 4,
+        "endColumn": 41
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#split(java.lang.String,java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/jsp/layout.jsp",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 29,
+        "column": 46,
+        "endLine": 29,
+        "endColumn": 57
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/tags/bank/csrf.tag",
+      "prefix": "bank",
+      "name": "csrfToken",
+      "uri": "urn:demo:bank",
+      "className": "demo.bank.Web",
+      "methodName": "csrf",
+      "parameterTypes": [
+        "javax.servlet.http.HttpServletRequest"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "src/main/webapp/WEB-INF/tld/bank.tld",
+      "declarationLineRange": {
+        "startLine": 112,
+        "startColumn": 5,
+        "endLine": 116,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 3,
+        "column": 43,
+        "endLine": 3,
+        "endColumn": 56
+      },
+      "validation": "unresolved",
+      "unresolvedReason": "No matching public static source method for the declared function signature: Source type could not be verified in the analysis environment: HttpServletRequest"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/tags/bank/status.tag",
+      "prefix": "bank",
+      "name": "statusLabel",
+      "uri": "urn:demo:bank",
+      "className": "demo.bank.Web",
+      "methodName": "statusLabel",
+      "parameterTypes": [
+        "java.lang.Object"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "src/main/webapp/WEB-INF/tld/bank.tld",
+      "declarationLineRange": {
+        "startLine": 122,
+        "startColumn": 5,
+        "endLine": 126,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 7,
+        "column": 21,
+        "endLine": 7,
+        "endColumn": 36
+      },
+      "validation": "source",
+      "targetFile": "src/main/java/demo/bank/Web.java",
+      "methodId": "demo.bank.Web#statusLabel(java.lang.Object)"
+    },
+    {
+      "file": "src/main/webapp/WEB-INF/tags/bank/status.tag",
+      "prefix": "fn",
+      "name": "escapeXml",
+      "uri": "http://java.sun.com/jsp/jstl/functions",
+      "className": "org.apache.taglibs.standard.functions.Functions",
+      "methodName": "escapeXml",
+      "parameterTypes": [
+        "java.lang.String"
+      ],
+      "returnType": "java.lang.String",
+      "declarationPath": "<WORKSPACE>/analysis/legacy-bank-java8/accuracy-support/war/WEB-INF/lib/taglibs-standard-impl-1.2.5.jar!/META-INF/fn.tld",
+      "declarationLineRange": {
+        "startLine": 65,
+        "startColumn": 5,
+        "endLine": 75,
+        "endColumn": 15
+      },
+      "location": {
+        "line": 6,
+        "column": 35,
+        "endLine": 6,
+        "endColumn": 46
+      },
+      "validation": "classpath",
+      "methodId": "org.apache.taglibs.standard.functions.Functions#escapeXml(java.lang.String)"
+    }
+  ]
+}
