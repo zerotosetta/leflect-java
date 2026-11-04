@@ -8,6 +8,48 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class JavaRevisionAccuracyTest {
+  @Test
+  void synchronizedStepsEvaluateLocksAndKeepNestedBranchesAndNormalContinuation() throws Exception {
+    AstFileResult result = export("""
+        package demo;
+        class Uses {
+          Object lock() { return this; }
+          void work() {}
+          int run(boolean ready) {
+            synchronized(lock()) {
+              if (ready) return 1;
+              synchronized(this) { work(); }
+            }
+            work();
+            return 2;
+          }
+          void fail(boolean broken) {
+            synchronized(this) { if (broken) throw new IllegalStateException(); }
+            work();
+          }
+        }
+        """);
+    var method = result.types.get(0).methods.stream().filter(m -> m.name.equals("run")).findFirst().orElseThrow();
+    var steps = method.orderedSteps;
+    assertEquals("lock", steps.get(0).call.methodName);
+    assertEquals("synchronized", steps.get(1).kind);
+    assertEquals(2, steps.stream().filter(s -> s.kind.equals("synchronized")).count());
+    var nested = steps.stream().filter(s -> s.call != null && s.call.methodName.equals("work") && s.lineRange.startLine == 8)
+        .findFirst().orElseThrow();
+    assertEquals(2, nested.branchPath.stream().filter(p -> p.startsWith("synchronized:")).count());
+    assertTrue(nested.branchPath.stream().anyMatch(p -> p.startsWith("normal-completion:")));
+    var returned = steps.stream().filter(s -> s.kind.equals("return") && s.lineRange.startLine == 7).findFirst().orElseThrow();
+    assertTrue(returned.branchPath.contains("if:true"));
+    var after = steps.stream().filter(s -> s.call != null && s.call.methodName.equals("work") && s.lineRange.startLine == 10)
+        .findFirst().orElseThrow();
+    assertTrue(after.branchPath.stream().anyMatch(p -> p.startsWith("normal-completion:6:")));
+    assertFalse(after.branchPath.stream().anyMatch(p -> p.startsWith("synchronized:")));
+    assertEquals(3, result.methodCalls.stream().filter(c -> c.callerMethodId.equals("demo.Uses#run(boolean)")).count());
+    var fail = result.types.get(0).methods.stream().filter(m -> m.name.equals("fail")).findFirst().orElseThrow();
+    var afterThrow = fail.orderedSteps.stream().filter(s -> s.call != null && s.call.methodName.equals("work")).findFirst().orElseThrow();
+    assertTrue(afterThrow.branchPath.stream().anyMatch(p -> p.startsWith("normal-completion:")));
+  }
+
   private AstFileResult export(String text) throws Exception {
     Path root = Files.createTempDirectory("leflect-revision-");
     Path source = root.resolve("demo/Uses.java");

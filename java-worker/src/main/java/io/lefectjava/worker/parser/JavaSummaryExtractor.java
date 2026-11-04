@@ -39,6 +39,7 @@ import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.stmt.SwitchEntry;
 import com.github.javaparser.ast.stmt.SwitchStmt;
+import com.github.javaparser.ast.stmt.SynchronizedStmt;
 import com.github.javaparser.ast.stmt.ThrowStmt;
 import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.stmt.WhileStmt;
@@ -466,9 +467,29 @@ public class JavaSummaryExtractor {
       NodeList<Statement> statements,
       List<String> branchPath
   ) {
+    List<String> continuation = branchPath;
     for (Statement statement : statements) {
-      appendStatement(collector, statement, branchPath);
+      appendStatement(collector, statement, continuation);
+      if (statement instanceof ReturnStmt || statement instanceof ThrowStmt) {
+        break;
+      }
+      if (statement instanceof SynchronizedStmt || containsAbruptExit(statement)) {
+        continuation = appendBranchPath(continuation, scopeSegment("normal-completion", statement));
+      }
     }
+  }
+
+  private boolean containsAbruptExit(Node node) {
+    if (node instanceof ReturnStmt || node instanceof ThrowStmt) return true;
+    for (Node child : node.getChildNodes()) {
+      if (!(child instanceof TypeDeclaration<?> || child instanceof CallableDeclaration<?> || child instanceof LambdaExpr)
+          && containsAbruptExit(child)) return true;
+    }
+    return false;
+  }
+
+  private String scopeSegment(String kind, Node node) {
+    return kind + ":" + node.getRange().map(range -> range.begin.line + ":" + range.begin.column).orElse("unknown");
   }
 
   private void appendStatement(
@@ -482,6 +503,15 @@ public class JavaSummaryExtractor {
 
     if (statement.isBlockStmt()) {
       appendStatements(collector, statement.asBlockStmt().getStatements(), branchPath);
+      return;
+    }
+
+    if (statement instanceof SynchronizedStmt) {
+      SynchronizedStmt synchronizedStmt = (SynchronizedStmt) statement;
+      appendExpression(collector, synchronizedStmt.getExpression(), branchPath);
+      collector.addStep("synchronized", synchronizedStmt, branchPath, null);
+      appendStatement(collector, synchronizedStmt.getBody(),
+          appendBranchPath(branchPath, scopeSegment("synchronized", synchronizedStmt)));
       return;
     }
 
