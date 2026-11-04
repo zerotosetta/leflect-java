@@ -639,7 +639,7 @@ class ProjectionDependencyGraph extends LitElement {
     if (edge.type.includes("ENTRY_SEED")) {
       return 120;
     }
-    if (edge.type.includes("JAVA_CALL")) {
+    if (edge.type.includes("JAVA_CALL") || edge.type.includes("JAVA_CONSTRUCTOR_CALL")) {
       return 126;
     }
     if (edge.type.includes("JSP_SCRIPTLET_CALL") || edge.type.includes("JSP_USES_TAG") || edge.type.includes("JSP_INCLUDES")) {
@@ -652,7 +652,7 @@ class ProjectionDependencyGraph extends LitElement {
     if (edge.type.includes("ENTRY_SEED")) {
       return 0.95;
     }
-    if (edge.type.includes("JAVA_CALL")) {
+    if (edge.type.includes("JAVA_CALL") || edge.type.includes("JAVA_CONSTRUCTOR_CALL")) {
       return 0.45;
     }
     return 0.36;
@@ -726,15 +726,15 @@ class ProjectionDependencyGraph extends LitElement {
   }
 
   private linkColor(edgeType: string): string {
-    if (edgeType.includes("ENTRY_SEED")) return this.themeColor("--theme-graph-entry", "245 163 91");
-    if (edgeType.includes("JAVA_CALL")) return "rgb(251 191 36)";
+    if (edgeType.includes("ENTRY_SEED") || edgeType.includes("HTTP_ROUTE")) return this.themeColor("--theme-graph-entry", "245 163 91");
+    if (edgeType.includes("JAVA_CALL") || edgeType.includes("JAVA_CONSTRUCTOR_CALL")) return "rgb(251 191 36)";
     if (edgeType.includes("JAVA_IMPORT")) return this.themeColor("--theme-graph-arrow", "91 119 184");
     if (edgeType.includes("JAVA_NEW")) return "rgb(45 212 191)";
     if (edgeType.includes("JAVA_TYPE_REFERENCE")) return "rgb(148 163 184)";
     if (edgeType.includes("JSP_USES_TAG_FILE") || edgeType.includes("JSP_INCLUDES") || edgeType.includes("JSP_SCRIPTLET_CALL")) {
       return this.themeColor("--theme-graph-jsp", "138 214 255");
     }
-    if (edgeType.includes("JSP_USES_TAG")) return this.themeColor("--theme-graph-java", "126 224 160");
+    if (edgeType.includes("JSP_USES_TAG") || edgeType.includes("JSP_FUNCTION_CALL")) return this.themeColor("--theme-graph-java", "126 224 160");
     return this.themeColor("--theme-graph-arrow", "91 119 184");
   }
 
@@ -743,6 +743,7 @@ class ProjectionDependencyGraph extends LitElement {
     if (node.nodeType === "entry") return this.themeColor("--theme-graph-entry", "245 163 91");
     if (node.nodeType === "jsp") return this.themeColor("--theme-graph-jsp", "138 214 255");
     if (node.nodeType === "java") return this.themeColor("--theme-graph-java", "126 224 160");
+    if (node.nodeType === "external") return "rgb(148 163 184)";
     return this.themeColor("--theme-graph-unresolved", "255 139 139");
   }
 

@@ -1,5 +1,6 @@
 import type { LeflectPlugin } from "./plugin";
 import type { JspTaglibResolver } from "./jsp";
+import type { ServletEntryMetadata } from "./servlet";
 
 export type JspAstMode = "lightweight" | "jasper";
 
@@ -27,6 +28,7 @@ export type LeflectEntryDefinition = {
   interfaceSpecs?: string[];
   tags?: string[];
   variants?: LeflectEntryVariant[];
+  http?: ServletEntryMetadata;
 };
 
 export type LeflectConfig = {
@@ -49,6 +51,7 @@ export type LeflectConfig = {
     workerJar?: string;
     targetVersion?: string;
     sourceArchive?: string;
+    librarySources?: Array<{ archive: string; provider: string; version?: string }>;
     jreHome?: string;
     javaHome?: string;
     classpath?: string[];

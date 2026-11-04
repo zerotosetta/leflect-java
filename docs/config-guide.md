@@ -720,6 +720,13 @@ This is the most explicit form and is useful when you want all output paths pinn
 - optional array of JAR/directories used by JavaParser SymbolSolver
 - use this for external libraries or precompiled project classes when Java semantic resolution matters
 
+`java.librarySources`
+
+- optional source archives for resolved external providers: `[{ provider: "javax.servlet", version: "4.0.FR", archive: "./sources/servlet-api-sources.jar" }]`
+- `provider` and `version` match the binary JAR manifest's module/title and implementation version; source lookup does not change symbol resolution
+- the file graph distinguishes `external` from `unresolved`; `index/external-symbols.json` records the provider and source state (`available`, `not-provided`, `not-found`, or `version-mismatch`)
+- the projection detail opens matching source archives. An unavailable source keeps the resolved external relationship intact
+
 `java.mavenCommand`
 
 - optional Maven executable path or command name used for Java dependency classpath auto-discovery
@@ -845,6 +852,23 @@ Java AST exists but semantic resolution is incomplete
 
 - `labelsOut` was overridden by CLI `--labels-out`
 - otherwise the default path is `<analysisOut>/index/labels.json`
+
+## Automatic HTTP entries and TASK codes
+
+Leflect reads `<jsp.webappRoot>/WEB-INF/web.xml` and creates an HTTP entry per servlet mapping, with its URL pattern, registered class, declared `service` or `do*` handlers, and descriptor source range. It labels registered project servlets as `CONTROLLER`. Unregistered classes retain their existing role labels.
+
+`index/servlet-entries.json` records the discovery evidence and diagnostics for missing classes/handlers. Explicit `entries` with the generated ID (`http:<encoded servlet name>:<encoded URL pattern>`) or the same `http.servletName` and `http.urlPattern` override the discovered entry. The projection entry graph shows the URL below the entry root and offers navigation to its `web.xml` mapping.
+
+The URI-bound `urn:demo:wfw` `task` tag produces `index/task-codes.json`. It stores every source occurrence, handler, raw tag, code, and literal/dynamic/missing/empty state. Repeated literal codes remain separate occurrences; the `codes` list contains unique literal values. This list does not imply a CMS, SQL, or reflection target relationship.
+
+```bash
+node bin/leflect query task-codes --analysis /path/to/analysis --format json
+node bin/leflect query task-codes --analysis /path/to/analysis --file src/main/webapp/page.jsp
+```
+
+JSP page counts exclude independently indexed `.tag`, `.tagx`, and `.jspf` fragments. The fragments still have metadata and semantic AST shards, tag declarations, and direct dependencies. Include relationships preserve `directive` (translation time) versus `action` (request time) provenance. JSP impact results include `fileReferences`, `fileTargets`, and `fileUsageCount` to distinguish occurrences from unique file targets.
+
+An unchanged incremental run reuses parse caches. A Java change or deletion reparses the current Java source set so cross-file signatures and the complete summary stay consistent with a full run. Deleted declarations are removed from the AST, indexes, graphs, and reports.
 
 ## Recommended Start
 

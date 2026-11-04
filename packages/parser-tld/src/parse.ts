@@ -4,13 +4,14 @@ import path from "path";
 
 import { XMLParser } from "fast-xml-parser";
 
-import { TldAttributeSchema, TldRegistryEntry, TldRegistryTag, TldSourceKind } from "@leflect-java/schema";
+import { TldAttributeSchema, TldRegistryEntry, TldRegistryFunction, TldRegistryTag, TldSourceKind } from "@leflect-java/schema";
 
 export type TldTag = TldRegistryTag;
 
 export type TldIndex = {
   uri?: string;
   tags: TldTag[];
+  functions?: TldRegistryFunction[];
 };
 
 export type TldRegistryDiagnostic = {
@@ -55,7 +56,8 @@ export function parseTld(xml: string): TldIndex {
   const uri = typeof taglib["uri"] === "string" ? (taglib["uri"] as string) : undefined;
   const tags = [...normalizeTags(taglib["tag"]), ...normalizeTagFiles(taglib["tag-file"])];
 
-  return { uri, tags };
+  const functions = normalizeFunctions(taglib["function"], xml);
+  return { uri, tags, ...(functions.length ? { functions } : {}) };
 }
 
 export async function loadTldRegistry(
@@ -86,7 +88,8 @@ export async function loadTldRegistry(
       uri: effectiveUri,
       sourcePath: candidate.sourcePath,
       sourceKind: candidate.sourceKind,
-      tags: parsed.tags
+      tags: parsed.tags,
+      ...(parsed.functions?.length ? { functions: parsed.functions } : {})
     };
 
     if (!effectiveUri) {
@@ -290,6 +293,29 @@ async function readCandidateContent(candidate: CandidateSource): Promise<string>
     throw new Error(`Missing jar entry ${entryPath}`);
   }
   return entry.getData().toString("utf8");
+}
+
+function normalizeFunctions(node: unknown, xml: string): TldRegistryFunction[] {
+  const blocks = [...xml.matchAll(/<function(?:\s[^>]*)?>([\s\S]*?)<\/function\s*>/g)];
+  return (Array.isArray(node) ? node : [node]).flatMap((value, index) => {
+    if (!value || typeof value !== "object") return [];
+    const record = value as Record<string, unknown>;
+    const name = typeof record.name === "string" ? record.name.trim() : "";
+    const functionClass = typeof record["function-class"] === "string" ? record["function-class"].trim() : "";
+    const functionSignature = typeof record["function-signature"] === "string" ? record["function-signature"].trim() : "";
+    if (!name || !functionClass || !functionSignature) return [];
+    const block = blocks[index];
+    const offset = block?.index ?? 0;
+    const before = xml.slice(0, offset).split("\n");
+    const after = xml.slice(0, offset + (block?.[0].length ?? 0)).split("\n");
+    return [{
+      name, functionClass, functionSignature,
+      ...(block ? { lineRange: {
+        startLine: before.length, startColumn: before.at(-1)!.length + 1,
+        endLine: after.length, endColumn: after.at(-1)!.replace(/\r$/, "").length
+      } } : {})
+    }];
+  });
 }
 
 function normalizeTags(node: unknown): TldTag[] {

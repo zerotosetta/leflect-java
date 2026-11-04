@@ -8,3 +8,5 @@ export * from "./labels";
 export * from "./plugin";
 export * from "./report";
 export * from "./worker";
+export * from "./servlet";
+export * from "./task";

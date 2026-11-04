@@ -1,16 +1,20 @@
 import fs from "fs/promises";
 import path from "path";
+import { readExternalSymbolSource } from "./external-symbols";
+import { readTaskCodes } from "./task-codes";
 
 import {
   DeclaredEntryDependencyRecord,
   DeclaredEntrySeedRecord,
   EntryDependencyIndex,
+  ExternalSymbolInfo,
   FileDependencyIndex,
   FileDependencyRecord,
   FileDependencyReference,
   GraphEdge,
   GraphEdgeType,
   GraphNodeType,
+  ServletEntryMetadata,
   SummaryReport
 } from "@leflect-java/schema";
 
@@ -21,6 +25,7 @@ export type ProjectionGraphEdgeKind = "call" | "import" | "type" | "tag";
 export type ProjectionFileManifestEntry = {
   path: string;
   nodeType: Exclude<GraphNodeType, "unresolved">;
+  sourceKind?: "jsp" | "jspf" | "tag" | "tagx";
   metadataPath?: string;
   packageName?: string;
   importCount?: number;
@@ -42,6 +47,7 @@ export type ProjectionFileEntry = Omit<ProjectionFileManifestEntry, "nodeType"> 
   dependantCount: number;
   references: FileDependencyReference[];
   referencedBy: FileDependencyReference[];
+  external?: ExternalSymbolInfo;
 };
 
 export type ProjectionEntrySource = "declared" | "matched";
@@ -62,6 +68,7 @@ export type ProjectionEntry = {
   edgeCount: number;
   reachableCount: number;
   disabled: boolean;
+  http?: ServletEntryMetadata;
 };
 
 type ProjectionEntryGraph = {
@@ -72,6 +79,7 @@ type ProjectionEntryGraph = {
   focusPath?: string;
   seedPaths: string[];
   adjacency: Map<string, GraphEdge[]>;
+  http?: ServletEntryMetadata;
 };
 
 export type ProjectionSnapshot = {
@@ -182,6 +190,7 @@ type ProjectionCountByNodeType = {
   all: number;
   java: number;
   jsp: number;
+  external: number;
 };
 
 type ProjectionTreeIndexNode = {
@@ -261,6 +270,7 @@ export async function loadProjectionSnapshot(
     filesByPath.set(normalizedPath, {
       path: normalizedPath,
       nodeType: record.nodeType,
+      sourceKind: manifest?.sourceKind,
       metadataPath: manifest?.metadataPath,
       packageName: manifest?.packageName,
       importCount: manifest?.importCount,
@@ -295,6 +305,20 @@ export async function loadProjectionSnapshot(
       referencedBy: []
     });
   }
+  for (const record of fileIndex.files) {
+    for (const reference of record.references) {
+      if (reference.nodeType !== "external" || filesByPath.has(reference.path)) continue;
+      filesByPath.set(reference.path, {
+        path: reference.path,
+        nodeType: "external",
+        external: reference.external,
+        referenceCount: 0,
+        dependantCount: 0,
+        references: [],
+        referencedBy: []
+      });
+    }
+  }
 
   const adjacency = new Map<string, GraphEdge[]>();
   const reverseAdjacency = new Map<string, GraphEdge[]>();
@@ -308,6 +332,17 @@ export async function loadProjectionSnapshot(
     } satisfies GraphEdge;
     pushMap(adjacency, normalized.from, normalized);
     pushMap(reverseAdjacency, normalized.to, normalized);
+  }
+  for (const file of filesByPath.values()) {
+    if (file.nodeType !== "external") continue;
+    const incoming = reverseAdjacency.get(file.path) ?? [];
+    file.referencedBy = [...new Set(incoming.map((edge) => edge.from))].map((source) => ({
+      path: source,
+      nodeType: filesByPath.get(source)?.nodeType ?? "unresolved",
+      edgeTypes: [...new Set(incoming.filter((edge) => edge.from === source).map((edge) => edge.type))],
+      symbols: [...new Set(incoming.filter((edge) => edge.from === source).map((edge) => edge.fromSymbol ?? source))]
+    }));
+    file.dependantCount = file.referencedBy.length;
   }
 
   const files = [...filesByPath.values()].sort(compareFiles);
@@ -726,7 +761,13 @@ export async function loadProjectionFileDetail(snapshot: ProjectionSnapshot, tar
     );
   }
 
-  const source = await readProjectionFileSource(snapshot, existing.path, existing.nodeType);
+  if (existing.nodeType === "jsp") {
+    const taskCodes = await readTaskCodes(snapshot.analysisOut, existing.path).catch(() => undefined);
+    if (taskCodes?.occurrences.length) metadata = { ...metadata, taskCodes: taskCodes.occurrences };
+  }
+  const source = existing.external
+    ? await readExternalSymbolSource(existing.external)
+    : await readProjectionFileSource(snapshot, existing.path, existing.nodeType);
 
   return {
     file: toProjectionFileSummary(existing),
@@ -764,7 +805,7 @@ async function readProjectionFileSource(
   relativePath: string,
   nodeType: GraphNodeType
 ): Promise<ProjectionFileSource | undefined> {
-  if (nodeType !== "java" && nodeType !== "jsp") {
+  if (nodeType !== "java" && nodeType !== "jsp" && !relativePath.endsWith(".xml")) {
     return undefined;
   }
 
@@ -779,7 +820,7 @@ async function readProjectionFileSource(
     const truncated = content.length > SOURCE_PREVIEW_MAX_CHARS;
     return {
       path: relativePath,
-      language: nodeType === "java" ? "java" : "jsp",
+      language: nodeType === "java" ? "java" : nodeType === "jsp" ? "jsp" : "plain",
       content: truncated ? content.slice(0, SOURCE_PREVIEW_MAX_CHARS) : content,
       truncated
     };
@@ -823,7 +864,8 @@ function createNodeTypeCount(): ProjectionCountByNodeType {
   return {
     all: 0,
     java: 0,
-    jsp: 0
+    jsp: 0,
+    external: 0
   };
 }
 
@@ -831,7 +873,8 @@ function countForFile(file: ProjectionFileEntry): ProjectionCountByNodeType {
   return {
     all: 1,
     java: file.nodeType === "java" ? 1 : 0,
-    jsp: file.nodeType === "jsp" ? 1 : 0
+    jsp: file.nodeType === "jsp" ? 1 : 0,
+    external: file.nodeType === "external" ? 1 : 0
   };
 }
 
@@ -839,6 +882,7 @@ function incrementNodeTypeCount(target: ProjectionCountByNodeType, value: Projec
   target.all += value.all;
   target.java += value.java;
   target.jsp += value.jsp;
+  target.external += value.external;
 }
 
 function countByNodeType(
@@ -850,6 +894,9 @@ function countByNodeType(
   }
   if (nodeType === "jsp") {
     return counts.jsp;
+  }
+  if (nodeType === "external") {
+    return counts.external;
   }
   return counts.all;
 }
@@ -905,6 +952,7 @@ function buildProjectionEntries(entryIndex: EntryDependencyIndex): {
       label: entry.label ?? entry.id,
       source: "declared",
       entryType: entry.type,
+      http: entry.http,
       focusPath: focusSeed?.path ? normalizePath(focusSeed.path) : undefined,
       seedPaths,
       adjacency: buildAdjacency(entry.edges)
@@ -914,6 +962,7 @@ function buildProjectionEntries(entryIndex: EntryDependencyIndex): {
       label: entry.label ?? entry.id,
       source: "declared" as const,
       entryType: entry.type,
+      http: entry.http,
       focusPath: focusSeed?.path ? normalizePath(focusSeed.path) : undefined,
       focusNodeType: focusSeed?.nodeType ?? resolveSeedNodeType(focusSeed?.targetType),
       description: entry.description,
@@ -1006,7 +1055,38 @@ function buildDeclaredEntryGraph(
   const edges = new Map<string, ProjectionGraphEdge>();
   let truncated = false;
 
-  if (depthLimit === undefined || depthLimit >= 1) {
+  let seedParentId = rootId;
+  let seedDepth = 1;
+  if (entryGraph.http && (depthLimit === undefined || depthLimit >= 1)) {
+    if (nodes.size >= maxNodes) {
+      truncated = true;
+    } else {
+      seedParentId = `${rootId}:route`;
+      seedDepth = 2;
+      nodes.set(seedParentId, {
+        id: seedParentId,
+        path: seedParentId,
+        nodeType: "entry",
+        label: entryGraph.http.urlPattern,
+        referenceCount: entryGraph.seedPaths.length,
+        dependantCount: 1,
+        isFocus: false,
+        parentId: rootId,
+        depth: 1,
+        confidence: ["high"],
+        symbols: entryGraph.http.handlerMethodIds
+      });
+      edges.set(rootId + "->" + seedParentId, {
+        id: rootId + "->" + seedParentId,
+        sourceId: rootId,
+        targetId: seedParentId,
+        type: "HTTP_ROUTE",
+        confidence: ["high"],
+        symbols: entryGraph.http.handlerMethodIds
+      });
+    }
+  }
+  if (!truncated && (depthLimit === undefined || depthLimit >= seedDepth)) {
     for (const seedPath of entryGraph.seedPaths) {
       if (visited.has(seedPath)) {
         continue;
@@ -1018,17 +1098,17 @@ function buildDeclaredEntryGraph(
       visited.add(seedPath);
       nodes.set(
         seedPath,
-        toGraphNode(snapshot, seedPath, rootId, 1, rootId, {
+        toGraphNode(snapshot, seedPath, rootId, seedDepth, seedParentId, {
           target: seedPath,
           type: "ENTRY_SEED",
           confidence: [],
           symbols: []
         })
       );
-      queue.push({ path: seedPath, depth: 1 });
-      edges.set(rootId + "->" + seedPath, {
-        id: rootId + "->" + seedPath,
-        sourceId: rootId,
+      queue.push({ path: seedPath, depth: seedDepth });
+      edges.set(seedParentId + "->" + seedPath, {
+        id: seedParentId + "->" + seedPath,
+        sourceId: seedParentId,
         targetId: seedPath,
         type: "ENTRY_SEED",
         confidence: [],
@@ -1379,7 +1459,7 @@ function matchesProjectionGraphEdgeKinds(
 }
 
 function projectionGraphEdgeKind(edgeType: GraphEdgeType): ProjectionGraphEdgeKind | undefined {
-  if (edgeType === "JAVA_CALL" || edgeType === "JSP_SCRIPTLET_CALL") {
+  if (edgeType === "JAVA_CALL" || edgeType === "JAVA_CONSTRUCTOR_CALL" || edgeType === "JSP_SCRIPTLET_CALL" || edgeType === "JSP_FUNCTION_CALL") {
     return "call";
   }
   if (edgeType === "JAVA_IMPORT") {

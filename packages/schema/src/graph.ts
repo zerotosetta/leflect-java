@@ -1,18 +1,32 @@
 import type { JspReferenceLocation } from "./jsp-references";
+import type { ServletEntryMetadata } from "./servlet";
 
 export type GraphEdgeType =
   | "JAVA_CALL"
+  | "JAVA_CONSTRUCTOR_CALL"
   | "JAVA_IMPORT"
   | "JAVA_TYPE_REFERENCE"
   | "JAVA_NEW"
   | "JSP_SCRIPTLET_CALL"
+  | "JSP_FUNCTION_CALL"
   | "JSP_USES_TAG"
   | "JSP_USES_TAG_FILE"
   | "JSP_INCLUDES";
 
 export type GraphConfidence = "high" | "medium" | "low" | "unresolved";
 
-export type GraphNodeType = "java" | "jsp" | "unresolved";
+export type GraphNodeType = "java" | "jsp" | "external" | "unresolved";
+
+export type ExternalSymbolInfo = {
+  symbol: string;
+  provider: { name: string; version?: string; path?: string };
+  source: {
+    status: "available" | "not-provided" | "not-found" | "version-mismatch";
+    archive?: string;
+    entry?: string;
+    version?: string;
+  };
+};
 
 export type GraphEdge = {
   from: string;
@@ -32,6 +46,7 @@ export type FileDependencyReference = {
   nodeType: GraphNodeType;
   edgeTypes: GraphEdgeType[];
   symbols: string[];
+  external?: ExternalSymbolInfo;
 };
 
 export type FileDependencyRecord = {
@@ -86,6 +101,7 @@ export type DeclaredEntryDependencyRecord = {
   description?: string;
   tags?: string[];
   variantOf?: string;
+  http?: ServletEntryMetadata;
   seeds: {
     java: DeclaredEntrySeedRecord[];
     jsp: DeclaredEntrySeedRecord[];

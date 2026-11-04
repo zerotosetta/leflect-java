@@ -113,6 +113,7 @@ function resolveConfigPaths(config: LeflectConfig, root: string): LeflectConfig 
     (
       javaConfig.workerJar ||
       javaConfig.sourceArchive ||
+      javaConfig.librarySources?.length ||
       javaConfig.jreHome ||
       javaConfig.javaHome ||
       javaConfig.classpath?.length ||
@@ -122,6 +123,9 @@ function resolveConfigPaths(config: LeflectConfig, root: string): LeflectConfig 
           ...javaConfig,
           workerJar: javaConfig.workerJar ? resolvePath(root, javaConfig.workerJar) : undefined,
           ...(javaConfig.sourceArchive ? { sourceArchive: resolvePath(root, javaConfig.sourceArchive) } : {}),
+          ...(javaConfig.librarySources ? { librarySources: javaConfig.librarySources.map((source) => ({
+            ...source, archive: resolvePath(root, source.archive)
+          })) } : {}),
           jreHome: javaConfig.jreHome ? resolvePath(root, javaConfig.jreHome) : undefined,
           javaHome: javaConfig.javaHome ? resolvePath(root, javaConfig.javaHome) : undefined,
           classpath: javaConfig.classpath?.map((entry) => resolvePath(root, entry)),
@@ -344,6 +348,13 @@ function validateConfig(config: LeflectConfig): void {
     }
     if (config.java.sourceArchive !== undefined && typeof config.java.sourceArchive !== "string") {
       throw new Error("Config 'java.sourceArchive' must be a path to matching JDK sources");
+    }
+    if (config.java.librarySources !== undefined &&
+      (!Array.isArray(config.java.librarySources) || config.java.librarySources.some((source) =>
+        !source || typeof source.archive !== "string" || !source.archive.trim() ||
+        typeof source.provider !== "string" || !source.provider.trim() ||
+        (source.version !== undefined && typeof source.version !== "string")))) {
+      throw new Error("Config 'java.librarySources' must contain provider, archive and optional version");
     }
     if (config.java.jreHome && typeof config.java.jreHome !== "string") {
       throw new Error("Config 'java.jreHome' must be a string");

@@ -36,6 +36,10 @@ it("resolves tags through nested static includes and refreshes targets on increm
     const readEdges = () => readJsonlFile<GraphEdge>(path.join(analysisOut, "graph/jsp-java.jsonl"));
 
     await analyze();
+    expect(await readJsonFile(path.join(analysisOut, "jsp-meta", `${tagFile}.json`)))
+      .toMatchObject({ sourceKind: "tag", ast: { mode: "lightweight" } });
+    expect(await readJsonFile(path.join(analysisOut, "jsp-meta", "web/parts/setup.jspf.json")))
+      .toMatchObject({ sourceKind: "jspf" });
     expect(await readEdges()).toEqual(expect.arrayContaining([
       expect.objectContaining({
         from: page, to: "FirstTag", confidence: "high", fromLocation: expect.objectContaining({ line: 2, column: 1 })
@@ -53,7 +57,8 @@ it("resolves tags through nested static includes and refreshes targets on increm
     await fs.writeFile(fragment, '<%@ taglib prefix="app" uri="urn:second" %>');
     await fs.unlink(path.join(root, tagFile));
     const revised = await analyze();
-    expect(revised.stages.find((stage) => stage.stage === "parse-jsp")?.processedFiles).toBe(1);
+    expect(revised.stages.find((stage) => stage.stage === "parse-jsp")?.processedFiles).toBe(3);
+    expect(await fs.access(path.join(analysisOut, "jsp-meta", `${tagFile}.json`)).then(() => true, () => false)).toBe(false);
     const updated = await readEdges();
     expect(updated).not.toEqual(expect.arrayContaining([expect.objectContaining({ to: "FirstTag" })]));
     expect(updated).toEqual(expect.arrayContaining([
@@ -63,4 +68,4 @@ it("resolves tags through nested static includes and refreshes targets on increm
   } finally {
     await cleanupWorkspace(workspace);
   }
-});
+}, 60_000);

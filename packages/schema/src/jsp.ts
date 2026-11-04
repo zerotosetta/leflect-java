@@ -29,6 +29,31 @@ export type TldRegistryEntry = {
   sourcePath?: string;
   sourceKind?: TldSourceKind;
   tags: TldRegistryTag[];
+  functions?: TldRegistryFunction[];
+};
+
+export type TldRegistryFunction = {
+  name: string;
+  functionClass: string;
+  functionSignature: string;
+  lineRange?: LineRange;
+};
+
+export type JspFunctionReference = {
+  prefix: string;
+  name: string;
+  uri?: string;
+  className?: string;
+  methodName?: string;
+  methodId?: string;
+  parameterTypes?: string[];
+  returnType?: string;
+  targetFile?: string;
+  declarationPath?: string;
+  declarationLineRange?: LineRange;
+  location: { line: number; column: number; endLine: number; endColumn: number };
+  validation: "source" | "classpath" | "unresolved";
+  unresolvedReason?: string;
 };
 
 type ElAstBase = {
@@ -129,12 +154,16 @@ export type JspResolverTagNode = {
   name: string;
   uri?: string;
   handlerClass?: string;
+  tagFile?: string;
+  declarationPath?: string;
+  unresolvedReason?: string;
   raw: string;
   attributes: Record<string, string>;
   attributeExpressions: Record<string, ElAstNode | undefined>;
   lineRange: LineRange;
   bodyText?: string;
   children: JspSemanticNode[];
+  attributeNodes?: JspAttributeSemanticNode[];
 };
 
 export type JspSemanticNodeBase = {
@@ -142,6 +171,8 @@ export type JspSemanticNodeBase = {
   raw: string;
   lineRange: LineRange;
   children?: JspSemanticNode[];
+  incomplete?: boolean;
+  attributeNodes?: JspAttributeSemanticNode[];
 };
 
 export type JspTextNode = JspSemanticNodeBase & {
@@ -158,12 +189,20 @@ export type JspElExpressionSemanticNode = JspSemanticNodeBase & {
   kind: "ElExpressionNode";
   expression: string;
   ast: ElAstNode;
+  functionCalls?: JspFunctionReference[];
+};
+
+export type JspAttributeSemanticNode = JspSemanticNodeBase & {
+  kind: "AttributeNode";
+  name?: string;
+  value?: string;
 };
 
 export type JspHtmlElementNode = JspSemanticNodeBase & {
   kind: "HtmlElementNode";
   tagName: string;
   attributes: Record<string, string>;
+  attributeNodes?: JspAttributeSemanticNode[];
 };
 
 export type JspCustomTagNode = JspSemanticNodeBase & {
@@ -171,7 +210,20 @@ export type JspCustomTagNode = JspSemanticNodeBase & {
   sourceTag: JspResolverTagNode;
   uri?: string;
   handlerClass?: string;
+  tagFile?: string;
+  declarationPath?: string;
+  unresolvedReason?: string;
   attributes: Record<string, string>;
+  attributeNodes?: JspAttributeSemanticNode[];
+};
+
+export type JspStandardActionNode = JspSemanticNodeBase & {
+  kind: "StandardActionNode";
+  action: "include" | "param" | "useBean";
+  attributes: Record<string, string>;
+  attributeNodes?: JspAttributeSemanticNode[];
+  include?: import("./jsp-references").JspIncludeReference;
+  bean?: import("./jsp-bean").JspBeanAction;
 };
 
 export type JspIfStatementNode = JspSemanticNodeBase & {
@@ -233,6 +285,7 @@ export type JspScriptletNode = JspSemanticNodeBase & {
 export type JspIncludeReferenceNode = JspSemanticNodeBase & {
   kind: "IncludeReference";
   target: string;
+  reference?: import("./jsp-references").JspIncludeReference;
 };
 
 export type JspSemanticRootNode = JspSemanticNodeBase & {
@@ -245,8 +298,10 @@ export type JspSemanticNode =
   | JspTextNode
   | JspCommentSemanticNode
   | JspElExpressionSemanticNode
+  | JspAttributeSemanticNode
   | JspHtmlElementNode
   | JspCustomTagNode
+  | JspStandardActionNode
   | JspIfStatementNode
   | JspChooseStatementNode
   | JspWhenBranchNode

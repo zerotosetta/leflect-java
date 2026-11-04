@@ -15,6 +15,7 @@ import type {
 } from "@leflect-java/indexer";
 
 import type { ProjectionFileEntry, ProjectionSnapshot } from "./projection";
+import type { JspSemanticAst, JspSemanticNode } from "@leflect-java/schema";
 
 export type ProjectionAstGraphNodeCategory =
   | "root"
@@ -114,6 +115,7 @@ type AstGraphBuilder = {
   nodeIds: Set<string>;
   locationIndex: Map<string, ProjectionAstGraphNode[]>;
   externalRootIds: Map<string, string>;
+  maxLocalNodes: number;
   nextId(prefix: string): string;
   addNode(node: ProjectionAstGraphNode, options?: { indexLocation?: boolean; external?: boolean }): string | undefined;
   addLink(link: ProjectionAstGraphLink): void;
@@ -141,6 +143,7 @@ export async function loadProjectionAstGraph(
   }
 
   const builder = createAstGraphBuilder(file.path);
+  if (file.nodeType === "jsp") builder.maxLocalNodes = 2000;
   builder.addNode(
     {
       id: builder.rootId,
@@ -176,7 +179,15 @@ export async function loadProjectionAstGraph(
   } else {
     const metadata = await loadJson<JspFileMetadata | undefined>(metadataFilePath(snapshot, file), undefined);
     if (metadata) {
-      buildJspAstGraph(builder, file.path, metadata);
+      const semantic = metadata.semanticAstPath
+        ? await loadJson<JspSemanticAst | undefined>(path.isAbsolute(metadata.semanticAstPath)
+          ? metadata.semanticAstPath : path.join(snapshot.analysisOut, metadata.semanticAstPath), undefined)
+        : undefined;
+      if (semantic) {
+        for (const child of semantic.root.children) walkJspSemanticAst(builder, file.path, child, builder.rootId);
+      } else {
+        buildJspAstGraph(builder, file.path, metadata);
+      }
       if (options.includeExternal) {
         await attachExternalJspTargets(builder, snapshot, file, metadata);
       }
@@ -208,6 +219,7 @@ function createAstGraphBuilder(rootPath: string): AstGraphBuilder {
     nodeIds: new Set<string>(),
     locationIndex: new Map<string, ProjectionAstGraphNode[]>(),
     externalRootIds: new Map<string, string>(),
+    maxLocalNodes: MAX_LOCAL_AST_NODES,
     nextId(prefix: string) {
       sequence += 1;
       return `${prefix}:${sequence}`;
@@ -224,7 +236,7 @@ function createAstGraphBuilder(rootPath: string): AstGraphBuilder {
         }
         this.externalNodeCount += 1;
       } else {
-        if (this.localNodeCount >= MAX_LOCAL_AST_NODES) {
+        if (this.localNodeCount >= this.maxLocalNodes) {
           this.truncated = true;
           return undefined;
         }
@@ -380,6 +392,35 @@ function buildJavaMetadataFallback(builder: AstGraphBuilder, filePath: string, m
     }
     builder.addLink({ source: parentId, target: nodeId, type: "child", external: false });
   }
+}
+
+function walkJspSemanticAst(builder: AstGraphBuilder, filePath: string, node: JspSemanticNode, parent: string): void {
+  if (builder.truncated) return;
+  if (node.kind === "TextNode" && !node.text.trim()) return;
+  const range = node.lineRange;
+  const location = { line: range.startLine, column: range.startColumn, endLine: range.endLine, endColumn: range.endColumn };
+  let label: string = node.kind;
+  let detail: string | undefined;
+  let category: ProjectionAstGraphNodeCategory = "statement";
+  let astType: string = node.kind;
+  switch (node.kind) {
+    case "HtmlElementNode": label = node.tagName; category = "tag"; break;
+    case "AttributeNode": label = node.name ? "@" + node.name : "conditional attribute"; detail = node.value; category = "binding"; break;
+    case "StandardActionNode": label = "jsp:" + node.action; detail = node.include?.targetPath ?? node.bean?.className; category = "tag"; break;
+    case "CustomTagNode": label = node.sourceTag.prefix + ":" + node.sourceTag.name; detail = node.tagFile ?? node.handlerClass ?? node.unresolvedReason; category = "tag"; break;
+    case "ElExpressionNode": label = node.expression; detail = JSON.stringify(node.ast); category = "expression"; break;
+    case "CommentNode": label = "comment " + range.startLine; detail = node.text; category = "comment"; astType = "JspComment"; break;
+    case "IncludeReference": label = "include " + node.target; detail = node.reference?.targetPath; category = "binding"; break;
+    case "TextNode": label = compactSnippet(node.text) ?? node.text; detail = node.text; break;
+    default: detail = node.raw;
+  }
+  const id = builder.addNode({
+    id: builder.nextId("jsp"), path: filePath, label, detail, astType, category, external: false, location
+  });
+  if (!id) return;
+  builder.addLink({ source: parent, target: id, type: "child", external: false });
+  for (const attribute of node.attributeNodes ?? []) walkJspSemanticAst(builder, filePath, attribute, id);
+  for (const child of node.children ?? []) walkJspSemanticAst(builder, filePath, child, id);
 }
 
 function buildJspAstGraph(builder: AstGraphBuilder, filePath: string, metadata: JspFileMetadata): void {

@@ -59,14 +59,10 @@ export async function describeJspBeans(
 }
 
 function collectUseBeans(node: JspDocumentNode): JspCustomTagElementNode[] {
-  if (node.kind === "Document" || node.kind === "HtmlElement") {
-    return node.children.flatMap(collectUseBeans);
-  }
-  if (node.kind !== "CustomTagElement") {
-    return [];
-  }
-  const nested = node.children.flatMap(collectUseBeans);
-  return node.prefix === "jsp" && node.name === "useBean" ? [node, ...nested] : nested;
+  const attributes = "attributeNodes" in node ? node.attributeNodes ?? [] : [];
+  const children = "children" in node ? node.children : [];
+  const nested = [...attributes, ...children].flatMap(collectUseBeans);
+  return node.kind === "CustomTagElement" && node.prefix === "jsp" && node.name === "useBean" ? [node, ...nested] : nested;
 }
 
 async function detectMavenJavaVersion(root: string): Promise<string | undefined> {

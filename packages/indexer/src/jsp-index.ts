@@ -2,7 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 
 import { JspAstReference, JspDirective, JspDocumentNode, JspDocumentRoot, JspTag, ScriptletBlock, SourceLocation, TaglibDirective } from "@leflect-java/parser-jsp";
-import { JspBeanAction, JspIncludeReference, JspSemanticSummary, LineRange } from "@leflect-java/schema";
+import { JspBeanAction, JspFunctionReference, JspIncludeReference, JspSemanticSummary, LineRange, TldAttributeSchema } from "@leflect-java/schema";
 
 import { MethodCallParameterEntry, MethodIndexEntry } from "./java-index";
 import { readSourceMetadataTree, removeFiles, writeSourceMetadataTree } from "./file-tree";
@@ -18,6 +18,9 @@ export type JspResolvedTag = {
 };
 
 type JspReferenceDetails = {
+  sourceKind?: "jsp" | "jspf" | "tag" | "tagx";
+  tagAttributes?: TldAttributeSchema[];
+  functionCalls?: JspFunctionReference[];
   includeReferences?: JspIncludeReference[];
   beanActions?: JspBeanAction[];
   comments?: Array<{ text: string; lineRange: LineRange }>;
@@ -94,7 +97,7 @@ export type JspClassReferenceIndexEntry = {
   className: string;
   classPath?: string;
   importId?: string;
-  kind: "import" | "tag-handler" | "scriptlet";
+  kind: "import" | "tag-handler" | "scriptlet" | "el-function";
   location?: SourceLocation;
   snippet?: string;
   uri?: string;
@@ -115,6 +118,7 @@ export type JspMethodCallIndexEntry = {
 };
 
 export type JspFileMetadata = JspFileIndexEntry & {
+  directives?: JspDirective[];
   importEntries: JspImportIndexEntry[];
   taglibs: JspTaglibUsageIndexEntry[];
   tags: JspTagUsageIndexEntry[];
@@ -316,6 +320,9 @@ export function buildJspIndex(entries: JspDocIndexEntry[], options: JspIndexOpti
 
     files.push({
       path: normalizedPath,
+      sourceKind: entry.sourceKind ?? sourceKindForPath(entry.path),
+      tagAttributes: entry.tagAttributes ?? extractTagAttributes(entry.directives),
+      functionCalls: entry.functionCalls,
       imports: [...(entry.imports ?? [])].sort(),
       importIds: fileImportEntries.map((item) => item.id),
       includes: [...(entry.includes ?? [])].sort(),
@@ -350,6 +357,7 @@ export async function writeJspIndex(outDir: string, index: JspIndex): Promise<vo
   const metadataByPath = new Map(metadata.map((entry) => [entry.path, entry]));
     const manifest = index.files.map((entry) => ({
       path: entry.path,
+      sourceKind: entry.sourceKind,
       metadataPath: metadataPaths.get(entry.path),
       importCount: metadataByPath.get(entry.path)?.importEntries.length ?? 0,
     includeCount: entry.includes.length,
@@ -399,6 +407,9 @@ export function flattenJspFileMetadata(files: JspFileMetadata[]): JspIndex {
   for (const file of files) {
     index.files.push({
       path: file.path,
+      sourceKind: file.sourceKind ?? sourceKindForPath(file.path),
+      tagAttributes: file.tagAttributes,
+      functionCalls: file.functionCalls,
       metadataPath: file.metadataPath,
       imports: [...file.imports],
       importIds: [...file.importIds],
@@ -416,7 +427,10 @@ export function flattenJspFileMetadata(files: JspFileMetadata[]): JspIndex {
     });
     index.docs.push({
       path: file.path,
-      directives: [],
+      sourceKind: file.sourceKind ?? sourceKindForPath(file.path),
+      tagAttributes: file.tagAttributes,
+      functionCalls: file.functionCalls,
+      directives: file.directives ?? [],
       imports: [...file.imports],
       includes: [...file.includes],
       taglibs: file.taglibs.map((taglib) => ({
@@ -485,6 +499,7 @@ export function flattenJspFileMetadata(files: JspFileMetadata[]): JspIndex {
 function toJspFileMetadata(index: JspIndex): JspFileMetadata[] {
   return index.files.map((entry) => ({
     ...entry,
+    directives: index.docs.find((doc) => doc.path === entry.path)?.directives,
     importEntries: index.imports.filter((item) => item.file === entry.path),
     taglibs: index.taglibs.filter((item) => item.file === entry.path),
     tags: index.tags.filter((item) => item.file === entry.path),
@@ -492,6 +507,23 @@ function toJspFileMetadata(index: JspIndex): JspFileMetadata[] {
     classReferences: index.classReferences.filter((item) => item.file === entry.path),
     methodCalls: index.methodCalls.filter((item) => item.file === entry.path)
   }));
+}
+
+function sourceKindForPath(file: string): "jsp" | "jspf" | "tag" | "tagx" {
+  const extension = path.extname(file).slice(1).toLowerCase();
+  return extension === "jspf" || extension === "tag" || extension === "tagx" ? extension : "jsp";
+}
+
+function extractTagAttributes(directives: JspDirective[]): TldAttributeSchema[] {
+  return directives.filter((directive) => String(directive.kind) === "attribute").flatMap((directive) => {
+    const name = directive.attributes.name;
+    return name ? [{
+      name,
+      required: directive.attributes.required === "true",
+      type: directive.attributes.type,
+      runtimeExpressionValue: directive.attributes.rtexprvalue === undefined ? undefined : directive.attributes.rtexprvalue === "true"
+    }] : [];
+  });
 }
 
 function collectComments(node: JspDocumentNode): NonNullable<JspReferenceDetails["comments"]> {

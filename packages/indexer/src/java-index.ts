@@ -24,6 +24,7 @@ export type MethodIndexEntry = {
   classId?: string;
   file?: string;
   returnType?: string;
+  modifiers?: string[];
   parameters?: string[];
   callTargets?: string[];
   location?: JavaSourceLocation;
@@ -58,6 +59,7 @@ export type CallIndexEntry = {
   toClassId?: string;
   fromMethodId?: string;
   callerKind?: "static-initializer";
+  invocationKind?: "super-constructor" | "this-constructor";
   toMethodId?: string;
   fromFile?: string;
   toFile?: string;
@@ -168,6 +170,7 @@ export type JavaSummaryMethod = {
   id: string;
   name: string;
   returnType?: string;
+  modifiers?: string[];
   parameters?: string[];
   calls?: string[];
   location?: JavaSourceLocation;
@@ -214,6 +217,7 @@ export type JavaSummaryMethodCall = {
   callerMethodId?: string;
   callerClassId?: string;
   callerKind?: "static-initializer";
+  invocationKind?: "super-constructor" | "this-constructor";
   target: string;
   targetText?: string;
   targetClassId?: string;
@@ -370,6 +374,7 @@ export function buildJavaIndex(workerIndex: WorkerIndex): JavaIndex {
             classId: type.fqn,
             file,
             returnType: method.returnType,
+            modifiers: method.modifiers,
             parameters: method.parameters ?? [],
             callTargets: collectUnique(method.calls ?? []),
             location: method.location,
@@ -663,6 +668,7 @@ function buildCallIndexEntry(
     toClassId: classPath,
     fromMethodId: pending.record.callerMethodId,
     callerKind: pending.record.callerKind,
+    invocationKind: pending.record.invocationKind,
     toMethodId,
     fromFile: pending.file,
     toFile: inferredMethod?.file,
