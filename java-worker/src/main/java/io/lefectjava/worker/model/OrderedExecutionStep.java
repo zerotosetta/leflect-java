@@ -9,6 +9,7 @@ public class OrderedExecutionStep {
   public List<String> branchPath;
   public LineRange lineRange;
   public OrderedStepCall call;
+  public OrderedStepField field;
 
   public OrderedExecutionStep() {
   }

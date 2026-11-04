@@ -9,6 +9,34 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class JavaRevisionAccuracyTest {
   @Test
+  void explicitThisWritesResolveFieldOwnersDespiteParameterAndLocalShadowing() throws Exception {
+    AstFileResult result = export("""
+        package demo;
+        class Base { int inherited; int hidden; }
+        class Uses extends Base {
+          int value; int id; int hidden;
+          Uses(int value, int inherited) {
+            this.value = value;
+            value = 2;
+            this.inherited = inherited;
+            this.id = 7;
+            this.hidden = 3;
+            { int id = 1; id = 2; }
+            id = 8;
+          }
+        }
+        """);
+    var ctor = result.types.stream().filter(t -> t.fqn.equals("demo.Uses")).findFirst().orElseThrow().methods.get(0);
+    var writes = ctor.orderedSteps.stream().filter(s -> s.kind.equals("field-write")).toList();
+    assertEquals(5, writes.size());
+    assertTrue(writes.stream().anyMatch(s -> s.field.id.equals("demo.Base#inherited")));
+    assertTrue(writes.stream().anyMatch(s -> s.field.id.equals("demo.Uses#hidden")));
+    assertEquals(2, writes.stream().filter(s -> s.field.id.equals("demo.Uses#id")).count());
+    assertTrue(ctor.orderedSteps.stream().anyMatch(s -> s.snippet.equals("value = 2") && s.kind.equals("assignment") && s.field == null));
+    assertTrue(ctor.orderedSteps.stream().anyMatch(s -> s.snippet.equals("id = 2") && s.kind.equals("assignment") && s.field == null));
+  }
+
+  @Test
   void explicitConstructorDelegationSharesTargetsRangesAndEvaluationOrder() throws Exception {
     AstFileResult result = export("""
         package demo;

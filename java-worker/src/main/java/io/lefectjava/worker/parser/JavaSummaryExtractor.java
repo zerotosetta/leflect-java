@@ -51,6 +51,7 @@ import com.github.javaparser.resolution.declarations.ResolvedConstructorDeclarat
 import com.github.javaparser.resolution.declarations.ResolvedReferenceTypeDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedTypeParameterDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedFieldDeclaration;
 import com.github.javaparser.resolution.types.ResolvedReferenceType;
 import com.github.javaparser.resolution.types.ResolvedType;
 import com.github.javaparser.utils.Pair;
@@ -64,6 +65,7 @@ import io.lefectjava.worker.model.JavaReferenceDiagnostic;
 import io.lefectjava.worker.model.LineRange;
 import io.lefectjava.worker.model.OrderedExecutionStep;
 import io.lefectjava.worker.model.OrderedStepCall;
+import io.lefectjava.worker.model.OrderedStepField;
 import io.lefectjava.worker.model.SourceLocation;
 
 import java.util.ArrayList;
@@ -657,7 +659,21 @@ public class JavaSummaryExtractor {
       String kind = isEnclosingFieldReference(assignExpr.getTarget())
           ? "field-write"
           : "assignment";
-      collector.addStep(kind, assignExpr, branchPath, null);
+      OrderedExecutionStep step = collector.addStep(kind, assignExpr, branchPath, null);
+      if ("field-write".equals(kind)) {
+        Optional<ResolvedFieldDeclaration> resolved = resolveEnclosingField(assignExpr.getTarget());
+        if (resolved.isPresent()) {
+          step.field = new OrderedStepField(resolved.get().declaringType().getQualifiedName(), resolved.get().getName());
+        } else {
+          // A declared field remains identifiable in lightweight parsing without a solver.
+          String name = assignExpr.getTarget().isNameExpr() ? assignExpr.getTarget().asNameExpr().getNameAsString()
+              : assignExpr.getTarget().asFieldAccessExpr().getNameAsString();
+          TypeDeclaration<?> owner = assignExpr.findAncestor(TypeDeclaration.class).orElse(null);
+          String packageName = assignExpr.findCompilationUnit().flatMap(CompilationUnit::getPackageDeclaration)
+              .map(declaration -> declaration.getNameAsString()).orElse("");
+          if (owner != null) step.field = new OrderedStepField(buildTypeFqn(packageName, typeName(owner)), name);
+        }
+      }
       return;
     }
 
@@ -742,13 +758,14 @@ public class JavaSummaryExtractor {
   }
 
   private boolean isEnclosingFieldReference(Node node) {
+    if (resolveEnclosingField(node).isPresent()) return true;
     if (node instanceof NameExpr) {
       return isEnclosingFieldReference(node, ((NameExpr) node).getNameAsString());
     }
     if (node instanceof FieldAccessExpr) {
       FieldAccessExpr fieldAccessExpr = (FieldAccessExpr) node;
       return fieldAccessExpr.getScope().isThisExpr() &&
-          isEnclosingFieldReference(node, fieldAccessExpr.getNameAsString());
+          hasDeclaredField(node, fieldAccessExpr.getNameAsString());
     }
     return false;
   }
@@ -758,6 +775,23 @@ public class JavaSummaryExtractor {
       return false;
     }
 
+    return hasDeclaredField(node, name);
+  }
+
+  private Optional<ResolvedFieldDeclaration> resolveEnclosingField(Node node) {
+    try {
+      ResolvedValueDeclaration value;
+      if (node instanceof NameExpr) value = ((NameExpr) node).resolve();
+      else if (node instanceof FieldAccessExpr && ((FieldAccessExpr) node).getScope().isThisExpr())
+        value = ((FieldAccessExpr) node).resolve();
+      else return Optional.empty();
+      return value.isField() ? Optional.of(value.asField()) : Optional.empty();
+    } catch (RuntimeException error) {
+      return Optional.empty();
+    }
+  }
+
+  private boolean hasDeclaredField(Node node, String name) {
     Optional<TypeDeclaration<?>> type = node.findAncestor(TypeDeclaration.class)
         .map(value -> (TypeDeclaration<?>) value);
     if (type.isEmpty()) {
@@ -1339,25 +1373,27 @@ public class JavaSummaryExtractor {
       this.nextIndex = 0;
     }
 
-    private void addStep(
+    private OrderedExecutionStep addStep(
         String kind,
         Node node,
         List<String> branchPath,
         OrderedStepCall call
     ) {
-      addStep(kind, node.toString(), branchPath, call, toStaticLineRange(node));
+      return addStep(kind, node.toString(), branchPath, call, toStaticLineRange(node));
     }
 
-    private void addStep(String kind, String snippet, List<String> branchPath, OrderedStepCall call, LineRange range) {
+    private OrderedExecutionStep addStep(String kind, String snippet, List<String> branchPath, OrderedStepCall call, LineRange range) {
       this.nextIndex += 1;
-      this.steps.add(new OrderedExecutionStep(
+      OrderedExecutionStep step = new OrderedExecutionStep(
           methodId + ":step:" + nextIndex,
           kind,
           snippet,
           new ArrayList<>(branchPath),
           range,
           call
-      ));
+      );
+      this.steps.add(step);
+      return step;
     }
 
     private LineRange toStaticLineRange(Node node) {

@@ -165,6 +165,7 @@ export type OrderedExecutionStepEntry = {
   branchPath?: string[];
   lineRange?: JavaLineRange;
   call?: OrderedStepCallEntry;
+  field?: { id: string; classId: string; name: string };
 };
 
 export type JavaSummaryMethod = {
@@ -944,6 +945,7 @@ function normalizeOrderedSteps(
     snippet: step.snippet,
     branchPath: [...(step.branchPath ?? [])],
     lineRange: normalizeLineRange(step.lineRange),
+    field: step.field ? { ...step.field } : undefined,
     call: step.call
       ? {
           targetText: step.call.targetText,
