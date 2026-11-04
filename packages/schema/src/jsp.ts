@@ -18,6 +18,7 @@ export type TldAttributeSchema = {
 export type TldRegistryTag = {
   name: string;
   handlerClass?: string;
+  tagFilePath?: string;
   attributes?: TldAttributeSchema[];
   bodyContent?: string;
   dynamicAttributes?: boolean;
@@ -148,6 +149,11 @@ export type JspTextNode = JspSemanticNodeBase & {
   text: string;
 };
 
+export type JspCommentSemanticNode = JspSemanticNodeBase & {
+  kind: "CommentNode";
+  text: string;
+};
+
 export type JspElExpressionSemanticNode = JspSemanticNodeBase & {
   kind: "ElExpressionNode";
   expression: string;
@@ -237,6 +243,7 @@ export type JspSemanticRootNode = JspSemanticNodeBase & {
 export type JspSemanticNode =
   | JspSemanticRootNode
   | JspTextNode
+  | JspCommentSemanticNode
   | JspElExpressionSemanticNode
   | JspHtmlElementNode
   | JspCustomTagNode

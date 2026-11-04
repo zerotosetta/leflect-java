@@ -113,6 +113,7 @@ export type ProjectionAstGraphNodeCategory =
   | "expression"
   | "tag"
   | "scriptlet"
+  | "comment"
   | "binding"
   | "external";
 
@@ -163,7 +164,41 @@ export type ProjectionSourceHighlight = {
 
 export type ProjectionFileDetail = {
   file: ProjectionFileEntry;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown> & {
+    includeReferences?: Array<{
+      page: string;
+      kind: "static" | "dynamic";
+      location: ProjectionSourceLocation;
+      targetPath?: string;
+      candidatePaths?: string[];
+      parameters: Array<{ name: string; value: string }>;
+      evidence?: Array<{ description: string; path?: string }>;
+      unresolvedReason?: string;
+    }>;
+    beanActions?: Array<{
+      id?: string;
+      className?: string;
+      actionDescription: string;
+      api?: { javaVersion: string; description: string; source: string };
+      apiDescriptionStatus: "available" | "source-unavailable" | "type-unavailable";
+    }>;
+    comments?: Array<{ text: string; lineRange: { startLine: number } }>;
+    tags?: Array<{
+      prefix: string;
+      name: string;
+      handlerClass?: string;
+      tagFile?: string;
+      location?: ProjectionSourceLocation;
+      unresolvedReason?: string;
+    }>;
+    calls?: Array<{
+      callerKind?: "static-initializer";
+      fromClassId?: string;
+      toMethodId?: string;
+      to?: string;
+      location?: ProjectionSourceLocation;
+    }>;
+  };
   source?: ProjectionFileSource;
   references: Array<{
     path: string;

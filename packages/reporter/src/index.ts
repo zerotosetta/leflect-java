@@ -154,7 +154,9 @@ export function buildSummaryReport(input: ReporterInput): SummaryReport {
       jsps: input.jsps.length,
       taglibs: input.taglibs.length,
       javaCallEdges: input.javaCallEdges.length,
-      jspJavaEdges: input.jspJavaEdges.length,
+      jspJavaEdges: input.jspJavaEdges.filter((edge) =>
+        edge.type === "JSP_SCRIPTLET_CALL" || edge.type === "JSP_USES_TAG"
+      ).length,
       unresolvedEdges: unresolvedEdges.length
     },
     labels: {
@@ -484,7 +486,7 @@ function toDiagnosticFromEdge(edge: GraphEdge): DiagnosticRecord {
     path: normalizePath(edge.from),
     category: "graph.unresolved",
     summary: "Unresolved graph edge",
-    message: `Unresolved edge from ${edge.from} to ${edge.to}`,
+    message: edge.unresolvedReason ?? `Unresolved edge from ${edge.from} to ${edge.to}`,
     detail: `type=${edge.type}, confidence=${edge.confidence}`,
     hint: "Inspect the source metadata and supporting indexes for missing type or taglib resolution."
   };

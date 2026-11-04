@@ -19,6 +19,34 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JavaAstExporterTest {
   @Test
+  void exportIdentifiesCallsFromStaticInitializerBlocks() throws Exception {
+    Path source = Files.createTempFile("leflect-java-initializer", ".java");
+    Files.writeString(source, """
+        package demo;
+        class Init {
+          static { System.getProperty("static"); }
+          { System.getProperty("instance"); }
+          void run() { System.getProperty("method"); }
+        }
+        """);
+
+    JavaAstExporter exporter = new JavaAstExporter(
+        ParserFactory.createJavaParser(source.getParent(), List.of(source), List.of()),
+        new JavaSummaryExtractor(),
+        new ParseProblemCollector(),
+        new JavaParserAstSerializer()
+    );
+    AstFileResult summary = exporter.export(source, "src/demo/Init.java", "java").ast;
+    assertEquals(3, summary.methodCalls.size());
+    assertEquals("static-initializer", summary.methodCalls.get(0).callerKind);
+    assertEquals("demo.Init", summary.methodCalls.get(0).callerClassId);
+    assertNull(summary.methodCalls.get(0).callerMethodId);
+    assertEquals("java.lang.System#getProperty(java.lang.String)", summary.methodCalls.get(0).resolvedMethodId);
+    assertNull(summary.methodCalls.get(1).callerKind);
+    assertNull(summary.methodCalls.get(2).callerKind);
+  }
+
+  @Test
   void exportProducesSummaryAndFullJavaParserAstJson() throws Exception {
     Path source = Files.createTempFile("leflect-java-exporter", ".java");
     Files.writeString(

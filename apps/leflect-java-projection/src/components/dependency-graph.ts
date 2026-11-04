@@ -642,7 +642,7 @@ class ProjectionDependencyGraph extends LitElement {
     if (edge.type.includes("JAVA_CALL")) {
       return 126;
     }
-    if (edge.type.includes("JSP_SCRIPTLET_CALL") || edge.type.includes("JSP_USES_TAG")) {
+    if (edge.type.includes("JSP_SCRIPTLET_CALL") || edge.type.includes("JSP_USES_TAG") || edge.type.includes("JSP_INCLUDES")) {
       return 118;
     }
     return 110;
@@ -731,8 +731,10 @@ class ProjectionDependencyGraph extends LitElement {
     if (edgeType.includes("JAVA_IMPORT")) return this.themeColor("--theme-graph-arrow", "91 119 184");
     if (edgeType.includes("JAVA_NEW")) return "rgb(45 212 191)";
     if (edgeType.includes("JAVA_TYPE_REFERENCE")) return "rgb(148 163 184)";
+    if (edgeType.includes("JSP_USES_TAG_FILE") || edgeType.includes("JSP_INCLUDES") || edgeType.includes("JSP_SCRIPTLET_CALL")) {
+      return this.themeColor("--theme-graph-jsp", "138 214 255");
+    }
     if (edgeType.includes("JSP_USES_TAG")) return this.themeColor("--theme-graph-java", "126 224 160");
-    if (edgeType.includes("JSP_SCRIPTLET_CALL")) return this.themeColor("--theme-graph-jsp", "138 214 255");
     return this.themeColor("--theme-graph-arrow", "91 119 184");
   }
 

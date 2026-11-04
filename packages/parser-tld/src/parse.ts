@@ -53,8 +53,7 @@ export function parseTld(xml: string): TldIndex {
   }
 
   const uri = typeof taglib["uri"] === "string" ? (taglib["uri"] as string) : undefined;
-  const tagsNode = taglib["tag"];
-  const tags = normalizeTags(tagsNode);
+  const tags = [...normalizeTags(taglib["tag"]), ...normalizeTagFiles(taglib["tag-file"])];
 
   return { uri, tags };
 }
@@ -324,6 +323,22 @@ function normalizeTags(node: unknown): TldTag[] {
       };
     })
     .filter((tag): tag is TldTag => tag !== undefined);
+}
+
+function normalizeTagFiles(node: unknown): TldTag[] {
+  const tags: TldTag[] = [];
+  for (const item of Array.isArray(node) ? node : [node]) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+    const record = item as Record<string, unknown>;
+    const name = typeof record.name === "string" ? record.name.trim() : "";
+    const tagFilePath = typeof record.path === "string" ? record.path.trim() : "";
+    if (name && tagFilePath) {
+      tags.push({ name, tagFilePath });
+    }
+  }
+  return tags;
 }
 
 function normalizeAttributes(node: unknown): TldAttributeSchema[] | undefined {

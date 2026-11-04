@@ -24,6 +24,7 @@ export type ProjectionAstGraphNodeCategory =
   | "expression"
   | "tag"
   | "scriptlet"
+  | "comment"
   | "binding"
   | "external";
 
@@ -405,6 +406,7 @@ function buildJspAstGraph(builder: AstGraphBuilder, filePath: string, metadata: 
   };
 
   const scriptletGroupId = metadata.scriptlets.length > 0 ? ensureGroup("scriptlets", "scriptlets", "scriptlet") : undefined;
+  const commentGroupId = metadata.comments?.length ? ensureGroup("comments", "comments", "comment") : undefined;
   const tagGroupId = metadata.tags.length > 0 ? ensureGroup("tags", "tags", "tag") : undefined;
   const bindingGroupId = metadata.methodCalls.length > 0 || metadata.classReferences.length > 0
     ? ensureGroup("bindings", "bindings", "binding")
@@ -421,6 +423,19 @@ function buildJspAstGraph(builder: AstGraphBuilder, filePath: string, metadata: 
       detail: compactSnippet(scriptlet.code)
     })
   );
+
+  for (const comment of metadata.comments ?? []) {
+    const { startLine, startColumn, endLine, endColumn } = comment.lineRange;
+    addJspLeafNode(builder, {
+      parentId: commentGroupId ?? builder.rootId,
+      filePath,
+      label: `comment ${startLine}`,
+      astType: "JspComment",
+      category: "comment",
+      location: { line: startLine, column: startColumn, endLine, endColumn },
+      detail: comment.text
+    });
+  }
 
   metadata.tags.forEach((tag, index) => {
     addJspLeafNode(builder, {

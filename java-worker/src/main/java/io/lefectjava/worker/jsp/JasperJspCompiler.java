@@ -1,6 +1,8 @@
 package io.lefectjava.worker.jsp;
 
+import org.apache.jasper.Constants;
 import org.apache.jasper.JspC;
+import org.apache.jasper.compiler.JspUtil;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -8,13 +10,11 @@ import java.io.StringWriter;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Comparator;
 import java.util.List;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 public class JasperJspCompiler {
   public Path compile(
@@ -27,8 +27,13 @@ public class JasperJspCompiler {
     Path relativeJsp = webappRoot.relativize(absoluteJsp);
     Path outputDir = servletOutputRoot.resolve(sanitize(relativeJsp.toString()));
     Files.createDirectories(outputDir);
+    Path generatedServlet = resolveGeneratedServlet(outputDir, relativeJsp);
+    // The caller already selected the JSP for recompilation, including changes to static fragments.
+    Files.deleteIfExists(generatedServlet);
 
     JspC jspc = new JspC();
+    // Compile one page per invocation and retain its original Jasper error.
+    jspc.setArgs(new String[] {"-failFast"});
     jspc.setUriroot(webappRoot.toString());
     jspc.setOutputDir(outputDir.toString());
     jspc.setCompile(false);
@@ -44,6 +49,9 @@ public class JasperJspCompiler {
     try {
       jspc.execute();
     } catch (Exception ex) {
+      StringWriter stack = new StringWriter();
+      ex.printStackTrace(new PrintWriter(stack));
+      diagnosticLog.append(System.lineSeparator()).append(stack);
       throw new JspCompilationFailure(
           "Jasper failed for " + relativeJsp,
           ex,
@@ -54,21 +62,21 @@ public class JasperJspCompiler {
       handler.close();
     }
 
-    List<Path> generatedFiles = listJavaFiles(outputDir);
-    if (generatedFiles.isEmpty()) {
+    if (!Files.isRegularFile(generatedServlet)) {
       throw new IOException("Jasper did not generate servlet java for " + relativeJsp);
     }
 
-    return generatedFiles.get(0);
+    return generatedServlet;
   }
 
-  private List<Path> listJavaFiles(Path dir) throws IOException {
-    try (var stream = Files.walk(dir)) {
-      return stream
-          .filter(path -> Files.isRegularFile(path) && path.toString().endsWith(".java"))
-          .sorted(Comparator.naturalOrder())
-          .collect(Collectors.toList());
+  private Path resolveGeneratedServlet(Path outputDir, Path relativeJsp) {
+    Path packageDir = outputDir.resolve(Constants.JSP_PACKAGE_NAME.replace('.', '/'));
+    Path jspDirectory = relativeJsp.getParent();
+    if (jspDirectory != null) {
+      String jspPackage = JspUtil.makeJavaPackage(jspDirectory.toString().replace('\\', '/'));
+      packageDir = packageDir.resolve(jspPackage.replace('.', '/'));
     }
+    return packageDir.resolve(JspUtil.makeJavaIdentifier(relativeJsp.getFileName().toString()) + ".java");
   }
 
   private String sanitize(String value) {

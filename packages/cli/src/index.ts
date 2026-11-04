@@ -52,8 +52,11 @@ import {
 } from "@leflect-java/labeler";
 import {
   attachJspAstReference,
+  createJspWebResourceResolver,
+  createStaticTaglibResolver,
   JspParseResult,
   parseJsp,
+  resolveTagFiles,
   resolveTagHandlers,
   writeJspMeta
 } from "@leflect-java/parser-jsp";
@@ -75,7 +78,9 @@ import {
 import { runDashboardDev } from "./dashboard-dev";
 import { ConfigFileFormat, runInitCommand } from "./init";
 import { createJavaDependencyCacheInput, resolveJavaClasspathEntries } from "./java-classpath";
+import { describeJspBeans } from "./jsp-beans";
 import { createJspDependencyCacheInput, resolveJspClasspathEntries } from "./jsp-classpath";
+import { resolveJspIncludes } from "./jsp-includes";
 import { runPluginScaffoldCommand } from "./plugin-scaffold";
 import { runProjectionServer } from "./projection-server";
 import { resolveJavaWorkerJar } from "./worker-jar";
@@ -467,6 +472,7 @@ async function executeParseJavaStage(
     createCacheKey({
       version: PIPELINE_VERSION,
       stage: "java-parse",
+      callSiteSchema: 2,
       java: config.java ?? {},
       dependencies: await createJavaDependencyCacheInput(config)
     }),
@@ -626,19 +632,53 @@ async function executeParseJspStage(
   const taglibUris = new Set<string>();
   const dependencyCacheInput =
     astMode === "jasper" ? await createJspDependencyCacheInput(config) : undefined;
-  const stage = await prepareStageContext(
+  const stage = await prepareStageContext<Record<string, string | null>>(
     "jsp-parse",
     config.analysisOut,
     files,
     createCacheKey({
       version: PIPELINE_VERSION,
       stage: "jsp-parse",
+      metadataVersion: 3,
       java: config.java ?? {},
       jsp: config.jsp ?? {},
       dependencies: dependencyCacheInput
     }),
     incremental
   );
+  const webappRoot = config.jsp?.webappRoot ?? config.root;
+  const resources = createJspWebResourceResolver(config.root, webappRoot);
+  const resolveStaticTaglibs = createStaticTaglibResolver(config.root, webappRoot);
+  const includeFingerprints = { ...stage.previousState?.entries };
+  const currentFingerprints = new Map<string, Promise<string | null>>();
+  function fingerprintInclude(target: string): Promise<string | null> {
+    let fingerprint = currentFingerprints.get(target);
+    if (!fingerprint) {
+      fingerprint = resources.resolve(target).then(async (absolute) => {
+        if (!absolute) {
+          return null;
+        }
+        const scanned = stage.fileHashesCache?.files[resources.projectPath(absolute)]?.hash;
+        return scanned ?? fs.readFile(absolute, "utf8").then(createCacheKey, () => null);
+      });
+      currentFingerprints.set(target, fingerprint);
+    }
+    return fingerprint;
+  }
+
+  // The page's own hash does not change when an included fragment changes.
+  const changedIncludes = await Promise.all(stage.plan.unchangedFiles.map(async (file) => {
+    const unchanged = await Promise.all(Object.entries(includeFingerprints[file] ?? {}).map(
+      async ([target, previous]) => previous === await fingerprintInclude(target)
+    ));
+    return unchanged.every(Boolean) ? undefined : file;
+  }));
+  const affectedPages = new Set(changedIncludes.filter((file): file is string => file !== undefined));
+  if (affectedPages.size > 0) {
+    stage.plan.reason = "changed";
+    stage.plan.selectedFiles = [...stage.plan.selectedFiles, ...affectedPages].sort();
+    stage.plan.unchangedFiles = stage.plan.unchangedFiles.filter((file) => !affectedPages.has(file));
+  }
 
   if (stage.plan.reason === "cache-hit") {
     const message = "JSP parse skipped (cache hit).";
@@ -662,13 +702,22 @@ async function executeParseJspStage(
   if (stage.plan.removedFiles.length > 0) {
     await removeRelativeJsonFiles(metaDir, stage.plan.removedFiles);
     await removeRelativeJsonFiles(astOutDir, stage.plan.removedFiles);
+    for (const file of stage.plan.removedFiles) {
+      delete includeFingerprints[file];
+    }
   }
 
   for (const file of stage.plan.selectedFiles) {
     const absolutePath = path.join(config.root, file);
     const content = await fs.readFile(absolutePath, "utf8");
     const parsedJsp = parseJsp(content);
-    for (const taglib of parsedJsp.taglibs) {
+    const taglibScope = parsedJsp.includes.length > 0
+      ? await resolveStaticTaglibs({ ...parsedJsp, path: file })
+      : undefined;
+    includeFingerprints[file] = Object.fromEntries(await Promise.all(
+      (taglibScope?.includePaths ?? []).map(async (target) => [target, await fingerprintInclude(target)] as const)
+    ));
+    for (const taglib of taglibScope?.taglibs ?? parsedJsp.taglibs) {
       if (taglib.uri) {
         taglibUris.add(taglib.uri);
       }
@@ -704,6 +753,7 @@ async function executeParseJspStage(
       : 0;
 
     for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+      await removeRelativeJsonFiles(astOutDir, stage.plan.selectedFiles);
       const result = await runJavaWorker({
         jreHome: config.java?.jreHome,
         javaHome: config.java?.javaHome,
@@ -742,7 +792,7 @@ async function executeParseJspStage(
     }
   }
 
-  await persistStageState("jsp-parse", stage, files);
+  await persistStageState("jsp-parse", stage, files, includeFingerprints);
   const message =
     `JSP parse complete. Processed: ${stage.plan.selectedFiles.length}, Removed: ${stage.plan.removedFiles.length}` +
     await buildDiagnosticStatusSuffix(path.join(config.analysisOut, "logs", "jsp-parse-errors.jsonl"));
@@ -798,6 +848,7 @@ async function executeParseTldStage(
     createCacheKey({
       version: PIPELINE_VERSION,
       stage: "tld-parse",
+      metadataVersion: 2,
       jsp: config.jsp ?? {},
       dependencies: jspDependencyCacheInput
     }),
@@ -963,10 +1014,35 @@ async function executeBuildIndexStage(
   const jspDocs = await readJspMetaEntries(path.join(config.analysisOut, "jsp-meta"));
   const javaSummaries = await readJavaSummaryIndex(path.join(indexDir, "java-summary.jsonl"));
   const rawTaglibs = await readTaglibRegistry(indexDir);
-  const enrichedJspDocs = jspDocs.map((entry) => ({
+  const webappRoot = config.jsp?.webappRoot ?? config.root;
+  const resolveStaticTaglibs = createStaticTaglibResolver(config.root, webappRoot);
+  const [tagFiles, taglibScopes] = await Promise.all([
+    resolveTagFiles(config.root, webappRoot, rawTaglibs),
+    Promise.all(jspDocs.map(resolveStaticTaglibs))
+  ]);
+  const jspDocsWithTags = jspDocs.map((entry, index) => {
+    const { taglibs } = taglibScopes[index];
+    return { ...entry, taglibs, resolvedTags: resolveTagHandlers(entry.tags, taglibs, rawTaglibs, tagFiles) };
+  });
+  const [includesByPath, beansByPath] = await Promise.all([
+    resolveJspIncludes(config, jspDocsWithTags, javaSummaries),
+    describeJspBeans(jspDocsWithTags, {
+      root: config.root,
+      javaVersion: config.java?.targetVersion,
+      jdkSourceArchive: config.java?.sourceArchive
+    })
+  ]);
+  const enrichedJspDocs = jspDocsWithTags.map((entry) => ({
     ...entry,
-    resolvedTags: resolveTagHandlers(entry.tags, entry.taglibs, rawTaglibs)
+    includeReferences: includesByPath.get(entry.path),
+    beanActions: beansByPath.get(entry.path)
   }));
+  const logsDir = path.join(config.analysisOut, "logs");
+  await fs.mkdir(logsDir, { recursive: true });
+  await fs.writeFile(
+    path.join(logsDir, "jsp-include-diagnostics.json"),
+    JSON.stringify(taglibScopes.flatMap((scope) => scope.diagnostics), null, 2)
+  );
 
   const javaIndex = buildJavaIndex({ files: javaFiles, summaries: javaSummaries });
   const initialJspIndex = buildJspIndex(enrichedJspDocs, {

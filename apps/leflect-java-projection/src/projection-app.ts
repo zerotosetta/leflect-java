@@ -1079,13 +1079,16 @@ class LeflectJavaProjectionApp extends LitElement {
 
   private renderDetail(detail: ProjectionFileDetail) {
     const file = detail.file;
-    const metadata = detail.metadata ?? {};
+    const metadata: NonNullable<ProjectionFileDetail["metadata"]> = detail.metadata ?? {};
     const metadataSections = file.nodeType === "java"
       ? [
           this.renderListSection("Imports", toStringList(metadata, "importEntries", "import"), 8),
           this.renderListSection("Classes", toStringList(metadata, "classes", "id"), 6),
           this.renderListSection("Methods", toStringList(metadata, "methods", "id"), 10),
-          this.renderListSection("Calls", toStringList(metadata, "calls", "to"), 10)
+          this.renderListSection("Calls", toStringList(metadata, "calls", "to"), 10),
+          this.renderListSection("Static initializer calls", (metadata.calls ?? [])
+            .filter((call) => call.callerKind === "static-initializer")
+            .map((call) => `${call.fromClassId} static initializer → ${call.toMethodId ?? call.to} (line ${call.location?.line ?? "?"})`), 20)
         ]
       : [
           this.renderListSection("Taglibs", toStringList(metadata, "taglibs", "uri"), 8),
@@ -1142,11 +1145,78 @@ class LeflectJavaProjectionApp extends LitElement {
           <div class="mb-1 text-[10px] uppercase tracking-[0.18em] text-slate-500">Referenced By</div>
           ${this.renderReferenceTable(detail.referencedBy)}
         </section>
+        ${file.nodeType === "jsp" ? this.renderJspReferences(detail) : nothing}
         <section class="rounded border border-chrome-800 bg-chrome-950 px-2 py-1">
           <div class="mb-1 text-[10px] uppercase tracking-[0.18em] text-slate-500">Shard Metadata</div>
           <div class="grid gap-2">${metadataSections}</div>
         </section>
       </div>
+    `;
+  }
+
+  private renderJspReferences(detail: ProjectionFileDetail) {
+    const { metadata, file } = detail;
+    const includes = metadata?.includeReferences ?? [];
+    const beans = metadata?.beanActions ?? [];
+    const tags = (metadata?.tags ?? []).filter((tag) => tag.handlerClass || tag.tagFile || tag.unresolvedReason);
+    const comments = metadata?.comments ?? [];
+    if (!includes.length && !beans.length && !tags.length && !comments.length) return nothing;
+
+    const targetLink = (target: string) => html`
+      <button class="break-all text-left text-accent-500 underline"
+        @click=${() => {
+          this.clearAstSelection();
+          this.selectedGraphNodeId = target;
+        }}>${target}</button>
+    `;
+    const locationButton = (location?: ProjectionSourceHighlight["location"]) => location?.line ? html`
+      <button class="text-accent-500 underline" @click=${() => {
+        this.sourceHighlight = { path: file.path, location };
+      }}>line ${location.line}</button>
+    ` : nothing;
+    return html`
+      <section class="grid gap-2 rounded border border-chrome-800 bg-chrome-950 px-2 py-1 text-[11px] text-slate-300">
+        ${includes.length ? html`
+          <div class="text-[10px] uppercase tracking-[0.18em] text-slate-500">JSP includes</div>
+          ${includes.map((entry) => html`
+            <div class="grid gap-1 rounded border border-chrome-800 px-2 py-1">
+              <div class="break-all font-mono">${entry.page} · ${entry.kind === "dynamic" ? "dynamic target" : "fixed path"} · ${locationButton(entry.location)}</div>
+              ${(entry.targetPath ? [entry.targetPath] : entry.candidatePaths ?? []).map(targetLink)}
+              ${entry.parameters.map((param) => html`<div class="break-all font-mono">${param.name} = ${param.value}</div>`)}
+              ${entry.evidence?.map((item) => html`<div class="break-all">${item.description}${item.path ? html` · ${targetLink(item.path)}` : nothing}</div>`)}
+              ${entry.unresolvedReason ? html`<div class="break-all text-amber-200">${entry.unresolvedReason}</div>` : nothing}
+            </div>
+          `)}
+        ` : nothing}
+        ${tags.length ? html`
+          <details>
+            <summary class="cursor-pointer">Tag targets (${tags.length})</summary>
+            ${tags.map((tag) => html`
+              <div class="break-all px-2 py-1 font-mono">
+                ${tag.prefix}:${tag.name} · ${locationButton(tag.location)} → ${tag.tagFile ? targetLink(tag.tagFile) : tag.handlerClass ?? tag.unresolvedReason}
+              </div>
+            `)}
+          </details>
+        ` : nothing}
+        ${beans.map((bean) => html`
+          <div class="grid gap-1 rounded border border-chrome-800 px-2 py-1">
+            <div class="font-mono">jsp:useBean ${bean.id} · ${bean.className}</div>
+            <div>${bean.actionDescription}</div>
+            ${bean.api ? html`
+              <div>${bean.api.description}</div>
+              <div class="break-all text-slate-500">Java ${bean.api.javaVersion} · ${bean.api.source}</div>
+            ` : html`<div class="text-slate-500">${bean.apiDescriptionStatus === "type-unavailable" ? "Type documentation unavailable in the JDK sources." : "Matching JDK source unavailable."}</div>`}
+          </div>
+        `)}
+        ${comments.length ? html`
+          <details>
+            <summary class="cursor-pointer">JSP comments (${comments.length})</summary>
+            ${comments.map((comment) => html`
+              <div class="whitespace-pre-wrap break-all px-2 py-1">${locationButton({ line: comment.lineRange.startLine })} · ${comment.text}</div>
+            `)}
+          </details>
+        ` : nothing}
+      </section>
     `;
   }
 

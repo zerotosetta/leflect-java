@@ -11,6 +11,7 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.EnumDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
+import com.github.javaparser.ast.body.InitializerDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.TypeDeclaration;
@@ -255,7 +256,7 @@ public class JavaSummaryExtractor {
     String targetClassId = resolution.classPath != null ? resolution.classPath : extractClassId(resolution.target);
     String targetMethodId = resolution.target.contains("#") ? resolution.target : null;
 
-    return new JavaMethodCallSite(
+    JavaMethodCallSite site = new JavaMethodCallSite(
         callerMethodId,
         callerClassId,
         resolution.target,
@@ -273,6 +274,25 @@ public class JavaSummaryExtractor {
         toSourceLocation(call),
         toLineRange(call)
     );
+    if (callerClassId != null && isInStaticInitializer(call)) {
+      site.callerKind = "static-initializer";
+    }
+    return site;
+  }
+
+  private boolean isInStaticInitializer(Node node) {
+    for (Node parent = node.getParentNode().orElse(null);
+         parent != null;
+         parent = parent.getParentNode().orElse(null)) {
+      if (parent instanceof InitializerDeclaration) {
+        return ((InitializerDeclaration) parent).isStatic();
+      }
+      if (parent instanceof CallableDeclaration<?> || parent instanceof TypeDeclaration<?> ||
+          parent instanceof LambdaExpr) {
+        return false;
+      }
+    }
+    return false;
   }
 
   private List<OrderedExecutionStep> collectOrderedSteps(String methodId, CallableDeclaration<?> callable) {

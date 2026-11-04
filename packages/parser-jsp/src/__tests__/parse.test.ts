@@ -5,6 +5,21 @@ import { resolveTagHandlers } from "../resolve";
 import { TldIndex } from "@leflect-java/parser-tld";
 
 describe("parseJsp", () => {
+  it("preserves JSP comments without extracting directives, tags, or calls from them", () => {
+    const raw = "<%-- Hidden <%@ include file='/skip.jspf' %>\n<x:hidden /><% skip(); %> --%>";
+    const parsed = parseJsp(`${raw}\n<%@ include file='/keep.jspf' %>\n<% keep(); %>`);
+
+    expect(parsed.includes).toEqual(["/keep.jspf"]);
+    expect(parsed.tags).toEqual([]);
+    expect(parsed.scriptlets).toMatchObject([{ kind: "scriptlet", code: "keep();", location: { line: 4 } }]);
+    expect(parsed.document.children[0]).toMatchObject({
+      kind: "Comment",
+      raw,
+      text: raw.slice(4, -4),
+      lineRange: { startLine: 1, endLine: 2 }
+    });
+  });
+
   it("extracts taglibs, tags, and scriptlets", () => {
     const jsp = `<%@ page import="java.util.List, com.example.CustomerService" %>\n` +
       `<%@ taglib prefix="c" uri="http://example.com/tags" %>\n` +
@@ -52,7 +67,8 @@ describe("parseJsp", () => {
       prefix: "c",
       name: "hello",
       uri: "http://example.com/tags",
-      handlerClass: "com.example.HelloTag"
+      handlerClass: "com.example.HelloTag",
+      location: parsed.tags[0].location
     });
   });
 
