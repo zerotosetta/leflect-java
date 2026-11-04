@@ -1,0 +1,45 @@
+{
+  "root": "<SOURCE_ROOT>",
+  "analysisOut": "<ANALYSIS_ROOT>",
+  "ignorePatterns": [
+    "analysis/"
+  ],
+  "java": {
+    "classpath": [
+      "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\war\\WEB-INF\\classes",
+      "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\war\\WEB-INF\\lib\\taglibs-standard-impl-1.2.5.jar",
+      "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\war\\WEB-INF\\lib\\taglibs-standard-spec-1.2.5.jar",
+      "<MAVEN_REPOSITORY>\\org\\apache\\tomcat\\tomcat-servlet-api\\9.0.102\\tomcat-servlet-api-9.0.102.jar",
+      "<MAVEN_REPOSITORY>\\org\\apache\\tomcat\\tomcat-jsp-api\\9.0.102\\tomcat-jsp-api-9.0.102.jar"
+    ],
+    "targetVersion": "8",
+    "sourceArchive": "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\external-sources\\jdk8-src.zip",
+    "workerJar": "<WORKSPACE>\\java-worker\\target\\leflectjava-java-worker-0.1.0.jar",
+    "librarySources": [
+      {
+        "provider": "javax.servlet",
+        "version": "4.0.FR",
+        "archive": "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\external-sources\\tomcat-servlet-api-9.0.102-sources.jar"
+      },
+      {
+        "provider": "javax.servlet.jsp",
+        "version": "2.3.FR",
+        "archive": "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\external-sources\\tomcat-jsp-api-9.0.102-sources.jar"
+      }
+    ]
+  },
+  "jsp": {
+    "classpath": [
+      "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\war\\WEB-INF\\classes",
+      "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\war\\WEB-INF\\lib\\taglibs-standard-impl-1.2.5.jar",
+      "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\war\\WEB-INF\\lib\\taglibs-standard-spec-1.2.5.jar",
+      "<MAVEN_REPOSITORY>\\org\\apache\\tomcat\\tomcat-servlet-api\\9.0.102\\tomcat-servlet-api-9.0.102.jar",
+      "<MAVEN_REPOSITORY>\\org\\apache\\tomcat\\tomcat-jsp-api\\9.0.102\\tomcat-jsp-api-9.0.102.jar"
+    ],
+    "webappRoot": "src/main/webapp",
+    "tld": {
+      "autoLoad": true
+    }
+  },
+  "note": "Replace placeholders with local paths. Use jsp.tld.autoLoad=false in a separate output directory to reproduce excluded coverage. The local JDK8 validation source archive contains Date/HashMap; other available types retain resolved status even if source text is absent."
+}
