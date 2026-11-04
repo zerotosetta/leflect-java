@@ -209,10 +209,13 @@ export function buildJspGraph(
     const resolvedTags = doc.resolvedTags ?? [];
     if (resolvedTags.length > 0) {
       for (const tag of resolvedTags) {
-        if (isJspStandardAction(tag) || (!tag.tagFile && isStandardTagReference(tag.prefix, tag.uri, tag.handlerClass))) {
+        const resolvedClass = tag.handlerClass ? classLookup.get(tag.handlerClass) : undefined;
+        if (isJspStandardAction(tag) || (!tag.tagFile && (
+          isStandardTagReference(tag.prefix, tag.uri, tag.handlerClass) ||
+          (isStandardTaglibUri(tag.uri) && !resolvedClass)
+        ))) {
           continue;
         }
-        const resolvedClass = tag.handlerClass ? classLookup.get(tag.handlerClass) : undefined;
         edges.push({
           from: jspPath,
           to: tag.tagFile ?? resolvedClass?.id ?? tag.handlerClass ?? `unresolved:tag:${tag.prefix}:${tag.name}`,

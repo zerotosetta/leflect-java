@@ -270,6 +270,7 @@ public class JavaSummaryExtractor {
         );
         references.put(referenceKey(reference), reference);
       } catch (RuntimeException error) {
+        if (isResolvedTypeExpression(access)) continue;
         // A failed resolution cannot distinguish a missing type from a value.
         // Keep that uncertainty as a diagnostic, never a guessed type edge.
         Node parent = access.getParentNode().orElse(null);
@@ -292,6 +293,15 @@ public class JavaSummaryExtractor {
         return true;
       }
       return true;
+    } catch (RuntimeException error) {
+      return false;
+    }
+  }
+
+  private boolean isResolvedTypeExpression(Expression expression) {
+    if (resolvesToValue(expression)) return false;
+    try {
+      return expression.calculateResolvedType().isReferenceType();
     } catch (RuntimeException error) {
       return false;
     }

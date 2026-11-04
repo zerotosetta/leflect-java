@@ -151,6 +151,8 @@ class JavaRevisionAccuracyTest {
             Holder UPPERCASE = new Holder();
             int value = UPPERCASE.value;
             int unresolved = Missing.VALUE;
+            Object list = java.util.Collections.emptyList();
+            Object format = java.text.NumberFormat.getNumberInstance();
           }
         }
         """);
@@ -164,5 +166,6 @@ class JavaRevisionAccuracyTest {
     assertFalse(qualifiers.stream().anyMatch(r -> r.symbol.equals("UPPERCASE") || r.symbol.equals("Missing")));
     assertFalse(result.classReferences.stream().anyMatch(r -> List.of("java", "java.time", "java.lang").contains(r.qualifiedName)));
     assertTrue(result.referenceDiagnostics.stream().anyMatch(d -> d.snippet.equals("Missing") && d.location.line == 14));
+    assertEquals(1, result.referenceDiagnostics.size());
   }
 }
