@@ -9,6 +9,37 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class JavaRevisionAccuracyTest {
   @Test
+  void explicitConstructorDelegationSharesTargetsRangesAndEvaluationOrder() throws Exception {
+    AstFileResult result = export("""
+        package demo;
+        class Uses extends RuntimeException {
+          String value;
+          static String text() { return "message"; }
+          Uses() { this(text()); }
+          Uses(String message) { super(message); value = message; }
+          Uses(int unknown) { super(missing(unknown)); }
+        }
+        """);
+    var constructors = result.types.get(0).methods.stream().filter(m -> m.name.equals("Uses")).toList();
+    var delegated = constructors.get(0);
+    assertTrue(delegated.calls.contains("demo.Uses#<init>(java.lang.String)"));
+    assertEquals("text", delegated.orderedSteps.get(0).call.methodName);
+    assertEquals("constructor-call", delegated.orderedSteps.get(1).kind);
+    assertEquals("demo.Uses#<init>(java.lang.String)", delegated.orderedSteps.get(1).call.resolvedMethodId);
+    var parent = constructors.get(1);
+    assertEquals(List.of("java.lang.RuntimeException#<init>(java.lang.String)"), parent.calls);
+    assertEquals("constructor-call", parent.orderedSteps.get(0).kind);
+    assertEquals("super(message)", parent.orderedSteps.get(0).snippet);
+    var raw = result.methodCalls.stream().filter(c -> "super-constructor".equals(c.invocationKind) && c.location.line == 6)
+        .findFirst().orElseThrow();
+    assertEquals(raw.location.column, parent.orderedSteps.get(0).lineRange.startColumn);
+    assertEquals(raw.location.endColumn, parent.orderedSteps.get(0).lineRange.endColumn);
+    var unresolved = constructors.get(2);
+    assertTrue(unresolved.calls.contains("unresolved:constructor:super"));
+    assertNull(unresolved.orderedSteps.get(unresolved.orderedSteps.size()-1).call.resolvedMethodId);
+  }
+
+  @Test
   void synchronizedStepsEvaluateLocksAndKeepNestedBranchesAndNormalContinuation() throws Exception {
     AstFileResult result = export("""
         package demo;

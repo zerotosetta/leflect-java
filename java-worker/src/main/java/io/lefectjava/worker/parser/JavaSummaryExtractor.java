@@ -184,11 +184,18 @@ public class JavaSummaryExtractor {
         ? ((MethodDeclaration) callable).getType().asString()
         : "void";
 
-    List<String> calls = callable.findAll(MethodCallExpr.class).stream()
+    List<String> calls = new ArrayList<>(callable.findAll(MethodCallExpr.class).stream()
+        .filter(call -> call.findAncestor(CallableDeclaration.class).orElse(null) == callable)
         .map(this::resolveMethodCall)
         .map(resolution -> resolution.target)
         .distinct()
-        .collect(Collectors.toList());
+        .collect(Collectors.toList()));
+    for (ExplicitConstructorInvocationStmt invocation : callable.findAll(ExplicitConstructorInvocationStmt.class)) {
+      if (invocation.findAncestor(CallableDeclaration.class).orElse(null) == callable) {
+        String target = toConstructorCallSite(packageName, invocation).target;
+        if (!calls.contains(target)) calls.add(target);
+      }
+    }
 
     JavaMethodSummary summary = new JavaMethodSummary(
         methodId,
@@ -382,7 +389,7 @@ public class JavaSummaryExtractor {
         }
       }
     });
-    site.snippet = invocation.toString();
+    site.snippet = invocation.toString().trim().replaceFirst(";$", "");
     try {
       ResolvedConstructorDeclaration target = invocation.resolve();
       site.targetClassId = target.declaringType().getQualifiedName();
@@ -512,6 +519,18 @@ public class JavaSummaryExtractor {
       collector.addStep("synchronized", synchronizedStmt, branchPath, null);
       appendStatement(collector, synchronizedStmt.getBody(),
           appendBranchPath(branchPath, scopeSegment("synchronized", synchronizedStmt)));
+      return;
+    }
+
+    if (statement instanceof ExplicitConstructorInvocationStmt) {
+      ExplicitConstructorInvocationStmt invocation = (ExplicitConstructorInvocationStmt) statement;
+      invocation.getExpression().ifPresent(expression -> appendExpression(collector, expression, branchPath));
+      for (Expression argument : invocation.getArguments()) appendExpression(collector, argument, branchPath);
+      String packageName = invocation.findCompilationUnit().flatMap(CompilationUnit::getPackageDeclaration)
+          .map(declaration -> declaration.getNameAsString()).orElse("");
+      JavaMethodCallSite call = toConstructorCallSite(packageName, invocation);
+      collector.addStep("constructor-call", call.snippet, branchPath,
+          new OrderedStepCall(call.targetText, call.resolvedMethodId, call.resolvedClassId, "<init>"), call.lineRange);
       return;
     }
 
@@ -1326,13 +1345,17 @@ public class JavaSummaryExtractor {
         List<String> branchPath,
         OrderedStepCall call
     ) {
+      addStep(kind, node.toString(), branchPath, call, toStaticLineRange(node));
+    }
+
+    private void addStep(String kind, String snippet, List<String> branchPath, OrderedStepCall call, LineRange range) {
       this.nextIndex += 1;
       this.steps.add(new OrderedExecutionStep(
           methodId + ":step:" + nextIndex,
           kind,
-          node.toString(),
+          snippet,
           new ArrayList<>(branchPath),
-          toStaticLineRange(node),
+          range,
           call
       ));
     }
