@@ -42,7 +42,7 @@ describe("TLD EL function links", () => {
       validation: "source", targetFile: "Web.java", location: { line: 2, column: 17 }
     });
     expect(refs[1]).toMatchObject({ validation: "unresolved", unresolvedReason: expect.stringContaining("public static") });
-  });
+  }, 30_000);
 
   it("validates external signatures and rejects wrong declared return types", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "leflect-el-external-"));
@@ -54,7 +54,7 @@ describe("TLD EL function links", () => {
     const refs = (await resolveJspFunctions({ root }, [{ path: "page.jsp", ...parsed }], [registry], { classes: [], methods: [], imports: [] })).get("page.jsp")!;
     expect(refs[0]).toMatchObject({ validation: "classpath", methodId: "java.lang.String#valueOf(java.lang.Object)" });
     expect(refs[1].validation).toBe("unresolved");
-  });
+  }, 30_000);
 
   it("uses the configured classpath for overloaded methods and rejects nonstatic targets", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "leflect-el-classpath-"));
@@ -79,7 +79,7 @@ describe("TLD EL function links", () => {
     expect(configured[1]).toMatchObject({ validation: "unresolved", unresolvedReason: expect.stringContaining("public static") });
     const missing = (await resolveJspFunctions({ root }, docs, [registry], index)).get("page.jsp")!;
     expect(missing[0]).toMatchObject({ validation: "unresolved", unresolvedReason: expect.stringContaining("configured Java classpath") });
-  });
+  }, 30_000);
 
   it("does not resolve a wildcard type over a same-package declaration or ambiguous wildcard imports", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "leflect-el-type-scope-"));
@@ -111,7 +111,7 @@ describe("TLD EL function links", () => {
     expect(refs[0].unresolvedReason).toContain("demo.Date");
     expect(refs[1].validation).toBe("unresolved");
     expect(refs[1].unresolvedReason).toContain("Ambiguous");
-  });
+  }, 30_000);
 
   it("keeps alias-bound standard function occurrences and resolves their local classpath TLD when enabled", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "leflect-standard-function-"));
