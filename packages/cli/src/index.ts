@@ -1083,6 +1083,18 @@ async function executeBuildIndexStage(
     path.join(logsDir, "jsp-include-diagnostics.json"),
     JSON.stringify(taglibScopes.flatMap((scope) => scope.diagnostics), null, 2)
   );
+  await fs.writeFile(
+    path.join(logsDir, "jsp-function-diagnostics.json"),
+    JSON.stringify(enrichedJspDocs.flatMap((doc) => (doc.functionCalls ?? [])
+      .filter((call) => call.validation === "excluded" || call.validation === "unresolved")
+      .map((call) => ({
+        path: doc.path,
+        severity: call.validation === "excluded" ? "info" : "warning",
+        category: `jsp.function.${call.validation}`,
+        prefix: call.prefix, name: call.name, uri: call.uri, location: call.location,
+        message: call.excludedReason ?? call.unresolvedReason
+      }))), null, 2)
+  );
 
   const initialJspIndex = buildJspIndex(enrichedJspDocs, {
     javaMethods: javaIndex.methods
@@ -1756,9 +1768,11 @@ async function writeTaglibRegistry(analysisOut: string, taglibs: TldRegistryEntr
 }
 
 async function readTaglibRegistry(indexDir: string): Promise<TldRegistryEntry[]> {
-  const registry = await readJsonArray<TldRegistryEntry>(path.join(indexDir, "taglib-registry.json"));
-  if (registry.length > 0) {
-    return registry;
+  const registryPath = path.join(indexDir, "taglib-registry.json");
+  // An existing empty registry is authoritative. taglibs.json also contains
+  // synthetic usage-only URI rows, which must not become TLD declarations.
+  if (await pathExists(registryPath)) {
+    return readJsonArray<TldRegistryEntry>(registryPath);
   }
 
   return readJsonArray<TldIndex>(path.join(indexDir, "taglibs.json"));

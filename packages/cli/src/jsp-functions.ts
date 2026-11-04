@@ -17,7 +17,7 @@ type SourceType = { type?: string; reason?: string };
 type SourceTypeResolver = (raw: string | undefined, method: MethodIndexEntry) => Promise<SourceType>;
 
 export async function resolveJspFunctions(
-  config: Pick<LeflectConfig, "root" | "java">,
+  config: Pick<LeflectConfig, "root" | "java" | "jsp">,
   docs: readonly FunctionDocument[],
   registry: readonly TldRegistryEntry[],
   javaIndex: Pick<JavaIndex, "classes" | "methods" | "imports">
@@ -61,7 +61,6 @@ export async function resolveJspFunctions(
         if (!expected.has(prefix + ":" + name)) continue;
         const uri = uris.get(prefix);
         const tld = uri ? registryByUri.get(uri) : undefined;
-        if (!tld && uri && STANDARD_FUNCTION_URIS.has(uri)) continue;
         const declaration = tld?.functions?.find((item) => item.name === name);
         const signature = declaration && parseSignature(declaration.functionSignature);
         const offset = lineOffset(source, expression.lineRange.startLine, expression.lineRange.startColumn) + match.index!;
@@ -73,8 +72,14 @@ export async function resolveJspFunctions(
           location: sourceLocation(source, offset, offset + prefix.length + name.length),
           validation: "unresolved"
         };
-        if (!declaration || !signature) {
-          reference.unresolvedReason = declaration ? "Invalid TLD function signature" : "No function declaration for " + prefix + ":" + name;
+        if (!tld && uri && STANDARD_FUNCTION_URIS.has(uri) &&
+            !config.jsp?.tld?.autoLoad && !config.jsp?.tld?.paths?.length && !Object.hasOwn(config.jsp?.tld?.uriMap ?? {}, uri)) {
+          reference.validation = "excluded";
+          reference.excludedReason = "Classpath TLD collection is disabled; enable jsp.tld.autoLoad or configure a TLD for " + uri;
+        } else if (!declaration || !signature) {
+          reference.unresolvedReason = declaration ? "Invalid TLD function signature"
+            : !tld && uri ? "No TLD registered for " + uri + (config.jsp?.tld?.autoLoad ? "; classpath TLD collection is enabled" : "")
+              : "No function declaration for " + prefix + ":" + name;
         } else {
           const className = declaration.functionClass;
           const sourceClass = javaIndex.classes.find((entry) => entry.id === className);

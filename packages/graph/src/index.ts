@@ -149,7 +149,8 @@ export function buildJspGraph(
   for (const doc of docs) {
     const jspPath = normalizePath(doc.path);
     for (const call of doc.functionCalls ?? []) {
-      const resolved = call.validation !== "unresolved" && call.className && call.methodId;
+      if (call.validation === "excluded") continue;
+      const resolved = (call.validation === "source" || call.validation === "classpath") && call.className && call.methodId;
       edges.push({
         from: jspPath,
         to: resolved ? call.className! :

@@ -181,6 +181,19 @@ export type ProjectionSourceHighlight = {
 export type ProjectionFileDetail = {
   file: ProjectionFileEntry;
   metadata?: Record<string, unknown> & {
+    referenceDiagnostics?: Array<{ snippet: string; message: string; location?: ProjectionSourceLocation }>;
+    functionCalls?: Array<{
+      prefix: string;
+      name: string;
+      uri?: string;
+      className?: string;
+      methodId?: string;
+      targetFile?: string;
+      validation: "source" | "classpath" | "unresolved" | "excluded";
+      excludedReason?: string;
+      unresolvedReason?: string;
+      location: ProjectionSourceLocation;
+    }>;
     taskCodes?: Array<{
       code?: string;
       state: string;
