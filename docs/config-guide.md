@@ -709,6 +709,12 @@ This is the most explicit form and is useful when you want all output paths pinn
 - optional JDK/JRE home used to launch the worker
 - kept for backward compatibility and shared JDK/JRE installs
 
+`java.targetVersion` and `java.sourceArchive`
+
+- set the analyzed project's Java major version (for example, `"8"`) and the matching JDK source ZIP for API descriptions
+- if the version is omitted, Leflect tries to read Maven compiler properties from `pom.xml`
+- JSP `useBean` details show the type even when matching JDK source documentation is unavailable
+
 `java.classpath`
 
 - optional array of JAR/directories used by JavaParser SymbolSolver
@@ -732,6 +738,13 @@ This is the most explicit form and is useful when you want all output paths pinn
 
 - web application root used by Jasper
 - usually `src/main/webapp` for WAR projects
+
+`jsp.includeTargets`
+
+- optional map from a complete JSP expression to a known include target
+- paths beginning with `/` are relative to `jsp.webappRoot`. Other paths are relative to the JSP
+- for example, `{ "${cmsPage.help}": "/WEB-INF/jsp/common/help.jsp" }` records a known target when that local file exists
+- an expression without a provable target remains a dynamic include with its available source evidence
 
 `jsp.generatedJavaOut`
 

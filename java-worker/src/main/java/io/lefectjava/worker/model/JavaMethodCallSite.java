@@ -5,6 +5,7 @@ import java.util.List;
 public class JavaMethodCallSite {
   public String callerMethodId;
   public String callerClassId;
+  public String callerKind;
   public String target;
   public String targetText;
   public String targetClassId;

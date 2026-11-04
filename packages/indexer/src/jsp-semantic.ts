@@ -150,6 +150,13 @@ async function transformNode(
         text: node.text,
         lineRange: node.lineRange
       }];
+    case "Comment":
+      return [{
+        kind: "CommentNode",
+        raw: node.raw,
+        text: node.text,
+        lineRange: node.lineRange
+      }];
     case "ElExpression":
       return [{
         kind: "ElExpressionNode",

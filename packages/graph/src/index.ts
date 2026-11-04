@@ -12,6 +12,8 @@ import {
   GraphEdge,
   GraphEdgeType,
   GraphNodeType,
+  JspIncludeReference,
+  JspReferenceLocation,
   LeflectEntryDefinition
 } from "@leflect-java/schema";
 
@@ -21,9 +23,12 @@ export type JavaCallRecord = {
   fromClassId?: string;
   toClassId?: string;
   fromMethodId?: string;
+  callerKind?: "static-initializer";
   toMethodId?: string;
+  resolvedMethodId?: string;
   fromFile?: string;
   toFile?: string;
+  location?: Partial<JspReferenceLocation>;
 };
 
 export type GraphClassRecord = {
@@ -37,13 +42,17 @@ export type GraphResolvedTag = {
   name: string;
   uri?: string;
   handlerClass?: string;
+  tagFile?: string;
+  unresolvedReason?: string;
+  location?: JspReferenceLocation;
 };
 
 export type GraphJspRecord = {
   path: string;
   scriptlets: Array<{ kind: string; code: string }>;
-  tags?: Array<{ prefix: string; name: string }>;
+  tags?: Array<{ prefix: string; name: string; location?: JspReferenceLocation }>;
   resolvedTags?: GraphResolvedTag[];
+  includeReferences?: JspIncludeReference[];
 };
 
 export type GraphJavaClassReferenceRecord = {
@@ -117,8 +126,11 @@ export function buildJavaCallGraph(
       confidence: isResolvedEdge(from, to) ? resolveJavaCallConfidence(call) : "unresolved",
       fromFile: normalizeOptionalPath(call.fromFile ?? fromClass?.file),
       toFile: normalizeOptionalPath(call.toFile ?? toClass?.file),
-      fromSymbol: call.fromMethodId ?? call.from,
-      toSymbol: call.toMethodId ?? call.to
+      fromSymbol: call.callerKind === "static-initializer" && fromClassId
+        ? `${fromClassId}#<clinit>()`
+        : call.fromMethodId ?? call.from,
+      toSymbol: call.toMethodId ?? call.to,
+      fromLocation: call.location
     };
   });
 }
@@ -132,6 +144,31 @@ export function buildJspGraph(
 
   for (const doc of docs) {
     const jspPath = normalizePath(doc.path);
+    for (const include of doc.includeReferences ?? []) {
+      const targets = include.targetPath ? [include.targetPath] : include.candidatePaths ?? [];
+      if (targets.length === 0 && include.kind === "static") {
+        edges.push({
+          from: jspPath,
+          to: `unresolved:jsp-include:${include.page}`,
+          type: "JSP_INCLUDES",
+          confidence: "unresolved",
+          fromFile: jspPath,
+          fromLocation: include.location,
+          unresolvedReason: include.unresolvedReason
+        });
+      }
+      for (const target of targets) {
+        edges.push({
+          from: jspPath,
+          to: target,
+          type: "JSP_INCLUDES",
+          confidence: include.kind === "static" ? "high" : "medium",
+          fromFile: jspPath,
+          toFile: target,
+          fromLocation: include.location
+        });
+      }
+    }
 
     for (const [index, scriptlet] of doc.scriptlets.entries()) {
       const resolvedClass = resolveScriptletClass(scriptlet.code, classLookup);
@@ -149,25 +186,28 @@ export function buildJspGraph(
     const resolvedTags = doc.resolvedTags ?? [];
     if (resolvedTags.length > 0) {
       for (const tag of resolvedTags) {
-        if (isStandardTagReference(tag.prefix, tag.uri, tag.handlerClass)) {
+        if (isJspStandardAction(tag) || (!tag.tagFile && isStandardTagReference(tag.prefix, tag.uri, tag.handlerClass))) {
           continue;
         }
         const resolvedClass = tag.handlerClass ? classLookup.get(tag.handlerClass) : undefined;
         edges.push({
           from: jspPath,
-          to: resolvedClass?.id ?? tag.handlerClass ?? `unresolved:tag:${tag.prefix}:${tag.name}`,
-          type: "JSP_USES_TAG",
-          confidence: tag.handlerClass ? "high" : "unresolved",
+          to: tag.tagFile ?? resolvedClass?.id ?? tag.handlerClass ?? `unresolved:tag:${tag.prefix}:${tag.name}`,
+          type: tag.tagFile ? "JSP_USES_TAG_FILE" : "JSP_USES_TAG",
+          confidence: tag.handlerClass || tag.tagFile ? "high" : "unresolved",
           fromFile: jspPath,
-          toFile: normalizeOptionalPath(resolvedClass?.file),
-          toSymbol: tag.handlerClass
+          toFile: normalizeOptionalPath(tag.tagFile ?? resolvedClass?.file),
+          fromSymbol: tag.location ? `${tag.prefix}:${tag.name}` : undefined,
+          toSymbol: tag.handlerClass,
+          fromLocation: tag.location,
+          unresolvedReason: tag.unresolvedReason
         });
       }
       continue;
     }
 
     for (const [index, tag] of (doc.tags ?? []).entries()) {
-      if (isStandardTagReference(tag.prefix)) {
+      if (isJspStandardAction(tag) || isStandardTagReference(tag.prefix)) {
         continue;
       }
       edges.push({
@@ -175,7 +215,8 @@ export function buildJspGraph(
         to: `unresolved:tag:${tag.prefix}:${tag.name}:${index}`,
         type: "JSP_USES_TAG",
         confidence: "unresolved",
-        fromFile: jspPath
+        fromFile: jspPath,
+        fromLocation: tag.location
       });
     }
   }
@@ -315,6 +356,9 @@ export async function writeGraphFiles(
 }
 
 function resolveJavaCallConfidence(call: JavaCallRecord): GraphConfidence {
+  if (call.callerKind === "static-initializer") {
+    return call.fromClassId && call.resolvedMethodId && call.toClassId ? "high" : "unresolved";
+  }
   if (call.from && call.to) {
     return "high";
   }
@@ -414,11 +458,15 @@ function isStandardTagReference(prefix?: string, uri?: string, handlerClass?: st
   if (isStandardTaglibUri(uri)) {
     return true;
   }
-  if (!prefix) {
+  if (!prefix || uri) {
     return false;
   }
 
   return STANDARD_JSTL_PREFIXES.has(prefix);
+}
+
+function isJspStandardAction(tag: { prefix: string; name: string }): boolean {
+  return tag.prefix === "jsp" && ["include", "param", "useBean"].includes(tag.name);
 }
 
 function buildNodeTypeLookup(
@@ -435,6 +483,19 @@ function buildNodeTypeLookup(
 
   for (const doc of docs) {
     lookup.set(normalizePath(doc.path), "jsp");
+    for (const tag of doc.resolvedTags ?? []) {
+      if (tag.tagFile) {
+        lookup.set(normalizePath(tag.tagFile), "jsp");
+      }
+    }
+    for (const include of doc.includeReferences ?? []) {
+      for (const target of include.targetPath ? [include.targetPath] : include.candidatePaths ?? []) {
+        const targetPath = normalizePath(target);
+        if (!lookup.has(targetPath)) {
+          lookup.set(targetPath, "jsp");
+        }
+      }
+    }
   }
 
   return lookup;

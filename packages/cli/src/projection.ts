@@ -1388,7 +1388,7 @@ function projectionGraphEdgeKind(edgeType: GraphEdgeType): ProjectionGraphEdgeKi
   if (edgeType === "JAVA_TYPE_REFERENCE" || edgeType === "JAVA_NEW") {
     return "type";
   }
-  if (edgeType === "JSP_USES_TAG") {
+  if (edgeType === "JSP_USES_TAG" || edgeType === "JSP_USES_TAG_FILE") {
     return "tag";
   }
   return undefined;

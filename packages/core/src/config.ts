@@ -112,6 +112,7 @@ function resolveConfigPaths(config: LeflectConfig, root: string): LeflectConfig 
     javaConfig &&
     (
       javaConfig.workerJar ||
+      javaConfig.sourceArchive ||
       javaConfig.jreHome ||
       javaConfig.javaHome ||
       javaConfig.classpath?.length ||
@@ -120,6 +121,7 @@ function resolveConfigPaths(config: LeflectConfig, root: string): LeflectConfig 
       ? {
           ...javaConfig,
           workerJar: javaConfig.workerJar ? resolvePath(root, javaConfig.workerJar) : undefined,
+          ...(javaConfig.sourceArchive ? { sourceArchive: resolvePath(root, javaConfig.sourceArchive) } : {}),
           jreHome: javaConfig.jreHome ? resolvePath(root, javaConfig.jreHome) : undefined,
           javaHome: javaConfig.javaHome ? resolvePath(root, javaConfig.javaHome) : undefined,
           classpath: javaConfig.classpath?.map((entry) => resolvePath(root, entry)),
@@ -336,6 +338,13 @@ function validateConfig(config: LeflectConfig): void {
     if (config.java.workerJar && typeof config.java.workerJar !== "string") {
       throw new Error("Config 'java.workerJar' must be a string");
     }
+    if (config.java.targetVersion !== undefined &&
+      (typeof config.java.targetVersion !== "string" || !/^(?:1\.)?\d+$/.test(config.java.targetVersion))) {
+      throw new Error("Config 'java.targetVersion' must be a Java major version string");
+    }
+    if (config.java.sourceArchive !== undefined && typeof config.java.sourceArchive !== "string") {
+      throw new Error("Config 'java.sourceArchive' must be a path to matching JDK sources");
+    }
     if (config.java.jreHome && typeof config.java.jreHome !== "string") {
       throw new Error("Config 'java.jreHome' must be a string");
     }
@@ -367,6 +376,13 @@ function validateConfig(config: LeflectConfig): void {
     }
     if (config.jsp.webappRoot && typeof config.jsp.webappRoot !== "string") {
       throw new Error("Config 'jsp.webappRoot' must be a string");
+    }
+    if (config.jsp.includeTargets !== undefined &&
+      (!config.jsp.includeTargets || typeof config.jsp.includeTargets !== "object" ||
+        Array.isArray(config.jsp.includeTargets) ||
+        Object.entries(config.jsp.includeTargets).some(([expression, target]) =>
+          !expression.trim() || typeof target !== "string" || !target.trim()))) {
+      throw new Error("Config 'jsp.includeTargets' must map JSP expressions to webapp paths");
     }
     if (config.jsp.generatedJavaOut && typeof config.jsp.generatedJavaOut !== "string") {
       throw new Error("Config 'jsp.generatedJavaOut' must be a string");

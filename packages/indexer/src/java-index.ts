@@ -57,6 +57,7 @@ export type CallIndexEntry = {
   fromClassId?: string;
   toClassId?: string;
   fromMethodId?: string;
+  callerKind?: "static-initializer";
   toMethodId?: string;
   fromFile?: string;
   toFile?: string;
@@ -212,6 +213,7 @@ export type JavaSummaryClassReference = {
 export type JavaSummaryMethodCall = {
   callerMethodId?: string;
   callerClassId?: string;
+  callerKind?: "static-initializer";
   target: string;
   targetText?: string;
   targetClassId?: string;
@@ -660,6 +662,7 @@ function buildCallIndexEntry(
     fromClassId: pending.record.callerClassId,
     toClassId: classPath,
     fromMethodId: pending.record.callerMethodId,
+    callerKind: pending.record.callerKind,
     toMethodId,
     fromFile: pending.file,
     toFile: inferredMethod?.file,

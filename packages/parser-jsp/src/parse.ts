@@ -16,6 +16,7 @@ export type TaglibDirective = {
   prefix: string;
   uri: string;
   location: SourceLocation;
+  sourcePath?: string;
 };
 
 export type JspTag = {
@@ -41,6 +42,7 @@ export type JspAstReference = {
 export type JspDocumentNode =
   | JspDocumentRoot
   | JspTextNode
+  | JspCommentNode
   | JspHtmlElementNode
   | JspCustomTagElementNode
   | JspDirectiveNode
@@ -59,6 +61,13 @@ export type JspDocumentRoot = {
 
 export type JspTextNode = {
   kind: "Text";
+  raw: string;
+  text: string;
+  lineRange: LineRange;
+};
+
+export type JspCommentNode = {
+  kind: "Comment";
   raw: string;
   text: string;
   lineRange: LineRange;
@@ -145,7 +154,6 @@ export type JspParseResult = {
 };
 
 const DIRECTIVE_REGEX = /<%@\s*([a-zA-Z0-9_]+)\s+([^%]*)%>/gi;
-const ATTR_REGEX = /(\w+)\s*=\s*"([^"]+)"/g;
 const TAG_REGEX = /<([a-zA-Z0-9_]+):([a-zA-Z0-9_]+)(\s|>|\/)/g;
 const SCRIPTLET_REGEX = /<%([\s\S]*?)%>/g;
 
@@ -165,15 +173,25 @@ type StackEntry = {
 };
 
 export function parseJsp(content: string): JspParseResult {
-  const directives = extractDirectives(content);
+  const commentRanges: Array<{ start: number; end: number }> = [];
+  const document = parseDocument(content, commentRanges);
+  let visibleContent = "";
+  let cursor = 0;
+  for (const { start, end } of commentRanges) {
+    // Preserve offsets and line numbers for metadata extracted from the rest of the JSP.
+    visibleContent += content.slice(cursor, start) + content.slice(start, end).replace(/[^\r\n]/g, " ");
+    cursor = end;
+  }
+  visibleContent += content.slice(cursor);
+  const directives = extractDirectives(visibleContent);
   return {
     directives,
     imports: extractImports(directives),
     includes: extractIncludes(directives),
     taglibs: extractTaglibs(directives),
-    tags: extractTags(content),
-    scriptlets: extractScriptlets(content),
-    document: parseDocument(content)
+    tags: extractTags(visibleContent),
+    scriptlets: extractScriptlets(visibleContent),
+    document
   };
 }
 
@@ -209,7 +227,7 @@ function extractDirectives(content: string): JspDirective[] {
   while ((match = DIRECTIVE_REGEX.exec(content)) !== null) {
     const kind = match[1].toLowerCase();
     const attrs = match[2];
-    const attributes = extractAttributes(attrs);
+    const attributes = extractLooseAttributes(attrs);
 
     if (kind === "taglib" || kind === "page" || kind === "include") {
       directives.push({
@@ -222,18 +240,6 @@ function extractDirectives(content: string): JspDirective[] {
   }
 
   return directives;
-}
-
-function extractAttributes(value: string): Record<string, string> {
-  const record: Record<string, string> = {};
-  let attrMatch: RegExpExecArray | null;
-
-  ATTR_REGEX.lastIndex = 0;
-  while ((attrMatch = ATTR_REGEX.exec(value)) !== null) {
-    record[attrMatch[1]] = attrMatch[2];
-  }
-
-  return record;
 }
 
 function extractImports(directives: JspDirective[]): string[] {
@@ -343,7 +349,7 @@ function extractScriptlets(content: string): ScriptletBlock[] {
   return blocks;
 }
 
-function parseDocument(content: string): JspDocumentRoot {
+function parseDocument(content: string, commentRanges: Array<{ start: number; end: number }>): JspDocumentRoot {
   const root: JspDocumentRoot = {
     kind: "Document",
     raw: content,
@@ -355,6 +361,20 @@ function parseDocument(content: string): JspDocumentRoot {
 
   while (index < content.length) {
     const current = currentContainer(root, stack);
+
+    if (content.startsWith("<%--", index)) {
+      const end = findSequenceEnd(content, index + 4, "--%>");
+      const raw = content.slice(index, end);
+      commentRanges.push({ start: index, end });
+      current.children.push({
+        kind: "Comment",
+        raw,
+        text: raw.endsWith("--%>") ? raw.slice(4, -4) : raw.slice(4),
+        lineRange: toLineRange(content, index, end)
+      });
+      index = end;
+      continue;
+    }
 
     if (content.startsWith("<%@", index)) {
       const end = findSequenceEnd(content, index, "%>");

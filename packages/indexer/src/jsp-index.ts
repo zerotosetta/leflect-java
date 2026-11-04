@@ -1,8 +1,8 @@
 import fs from "fs/promises";
 import path from "path";
 
-import { JspAstReference, JspDirective, JspDocumentRoot, JspTag, ScriptletBlock, SourceLocation, TaglibDirective } from "@leflect-java/parser-jsp";
-import { JspSemanticSummary } from "@leflect-java/schema";
+import { JspAstReference, JspDirective, JspDocumentNode, JspDocumentRoot, JspTag, ScriptletBlock, SourceLocation, TaglibDirective } from "@leflect-java/parser-jsp";
+import { JspBeanAction, JspIncludeReference, JspSemanticSummary, LineRange } from "@leflect-java/schema";
 
 import { MethodCallParameterEntry, MethodIndexEntry } from "./java-index";
 import { readSourceMetadataTree, removeFiles, writeSourceMetadataTree } from "./file-tree";
@@ -12,6 +12,15 @@ export type JspResolvedTag = {
   name: string;
   uri?: string;
   handlerClass?: string;
+  tagFile?: string;
+  unresolvedReason?: string;
+  location?: SourceLocation;
+};
+
+type JspReferenceDetails = {
+  includeReferences?: JspIncludeReference[];
+  beanActions?: JspBeanAction[];
+  comments?: Array<{ text: string; lineRange: LineRange }>;
 };
 
 export type JspDocIndexEntry = {
@@ -27,7 +36,7 @@ export type JspDocIndexEntry = {
   resolvedTags?: JspResolvedTag[];
   semanticAstPath?: string;
   semanticSummary?: JspSemanticSummary;
-};
+} & JspReferenceDetails;
 
 export type JspFileIndexEntry = {
   path: string;
@@ -42,7 +51,7 @@ export type JspFileIndexEntry = {
   ast?: JspAstReference;
   semanticAstPath?: string;
   semanticSummary?: JspSemanticSummary;
-};
+} & JspReferenceDetails;
 
 export type JspImportIndexEntry = {
   id: string;
@@ -57,6 +66,7 @@ export type JspTaglibUsageIndexEntry = {
   prefix: string;
   uri: string;
   location?: SourceLocation;
+  sourcePath?: string;
 };
 
 export type JspTagUsageIndexEntry = {
@@ -66,6 +76,8 @@ export type JspTagUsageIndexEntry = {
   raw: string;
   uri?: string;
   handlerClass?: string;
+  tagFile?: string;
+  unresolvedReason?: string;
   location?: SourceLocation;
 };
 
@@ -218,7 +230,8 @@ export function buildJspIndex(entries: JspDocIndexEntry[], options: JspIndexOpti
         file: normalizedPath,
         prefix: taglib.prefix,
         uri: taglib.uri,
-        location: taglib.location
+        location: taglib.location,
+        sourcePath: taglib.sourcePath
       });
     }
 
@@ -226,7 +239,7 @@ export function buildJspIndex(entries: JspDocIndexEntry[], options: JspIndexOpti
       const resolved =
         resolvedByTag.get(`${tag.prefix}:${tag.name}`) ??
         inferStandardJstlTag(tag.prefix, tag.name, taglibUriByPrefix.get(tag.prefix));
-      if (resolved?.uri || resolved?.handlerClass) {
+      if (resolved) {
         inferredResolvedTags.push(resolved);
       }
       tags.push({
@@ -236,6 +249,8 @@ export function buildJspIndex(entries: JspDocIndexEntry[], options: JspIndexOpti
         raw: tag.raw,
         uri: resolved?.uri,
         handlerClass: resolved?.handlerClass,
+        tagFile: resolved?.tagFile,
+        unresolvedReason: resolved?.unresolvedReason,
         location: tag.location
       });
       if (resolved?.handlerClass) {
@@ -307,10 +322,13 @@ export function buildJspIndex(entries: JspDocIndexEntry[], options: JspIndexOpti
       taglibCount: entry.taglibs.length,
       tagCount: entry.tags.length,
       scriptletCount: entry.scriptlets.length,
-      resolvedTagCount: (entry.resolvedTags ?? []).filter((tag) => Boolean(tag.handlerClass)).length,
+      resolvedTagCount: inferredResolvedTags.filter((tag) => tag.handlerClass || tag.tagFile).length,
       ast: entry.ast,
       semanticAstPath: entry.semanticAstPath,
-      semanticSummary: entry.semanticSummary
+      semanticSummary: entry.semanticSummary,
+      includeReferences: entry.includeReferences,
+      beanActions: entry.beanActions,
+      comments: entry.comments ?? (entry.document ? collectComments(entry.document) : undefined)
     });
     entry.resolvedTags = inferredResolvedTags.length > 0 ? inferredResolvedTags : entry.resolvedTags;
   }
@@ -391,7 +409,10 @@ export function flattenJspFileMetadata(files: JspFileMetadata[]): JspIndex {
       resolvedTagCount: file.resolvedTagCount,
       ast: file.ast,
       semanticAstPath: file.semanticAstPath,
-      semanticSummary: file.semanticSummary
+      semanticSummary: file.semanticSummary,
+      includeReferences: file.includeReferences,
+      beanActions: file.beanActions,
+      comments: file.comments
     });
     index.docs.push({
       path: file.path,
@@ -401,7 +422,8 @@ export function flattenJspFileMetadata(files: JspFileMetadata[]): JspIndex {
       taglibs: file.taglibs.map((taglib) => ({
         prefix: taglib.prefix,
         uri: taglib.uri,
-        location: taglib.location ?? defaultLocation()
+        location: taglib.location ?? defaultLocation(),
+        sourcePath: taglib.sourcePath
       })),
       tags: file.tags.map((tag) => ({
         prefix: tag.prefix,
@@ -418,14 +440,19 @@ export function flattenJspFileMetadata(files: JspFileMetadata[]): JspIndex {
       ast: file.ast,
       semanticAstPath: file.semanticAstPath,
       semanticSummary: file.semanticSummary,
+      includeReferences: file.includeReferences,
+      beanActions: file.beanActions,
+      comments: file.comments,
       resolvedTags: file.tags
         .map((tag) => ({
           prefix: tag.prefix,
           name: tag.name,
           uri: tag.uri,
-          handlerClass: tag.handlerClass
+          handlerClass: tag.handlerClass,
+          tagFile: tag.tagFile,
+          unresolvedReason: tag.unresolvedReason,
+          location: tag.location
         }))
-        .filter((tag) => tag.uri || tag.handlerClass)
     });
     index.imports.push(...file.importEntries);
     index.taglibs.push(...file.taglibs);
@@ -465,6 +492,13 @@ function toJspFileMetadata(index: JspIndex): JspFileMetadata[] {
     classReferences: index.classReferences.filter((item) => item.file === entry.path),
     methodCalls: index.methodCalls.filter((item) => item.file === entry.path)
   }));
+}
+
+function collectComments(node: JspDocumentNode): NonNullable<JspReferenceDetails["comments"]> {
+  if (node.kind === "Comment") {
+    return [{ text: node.text, lineRange: node.lineRange }];
+  }
+  return "children" in node ? node.children.flatMap(collectComments) : [];
 }
 
 function normalizePath(value: string): string {

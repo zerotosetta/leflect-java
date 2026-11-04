@@ -47,6 +47,8 @@ export type LeflectConfig = {
   };
   java?: {
     workerJar?: string;
+    targetVersion?: string;
+    sourceArchive?: string;
     jreHome?: string;
     javaHome?: string;
     classpath?: string[];
@@ -55,6 +57,7 @@ export type LeflectConfig = {
   jsp?: {
     astMode?: JspAstMode;
     webappRoot?: string;
+    includeTargets?: Record<string, string>;
     generatedJavaOut?: string;
     astOut?: string;
     semanticAstOut?: string;

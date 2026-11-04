@@ -1,10 +1,14 @@
+import type { JspReferenceLocation } from "./jsp-references";
+
 export type GraphEdgeType =
   | "JAVA_CALL"
   | "JAVA_IMPORT"
   | "JAVA_TYPE_REFERENCE"
   | "JAVA_NEW"
   | "JSP_SCRIPTLET_CALL"
-  | "JSP_USES_TAG";
+  | "JSP_USES_TAG"
+  | "JSP_USES_TAG_FILE"
+  | "JSP_INCLUDES";
 
 export type GraphConfidence = "high" | "medium" | "low" | "unresolved";
 
@@ -19,6 +23,8 @@ export type GraphEdge = {
   toFile?: string;
   fromSymbol?: string;
   toSymbol?: string;
+  fromLocation?: Partial<JspReferenceLocation>;
+  unresolvedReason?: string;
 };
 
 export type FileDependencyReference = {
