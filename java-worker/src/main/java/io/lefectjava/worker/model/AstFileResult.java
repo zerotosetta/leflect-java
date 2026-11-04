@@ -10,6 +10,7 @@ public class AstFileResult {
   public List<JavaClassSummary> types;
   public List<JavaClassReference> classReferences;
   public List<JavaMethodCallSite> methodCalls;
+  public List<JavaReferenceDiagnostic> referenceDiagnostics;
 
   public AstFileResult() {
   }

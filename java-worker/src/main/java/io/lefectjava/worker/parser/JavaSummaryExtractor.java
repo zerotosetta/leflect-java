@@ -49,6 +49,7 @@ import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedConstructorDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedReferenceTypeDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedTypeParameterDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
 import com.github.javaparser.resolution.types.ResolvedReferenceType;
 import com.github.javaparser.resolution.types.ResolvedType;
 import com.github.javaparser.utils.Pair;
@@ -58,6 +59,7 @@ import io.lefectjava.worker.model.JavaClassSummary;
 import io.lefectjava.worker.model.JavaFieldSummary;
 import io.lefectjava.worker.model.JavaMethodCallSite;
 import io.lefectjava.worker.model.JavaMethodSummary;
+import io.lefectjava.worker.model.JavaReferenceDiagnostic;
 import io.lefectjava.worker.model.LineRange;
 import io.lefectjava.worker.model.OrderedExecutionStep;
 import io.lefectjava.worker.model.OrderedStepCall;
@@ -85,15 +87,18 @@ public class JavaSummaryExtractor {
       types.add(toTypeSummary(packageName, type));
     }
 
-    return new AstFileResult(
+    List<JavaReferenceDiagnostic> referenceDiagnostics = new ArrayList<>();
+    AstFileResult result = new AstFileResult(
         sourcePath,
         sourceKind,
         packageName,
         imports,
         types,
-        collectClassReferences(unit),
+        collectClassReferences(unit, referenceDiagnostics),
         collectMethodCalls(packageName, unit)
     );
+    result.referenceDiagnostics = referenceDiagnostics;
+    return result;
   }
 
   private JavaClassSummary toTypeSummary(String packageName, TypeDeclaration<?> type) {
@@ -199,7 +204,9 @@ public class JavaSummaryExtractor {
     return summary;
   }
 
-  private List<JavaClassReference> collectClassReferences(CompilationUnit unit) {
+  private List<JavaClassReference> collectClassReferences(
+      CompilationUnit unit, List<JavaReferenceDiagnostic> diagnostics
+  ) {
     Map<String, JavaClassReference> references = new LinkedHashMap<>();
 
     for (ImportDeclaration importDeclaration : unit.findAll(ImportDeclaration.class)) {
@@ -234,7 +241,52 @@ public class JavaSummaryExtractor {
       references.put(referenceKey(reference), reference);
     }
 
+    for (FieldAccessExpr access : unit.findAll(FieldAccessExpr.class)) {
+      Expression scope = access.getScope();
+      if (!(scope instanceof NameExpr || scope instanceof FieldAccessExpr) || resolvesToValue(scope)) {
+        continue;
+      }
+      try {
+        ResolvedValueDeclaration member = access.resolve();
+        String owner;
+        if (member.isEnumConstant()) {
+          owner = member.getType().asReferenceType().getQualifiedName();
+        } else if (member.isField() && member.asField().isStatic()) {
+          owner = member.asField().declaringType().getQualifiedName();
+        } else {
+          continue;
+        }
+        JavaClassReference reference = new JavaClassReference(
+            scope.toString(), extractSimpleTypeName(scope.toString()), owner, owner,
+            "static-qualifier", scope.toString(), toSourceLocation(scope), toLineRange(scope)
+        );
+        references.put(referenceKey(reference), reference);
+      } catch (RuntimeException error) {
+        // A failed resolution cannot distinguish a missing type from a value.
+        // Keep that uncertainty as a diagnostic, never a guessed type edge.
+        Node parent = access.getParentNode().orElse(null);
+        if (!(parent instanceof FieldAccessExpr && ((FieldAccessExpr) parent).getScope() == access)) {
+          diagnostics.add(new JavaReferenceDiagnostic(scope.toString(),
+              "Could not determine whether qualifier is a type: " + access, toSourceLocation(scope)));
+        }
+      }
+    }
     return new ArrayList<>(references.values());
+  }
+
+  private boolean resolvesToValue(Expression expression) {
+    try {
+      if (expression instanceof NameExpr) {
+        ((NameExpr) expression).resolve();
+      } else if (expression instanceof FieldAccessExpr) {
+        ((FieldAccessExpr) expression).resolve();
+      } else {
+        return true;
+      }
+      return true;
+    } catch (RuntimeException error) {
+      return false;
+    }
   }
 
   private List<JavaMethodCallSite> collectMethodCalls(String packageName, CompilationUnit unit) {

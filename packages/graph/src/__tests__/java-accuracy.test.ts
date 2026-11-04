@@ -2,6 +2,19 @@ import { describe, expect, it } from "vitest";
 import { buildGraphs } from "../index";
 
 describe("Java dependency identity", () => {
+  it("promotes repeated static type qualifiers to one file dependency", () => {
+    const result = buildGraphs([], [], [{ id: "demo.App", name: "App", file: "src/App.java" }], {
+      javaClassReferences: [3, 4].map(line => ({
+        file: "src/App.java", className: "DayOfWeek", classPath: "java.time.DayOfWeek",
+        kind: "static-qualifier", snippet: "DayOfWeek", location: { line, column: 1 }
+      }))
+    });
+    expect(result.javaTypeReferenceEdges).toHaveLength(1);
+    expect(result.fileDependencies.files[0].references).toEqual([
+      expect.objectContaining({ path: "java.time.DayOfWeek", nodeType: "external" })
+    ]);
+  });
+
   it("links nested declarations to files while keeping resolved external symbols distinct", () => {
     const result = buildGraphs([], [], [
       { id: "demo.Cms", name: "Cms", file: "src/Cms.java" },

@@ -424,7 +424,7 @@ function matchesJavaReferenceCategory(
   if (category === "new") {
     return kind === "new";
   }
-  return kind === "type" || kind === "extends" || kind === "implements" || kind === "catch";
+  return kind === "type" || kind === "extends" || kind === "implements" || kind === "catch" || kind === "static-qualifier";
 }
 
 function javaReferenceEdgeType(category: "import" | "type" | "new"): GraphEdgeType {

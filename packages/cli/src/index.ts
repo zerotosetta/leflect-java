@@ -476,7 +476,7 @@ async function executeParseJavaStage(
     createCacheKey({
       version: PIPELINE_VERSION,
       stage: "java-parse",
-      callSiteSchema: 4,
+      callSiteSchema: 5,
       java: config.java ?? {},
       dependencies: await createJavaDependencyCacheInput(config)
     }),
