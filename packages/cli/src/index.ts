@@ -89,6 +89,14 @@ import { runPluginScaffoldCommand } from "./plugin-scaffold";
 import { runProjectionServer } from "./projection-server";
 import { resolveJavaWorkerJar } from "./worker-jar";
 
+// The integrated package exposes the same string parser contracts as the workspace packages.
+// Keep the public names explicit: parser and schema AST names are not interchangeable.
+export { parseJsp } from "@leflect-java/parser-jsp";
+export type { JspParseOptions, JspParseResult, JspDocumentNode } from "@leflect-java/parser-jsp";
+export { parseTld, loadTldRegistry } from "@leflect-java/parser-tld";
+export type { TldIndex, LoadTldRegistryOptions, TldRegistryDiagnostic } from "@leflect-java/parser-tld";
+export type { LineRange, TldRegistryEntry, TldRegistryTag, TldAttributeSchema } from "@leflect-java/schema";
+
 type OutputFormat = "json" | "text";
 type StageName = "java-parse" | "jsp-parse" | "tld-parse";
 type CliConfig = LeflectConfig;
