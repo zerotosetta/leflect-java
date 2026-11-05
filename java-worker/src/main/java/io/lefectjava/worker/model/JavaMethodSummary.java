@@ -1,6 +1,7 @@
 package io.lefectjava.worker.model;
 
 import java.util.List;
+import java.util.Map;
 
 public class JavaMethodSummary {
   public String id;
@@ -12,6 +13,7 @@ public class JavaMethodSummary {
   public SourceLocation location;
   public LineRange lineRange;
   public List<OrderedExecutionStep> orderedSteps;
+  public Map<String, Object> executionModel;
 
   public JavaMethodSummary() {
   }

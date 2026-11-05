@@ -15,6 +15,7 @@ export type ClasspathResolutionOptions = {
   root: string;
   configuredEntries?: string[];
   mavenCommand?: string;
+  mavenEnabled?: boolean;
   outputDirectories?: string[];
   markerFiles?: string[];
   strictMaven?: boolean;
@@ -36,7 +37,7 @@ export async function resolveDependencyClasspathEntries(
   }
 
   try {
-    for (const entry of await collectMavenClasspathEntries(options.root, options.mavenCommand)) {
+    for (const entry of options.mavenEnabled === false ? [] : await collectMavenClasspathEntries(options.root, options.mavenCommand)) {
       entries.add(entry);
     }
   } catch (error) {
@@ -65,6 +66,7 @@ export async function createDependencyCacheInput(
 
   return {
     mavenCommand: options.mavenCommand ?? null,
+    mavenEnabled: options.mavenEnabled ?? true,
     classpath: options.configuredEntries ?? [],
     autoDiscovery: options.autoDiscovery ?? null,
     markerFiles: Object.fromEntries(markerHashes)
@@ -86,30 +88,36 @@ export async function collectMavenClasspathEntries(
   }
 
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "leflect-cp-"));
-  const outputFile = path.join(tempDir, "classpath.txt");
 
   try {
-    const result = await runCommand(
-      command,
-      [
-        "-q",
-        "dependency:build-classpath",
-        "-Dmdep.includeScope=runtime",
-        `-Dmdep.outputFile=${outputFile}`
-      ],
-      root
-    );
+    const entries = new Set<string>();
+    // Maven's runtime scope omits provided APIs (Servlet/JSP). Compile also
+    // includes provided/system; retaining runtime covers both analysis needs.
+    for (const scope of ["compile", "runtime"]) {
+      const outputFile = path.join(tempDir, `classpath-${scope}.txt`);
+      const result = await runCommand(
+        command,
+        [
+          "-q",
+          "dependency:build-classpath",
+          `-Dmdep.includeScope=${scope}`,
+          `-Dmdep.outputFile=${outputFile}`
+        ],
+        root
+      );
 
-    if (result.error || result.code !== 0) {
-      if (explicitCommand) {
-        const detail = result.stderr || result.stdout || result.error?.message || "unknown error";
-        throw new Error(`Failed to resolve Maven classpath: ${detail}`);
+      if (result.error || result.code !== 0) {
+        if (explicitCommand) {
+          const detail = result.stderr || result.stdout || result.error?.message || "unknown error";
+          throw new Error(`Failed to resolve Maven classpath: ${detail}`);
+        }
+        return [...entries];
       }
-      return [];
-    }
 
-    const raw = await fs.readFile(outputFile, "utf8").catch(() => "");
-    return splitClasspath(raw).filter((entry) => entry.length > 0);
+      const raw = await fs.readFile(outputFile, "utf8").catch(() => "");
+      for (const entry of splitClasspath(raw)) entries.add(entry);
+    }
+    return [...entries];
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true });
   }

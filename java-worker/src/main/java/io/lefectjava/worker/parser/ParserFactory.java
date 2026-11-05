@@ -2,11 +2,10 @@ package io.lefectjava.worker.parser;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParserConfiguration;
-import com.github.javaparser.symbolsolver.JavaSymbolSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ClassLoaderTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
-import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver;
 
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -35,20 +34,49 @@ public class ParserFactory {
       List<String> classpathEntries
   ) {
     CombinedTypeSolver typeSolver = new CombinedTypeSolver();
-    typeSolver.add(new ReflectionTypeSolver());
 
     for (Path sourceRoot : discoverSourceRoots(root, sourceFiles)) {
       typeSolver.add(new JavaParserTypeSolver(sourceRoot));
     }
 
     URLClassLoader classLoader = createClasspathClassLoader(classpathEntries);
-    if (classLoader != null) {
-      typeSolver.add(new ClassLoaderTypeSolver(classLoader));
+    if (classpathEntries != null) {
+      for (String entry : classpathEntries) {
+        Path binary = Path.of(entry).normalize();
+        if (Files.isDirectory(binary) && classLoader != null) {
+          typeSolver.add(new ClassLoaderTypeSolver(classLoader) {
+            @Override protected boolean filterName(String name) {
+              return containsBinaryClass(binary, name);
+            }
+          });
+        } else if (Files.isRegularFile(binary) && entry.toLowerCase(java.util.Locale.ROOT).endsWith(".jar")) {
+          try {
+            // Read signatures without loading every reflected method. Optional
+            // API types (e.g. JSP's ELContext) may be absent from the project.
+            typeSolver.add(new JarTypeSolver(binary));
+          } catch (java.io.IOException ignored) {
+            // Invalid configured archives remain unresolved; never use worker APIs.
+          }
+        }
+      }
     }
+    // Platform delegation keeps Java SE (including javax.crypto/sql) available,
+    // without exposing the worker's Jasper/Servlet implementation to analysis.
+    typeSolver.add(new ClassLoaderTypeSolver(ClassLoader.getPlatformClassLoader()));
 
     ParserConfiguration configuration = new ParserConfiguration();
-    configuration.setSymbolResolver(new JavaSymbolSolver(typeSolver));
+    configuration.setSymbolResolver(new AnalysisSymbolResolver(typeSolver));
     return new JavaParser(configuration);
+  }
+
+  private static boolean containsBinaryClass(Path directory, String qualifiedName) {
+    String candidate = qualifiedName;
+    while (true) {
+      if (Files.isRegularFile(directory.resolve(candidate.replace('.', '/') + ".class"))) return true;
+      int separator = candidate.lastIndexOf('.');
+      if (separator < 0) return false;
+      candidate = candidate.substring(0, separator) + "$" + candidate.substring(separator + 1);
+    }
   }
 
   private static List<Path> discoverSourceRoots(Path root, List<Path> sourceFiles) {
@@ -119,7 +147,7 @@ public class ParserFactory {
         return null;
       }
 
-      return new URLClassLoader(urls, ParserFactory.class.getClassLoader());
+      return new URLClassLoader(urls, ClassLoader.getPlatformClassLoader());
     } catch (Exception ex) {
       return null;
     }

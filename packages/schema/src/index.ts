@@ -10,3 +10,4 @@ export * from "./report";
 export * from "./worker";
 export * from "./servlet";
 export * from "./task";
+export * from "./java-execution";

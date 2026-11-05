@@ -1184,6 +1184,37 @@ class LeflectJavaProjectionApp extends LitElement {
             `)}
           </section>
         ` : nothing}
+        ${file.nodeType === "java" ? html`
+          <section class="grid gap-1 rounded border border-chrome-800 bg-chrome-950 px-2 py-1 text-[11px]">
+            <div class="text-[10px] uppercase tracking-[0.18em] text-slate-500">Call result types and import evidence</div>
+            ${(metadata.calls ?? []).map((call) => html`
+              <details class="break-all border-t border-chrome-800 py-1">
+                <summary>${call.toMethodId ?? call.to} · ${call.expressionTypeStatus ?? "legacy"} · ${call.expressionType ?? "unavailable"}</summary>
+                <div>Declared return type: ${call.declaredReturnType ?? "unavailable"}</div>
+                ${call.expressionTypeReason ? html`<div>${call.expressionTypeReason}</div>` : nothing}
+                <div>Import origin: ${call.originKind ?? "unavailable"} · ${call.originStatus ?? "unavailable"}</div>
+                <pre class="whitespace-pre-wrap">${JSON.stringify(call.originEvidence ?? {}, null, 2)}</pre>
+              </details>
+            `)}
+          </section>
+          <section class="grid gap-1 rounded border border-chrome-800 bg-chrome-950 px-2 py-1 text-[11px]">
+            <div class="text-[10px] uppercase tracking-[0.18em] text-slate-500">Source execution flow</div>
+            ${(metadata.methods ?? []).map((method) => {
+              const model = method.executionModel;
+              return html`<details class="break-all border-t border-chrome-800 py-1">
+                <summary>${method.id} · ${model?.version === 2 ? "version 2" : "legacy summary"}</summary>
+                ${model?.version === 2 ? html`
+                  <pre class="whitespace-pre-wrap">${JSON.stringify(model.coverage, null, 2)}</pre>
+                  ${model.orderedSteps.map((step) => html`<details class="border-t border-chrome-800 py-1">
+                    <summary>${step.kind} · line ${step.lineRange?.startLine ?? "?"}</summary>
+                    <pre class="whitespace-pre-wrap">${JSON.stringify(step, null, 2)}</pre>
+                  </details>`)}
+                  <details><summary>Flow graph, symbols and states</summary><pre class="whitespace-pre-wrap">${JSON.stringify({ flowGraph: model.flowGraph, symbols: model.symbols, states: model.states }, null, 2)}</pre></details>
+                ` : html`<div>Flow guards and variable states are unavailable in this legacy summary.</div>`}
+              </details>`;
+            })}
+          </section>
+        ` : nothing}
         <section class="rounded border border-chrome-800 bg-chrome-950 px-2 py-1">
           <div class="mb-1 text-[10px] uppercase tracking-[0.18em] text-slate-500">Shard Metadata</div>
           <div class="grid gap-2">${metadataSections}</div>

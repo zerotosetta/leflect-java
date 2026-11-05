@@ -4,6 +4,7 @@ import path from "path";
 import { flattenJavaFileMetadata, flattenJspFileMetadata, readJavaFileMetadataDir, readJspFileMetadataDir } from "@leflect-java/indexer";
 import {
   ClassLabel,
+  JavaExecutionModel,
   DiagnosticCauseGroup,
   DiagnosticPathGroup,
   DiagnosticRecord,
@@ -47,6 +48,8 @@ export type ReporterMethodRecord = {
   id: string;
   name: string;
   classId?: string;
+  orderedSteps?: unknown[];
+  executionModel?: JavaExecutionModel;
 };
 
 export type ReporterJspRecord = {
@@ -149,6 +152,14 @@ export function buildSummaryReport(input: ReporterInput): SummaryReport {
   return {
     schemaVersion: "1.0",
     generatedAt,
+    javaExecution: input.methods.map((method) => ({
+      methodId: method.id,
+      modelVersion: method.executionModel?.version === 2 ? 2 : "legacy",
+      steps: method.executionModel?.orderedSteps.length ?? method.orderedSteps?.length ?? 0,
+      flowNodes: method.executionModel?.flowGraph.nodes.length ?? 0,
+      flowEdges: method.executionModel?.flowGraph.edges.length ?? 0,
+      coverage: method.executionModel?.coverage
+    })),
     counts: {
       classes: input.classes.length,
       methods: input.methods.length,

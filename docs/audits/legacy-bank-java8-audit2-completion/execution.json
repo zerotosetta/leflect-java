@@ -1,0 +1,2911 @@
+{
+  "generatedAt": "2026-11-05T10:03:10.644Z",
+  "passed": true,
+  "summary": {
+    "files": 42,
+    "methods": 108,
+    "historicalOperations": 1149,
+    "declarations": 156,
+    "uninitialized": 12,
+    "mutations": 4,
+    "continues": 1,
+    "guardedCalls": 68,
+    "checks": 3677,
+    "passed": 3677,
+    "failed": 0
+  },
+  "fullReport": "analysis\\legacy-bank-java8\\audit2-20261105-1853\\verification\\audit2-execution.json",
+  "fullReportSha256": "6c1febd0a902a70370330185033fdf277d19e2111e321b259b142bea7f4cef51",
+  "checkDistribution": {
+    "42 files and 108 explicit methods": 1,
+    "fresh independent JDK source inventory available": 1,
+    "original input hash": 84,
+    "javac inventory inclusive source span": 1435,
+    "historical 1149 operation positions selected": 1,
+    "historical operation role and exact range preserved in legacy and v2": 1149,
+    "legacy operation semantics unchanged": 108,
+    "method-local v2 complete source coverage": 108,
+    "CFG endpoint closure and one state snapshot per node": 108,
+    "source steps are canonical and linked to graph": 108,
+    "guards and effects point to actual conditions and declared symbols": 108,
+    "finite state lattice and support boundaries explicit": 108,
+    "source invocation evaluation order retained": 108,
+    "156 local declarations including 12 without initializer": 1,
+    "local declaration name owner and separate declaration/name ranges": 156,
+    "uninitialized declaration creates no initialization write": 12,
+    "four source mutation effects without duplicate assignment": 1,
+    "mutation target operator old/new value and exact range": 4,
+    "for update effect is reached from the update control point": 3,
+    "68 historical short-circuit RHS calls": 1,
+    "each RHS call has its source-derived evaluation guards and incoming CFG route": 68,
+    "QueryEngine id null path excludes startsWith": 1,
+    "one source continue": 1,
+    "continue exact location and nearest owning loop destination": 1,
+    "continue skips remaining iteration before next loop condition": 1
+  },
+  "selectedChecks": [
+    {
+      "name": "156 local declarations including 12 without initializer",
+      "passed": true,
+      "sourceDeclarations": 156,
+      "v2Declarations": 156,
+      "sourceUninitialized": 12
+    },
+    {
+      "name": "uninitialized declaration creates no initialization write",
+      "passed": true,
+      "file": "src/main/java/demo/bank/BTConnector.java",
+      "methodId": "demo.bank.BTConnector#trx(WBFRecord,HttpServletRequest)",
+      "location": {
+        "line": 20,
+        "column": 17,
+        "endLine": 20,
+        "endColumn": 27
+      },
+      "source": "String app,",
+      "state": {
+        "initialization": "uninitialized",
+        "nullability": "unknown"
+      }
+    },
+    {
+      "name": "uninitialized declaration creates no initialization write",
+      "passed": true,
+      "file": "src/main/java/demo/bank/BTConnector.java",
+      "methodId": "demo.bank.BTConnector#trx(WBFRecord,HttpServletRequest)",
+      "location": {
+        "line": 20,
+        "column": 17,
+        "endLine": 20,
+        "endColumn": 42
+      },
+      "source": "String app,implementation;",
+      "state": {
+        "initialization": "uninitialized",
+        "nullability": "unknown"
+      }
+    },
+    {
+      "name": "uninitialized declaration creates no initialization write",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Cms.java",
+      "methodId": "demo.bank.Cms#load(String,int,HttpServletRequest)",
+      "location": {
+        "line": 39,
+        "column": 13,
+        "endLine": 39,
+        "endColumn": 28
+      },
+      "source": "String layoutId,",
+      "state": {
+        "initialization": "uninitialized",
+        "nullability": "unknown"
+      }
+    },
+    {
+      "name": "uninitialized declaration creates no initialization write",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Cms.java",
+      "methodId": "demo.bank.Cms#load(String,int,HttpServletRequest)",
+      "location": {
+        "line": 39,
+        "column": 13,
+        "endLine": 39,
+        "endColumn": 35
+      },
+      "source": "String layoutId,helpId;",
+      "state": {
+        "initialization": "uninitialized",
+        "nullability": "unknown"
+      }
+    },
+    {
+      "name": "uninitialized declaration creates no initialization write",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Cms.java",
+      "methodId": "demo.bank.Cms#load(String,int,HttpServletRequest)",
+      "location": {
+        "line": 39,
+        "column": 37,
+        "endLine": 39,
+        "endColumn": 53
+      },
+      "source": "boolean showHelp;",
+      "state": {
+        "initialization": "uninitialized",
+        "nullability": "not-applicable"
+      }
+    },
+    {
+      "name": "uninitialized declaration creates no initialization write",
+      "passed": true,
+      "file": "src/main/java/demo/bank/HealthServlet.java",
+      "methodId": "demo.bank.HealthServlet#doGet(HttpServletRequest,HttpServletResponse)",
+      "location": {
+        "line": 13,
+        "column": 13,
+        "endLine": 13,
+        "endColumn": 23
+      },
+      "source": "int tables,",
+      "state": {
+        "initialization": "uninitialized",
+        "nullability": "not-applicable"
+      }
+    },
+    {
+      "name": "uninitialized declaration creates no initialization write",
+      "passed": true,
+      "file": "src/main/java/demo/bank/HealthServlet.java",
+      "methodId": "demo.bank.HealthServlet#doGet(HttpServletRequest,HttpServletResponse)",
+      "location": {
+        "line": 13,
+        "column": 13,
+        "endLine": 13,
+        "endColumn": 29
+      },
+      "source": "int tables,pages,",
+      "state": {
+        "initialization": "uninitialized",
+        "nullability": "not-applicable"
+      }
+    },
+    {
+      "name": "uninitialized declaration creates no initialization write",
+      "passed": true,
+      "file": "src/main/java/demo/bank/HealthServlet.java",
+      "methodId": "demo.bank.HealthServlet#doGet(HttpServletRequest,HttpServletResponse)",
+      "location": {
+        "line": 13,
+        "column": 13,
+        "endLine": 13,
+        "endColumn": 35
+      },
+      "source": "int tables,pages,tasks,",
+      "state": {
+        "initialization": "uninitialized",
+        "nullability": "not-applicable"
+      }
+    },
+    {
+      "name": "uninitialized declaration creates no initialization write",
+      "passed": true,
+      "file": "src/main/java/demo/bank/HealthServlet.java",
+      "methodId": "demo.bank.HealthServlet#doGet(HttpServletRequest,HttpServletResponse)",
+      "location": {
+        "line": 13,
+        "column": 13,
+        "endLine": 13,
+        "endColumn": 44
+      },
+      "source": "int tables,pages,tasks,business,",
+      "state": {
+        "initialization": "uninitialized",
+        "nullability": "not-applicable"
+      }
+    },
+    {
+      "name": "uninitialized declaration creates no initialization write",
+      "passed": true,
+      "file": "src/main/java/demo/bank/HealthServlet.java",
+      "methodId": "demo.bank.HealthServlet#doGet(HttpServletRequest,HttpServletResponse)",
+      "location": {
+        "line": 13,
+        "column": 13,
+        "endLine": 13,
+        "endColumn": 52
+      },
+      "source": "int tables,pages,tasks,business,queries;",
+      "state": {
+        "initialization": "uninitialized",
+        "nullability": "not-applicable"
+      }
+    },
+    {
+      "name": "uninitialized declaration creates no initialization write",
+      "passed": true,
+      "file": "src/main/java/demo/bank/QueryEngine.java",
+      "methodId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String)",
+      "location": {
+        "line": 11,
+        "column": 9,
+        "endLine": 11,
+        "endColumn": 19
+      },
+      "source": "String sql;",
+      "state": {
+        "initialization": "uninitialized",
+        "nullability": "unknown"
+      }
+    },
+    {
+      "name": "uninitialized declaration creates no initialization write",
+      "passed": true,
+      "file": "src/main/java/demo/bank/tags/TransferDraftTag.java",
+      "methodId": "demo.bank.tags.TransferDraftTag#doTag()",
+      "location": {
+        "line": 18,
+        "column": 9,
+        "endLine": 18,
+        "endColumn": 28
+      },
+      "source": "TransferDraft draft;",
+      "state": {
+        "initialization": "uninitialized",
+        "nullability": "unknown"
+      }
+    },
+    {
+      "name": "four source mutation effects without duplicate assignment",
+      "passed": true,
+      "source": 4,
+      "v2": 4
+    },
+    {
+      "name": "mutation target operator old/new value and exact range",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/DepositOpen.java",
+      "methodId": "demo.bank.callees.DepositOpen#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest)",
+      "location": {
+        "line": 18,
+        "column": 26,
+        "endLine": 18,
+        "endColumn": 28
+      },
+      "source": "i++",
+      "effect": {
+        "operation": "++",
+        "operator": "POSTFIX_INCREMENT",
+        "target": {
+          "symbolId": "demo.bank.callees.DepositOpen#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):symbol:18:17-18:17:i",
+          "expression": "i",
+          "lineRange": {
+            "startLine": 18,
+            "startColumn": 26,
+            "endLine": 18,
+            "endColumn": 26
+          },
+          "resolutionStatus": "resolved"
+        },
+        "reads": true,
+        "writes": true,
+        "resultMode": "previous-value",
+        "evaluationCount": 1
+      }
+    },
+    {
+      "name": "mutation target operator old/new value and exact range",
+      "passed": true,
+      "file": "src/main/java/demo/bank/QueryEngine.java",
+      "methodId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String)",
+      "location": {
+        "line": 17,
+        "column": 34,
+        "endLine": 17,
+        "endColumn": 36
+      },
+      "source": "i++",
+      "effect": {
+        "operation": "++",
+        "operator": "POSTFIX_INCREMENT",
+        "target": {
+          "symbolId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):symbol:17:25-17:25:i",
+          "expression": "i",
+          "lineRange": {
+            "startLine": 17,
+            "startColumn": 34,
+            "endLine": 17,
+            "endColumn": 34
+          },
+          "resolutionStatus": "resolved"
+        },
+        "reads": true,
+        "writes": true,
+        "resultMode": "previous-value",
+        "evaluationCount": 1
+      }
+    },
+    {
+      "name": "mutation target operator old/new value and exact range",
+      "passed": true,
+      "file": "src/main/java/demo/bank/QueryEngine.java",
+      "methodId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String)",
+      "location": {
+        "line": 33,
+        "column": 34,
+        "endLine": 33,
+        "endColumn": 39
+      },
+      "source": "next++",
+      "effect": {
+        "operation": "++",
+        "operator": "POSTFIX_INCREMENT",
+        "target": {
+          "symbolId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):symbol:30:21-30:24:next",
+          "expression": "next",
+          "lineRange": {
+            "startLine": 33,
+            "startColumn": 34,
+            "endLine": 33,
+            "endColumn": 37
+          },
+          "resolutionStatus": "resolved"
+        },
+        "reads": true,
+        "writes": true,
+        "resultMode": "previous-value",
+        "evaluationCount": 1
+      }
+    },
+    {
+      "name": "mutation target operator old/new value and exact range",
+      "passed": true,
+      "file": "src/main/java/demo/bank/QueryEngine.java",
+      "methodId": "demo.bank.QueryEngine#query(Connection,String,WBFRecord)",
+      "location": {
+        "line": 46,
+        "column": 54,
+        "endLine": 46,
+        "endColumn": 56
+      },
+      "source": "i++",
+      "effect": {
+        "operation": "++",
+        "operator": "POSTFIX_INCREMENT",
+        "target": {
+          "symbolId": "demo.bank.QueryEngine#query(Connection,String,WBFRecord):symbol:46:25-46:25:i",
+          "expression": "i",
+          "lineRange": {
+            "startLine": 46,
+            "startColumn": 54,
+            "endLine": 46,
+            "endColumn": 54
+          },
+          "resolutionStatus": "resolved"
+        },
+        "reads": true,
+        "writes": true,
+        "resultMode": "previous-value",
+        "evaluationCount": 1
+      }
+    },
+    {
+      "name": "68 historical short-circuit RHS calls",
+      "passed": true,
+      "actual": 68
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/BankServlet.java",
+      "methodId": "demo.bank.BankServlet#service(HttpServletRequest,HttpServletResponse)",
+      "location": {
+        "line": 15,
+        "column": 69,
+        "endLine": 15,
+        "endColumn": 87
+      },
+      "source": "request.getMethod()",
+      "expected": [
+        {
+          "expression": "!\"GET\".equals(request.getMethod())",
+          "when": true
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.BankServlet#service(HttpServletRequest,HttpServletResponse):condition:15:16-15:49:true",
+          "conditionId": "demo.bank.BankServlet#service(HttpServletRequest,HttpServletResponse):condition:15:16-15:49",
+          "expression": "!\"GET\".equals(request.getMethod())",
+          "when": true,
+          "lineRange": {
+            "startLine": 15,
+            "startColumn": 16,
+            "endLine": 15,
+            "endColumn": 49
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/BankServlet.java",
+      "methodId": "demo.bank.BankServlet#service(HttpServletRequest,HttpServletResponse)",
+      "location": {
+        "line": 15,
+        "column": 55,
+        "endLine": 15,
+        "endColumn": 88
+      },
+      "source": "\"POST\".equals(request.getMethod())",
+      "expected": [
+        {
+          "expression": "!\"GET\".equals(request.getMethod())",
+          "when": true
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.BankServlet#service(HttpServletRequest,HttpServletResponse):condition:15:16-15:49:true",
+          "conditionId": "demo.bank.BankServlet#service(HttpServletRequest,HttpServletResponse):condition:15:16-15:49",
+          "expression": "!\"GET\".equals(request.getMethod())",
+          "when": true,
+          "lineRange": {
+            "startLine": 15,
+            "startColumn": 16,
+            "endLine": 15,
+            "endColumn": 49
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/BankServlet.java",
+      "methodId": "demo.bank.BankServlet#service(HttpServletRequest,HttpServletResponse)",
+      "location": {
+        "line": 31,
+        "column": 38,
+        "endLine": 31,
+        "endColumn": 57
+      },
+      "source": "request.getSession()",
+      "expected": [
+        {
+          "expression": "page.loginRequired",
+          "when": true
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.BankServlet#service(HttpServletRequest,HttpServletResponse):condition:31:16-31:33:true",
+          "conditionId": "demo.bank.BankServlet#service(HttpServletRequest,HttpServletResponse):condition:31:16-31:33",
+          "expression": "page.loginRequired",
+          "when": true,
+          "lineRange": {
+            "startLine": 31,
+            "startColumn": 16,
+            "endLine": 31,
+            "endColumn": 33
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/BankServlet.java",
+      "methodId": "demo.bank.BankServlet#service(HttpServletRequest,HttpServletResponse)",
+      "location": {
+        "line": 31,
+        "column": 38,
+        "endLine": 31,
+        "endColumn": 85
+      },
+      "source": "request.getSession().getAttribute(\"CUSTOMER_ID\")",
+      "expected": [
+        {
+          "expression": "page.loginRequired",
+          "when": true
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.BankServlet#service(HttpServletRequest,HttpServletResponse):condition:31:16-31:33:true",
+          "conditionId": "demo.bank.BankServlet#service(HttpServletRequest,HttpServletResponse):condition:31:16-31:33",
+          "expression": "page.loginRequired",
+          "when": true,
+          "lineRange": {
+            "startLine": 31,
+            "startColumn": 16,
+            "endLine": 31,
+            "endColumn": 33
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/BankServlet.java",
+      "methodId": "demo.bank.BankServlet#service(HttpServletRequest,HttpServletResponse)",
+      "location": {
+        "line": 38,
+        "column": 45,
+        "endLine": 38,
+        "endColumn": 60
+      },
+      "source": "cause.getCause()",
+      "expected": [
+        {
+          "expression": "cause.getCause() != null",
+          "when": true
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.BankServlet#service(HttpServletRequest,HttpServletResponse):condition:38:19-38:40:true",
+          "conditionId": "demo.bank.BankServlet#service(HttpServletRequest,HttpServletResponse):condition:38:19-38:40",
+          "expression": "cause.getCause() != null",
+          "when": true,
+          "lineRange": {
+            "startLine": 38,
+            "startColumn": 19,
+            "endLine": 38,
+            "endColumn": 40
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/BTConnector.java",
+      "methodId": "demo.bank.BTConnector#trx(WBFRecord,HttpServletRequest)",
+      "location": {
+        "line": 26,
+        "column": 81,
+        "endLine": 26,
+        "endColumn": 95
+      },
+      "source": "r.getString(10)",
+      "expected": [
+        {
+          "expression": "!\"ON\".equals(r.getString(3).trim())",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.BTConnector#trx(WBFRecord,HttpServletRequest):condition:26:28-26:62:false",
+          "conditionId": "demo.bank.BTConnector#trx(WBFRecord,HttpServletRequest):condition:26:28-26:62",
+          "expression": "!\"ON\".equals(r.getString(3).trim())",
+          "when": false,
+          "lineRange": {
+            "startLine": 26,
+            "startColumn": 28,
+            "endLine": 26,
+            "endColumn": 62
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/BTConnector.java",
+      "methodId": "demo.bank.BTConnector#trx(WBFRecord,HttpServletRequest)",
+      "location": {
+        "line": 26,
+        "column": 68,
+        "endLine": 26,
+        "endColumn": 96
+      },
+      "source": "\"WEB\".equals(r.getString(10))",
+      "expected": [
+        {
+          "expression": "!\"ON\".equals(r.getString(3).trim())",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.BTConnector#trx(WBFRecord,HttpServletRequest):condition:26:28-26:62:false",
+          "conditionId": "demo.bank.BTConnector#trx(WBFRecord,HttpServletRequest):condition:26:28-26:62",
+          "expression": "!\"ON\".equals(r.getString(3).trim())",
+          "when": false,
+          "lineRange": {
+            "startLine": 26,
+            "startColumn": 28,
+            "endLine": 26,
+            "endColumn": 62
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/BTConnectorFactory.java",
+      "methodId": "demo.bank.BTConnectorFactory#create(String)",
+      "location": {
+        "line": 7,
+        "column": 31,
+        "endLine": 7,
+        "endColumn": 59
+      },
+      "source": "taskCode.startsWith(\"DBANK_\")",
+      "expected": [
+        {
+          "expression": "taskCode == null",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.BTConnectorFactory#create(String):condition:7:12-7:25:false",
+          "conditionId": "demo.bank.BTConnectorFactory#create(String):condition:7:12-7:25",
+          "expression": "taskCode == null",
+          "when": false,
+          "lineRange": {
+            "startLine": 7,
+            "startColumn": 12,
+            "endLine": 7,
+            "endColumn": 25
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/CalleeExecutor.java",
+      "methodId": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest)",
+      "location": {
+        "line": 16,
+        "column": 31,
+        "endLine": 16,
+        "endColumn": 42
+      },
+      "source": "chain.size()",
+      "expected": [
+        {
+          "expression": "chain.isEmpty()",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:16:12-16:26:false",
+          "conditionId": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:16:12-16:26",
+          "expression": "chain.isEmpty()",
+          "when": false,
+          "lineRange": {
+            "startLine": 16,
+            "startColumn": 12,
+            "endLine": 16,
+            "endColumn": 26
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/CalleeExecutor.java",
+      "methodId": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest)",
+      "location": {
+        "line": 21,
+        "column": 43,
+        "endLine": 21,
+        "endColumn": 83
+      },
+      "source": "parts[1].startsWith(\"demo.bank.callees.\")",
+      "expected": [
+        {
+          "expression": "\"JAVA\".equals(parts[0])",
+          "when": true
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:21:16-21:38:true",
+          "conditionId": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:21:16-21:38",
+          "expression": "\"JAVA\".equals(parts[0])",
+          "when": true,
+          "lineRange": {
+            "startLine": 21,
+            "startColumn": 16,
+            "endLine": 21,
+            "endColumn": 38
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/CalleeExecutor.java",
+      "methodId": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest)",
+      "location": {
+        "line": 26,
+        "column": 70,
+        "endLine": 26,
+        "endColumn": 91
+      },
+      "source": "\"ONE\".equals(parts[2])",
+      "expected": [
+        {
+          "expression": "\"QUERY\".equals(parts[0]) && parts.length == 3",
+          "when": true
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:21:16-21:83:false",
+          "conditionId": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:21:16-21:83",
+          "expression": "\"JAVA\".equals(parts[0]) && parts[1].startsWith(\"demo.bank.callees.\")",
+          "when": false,
+          "lineRange": {
+            "startLine": 21,
+            "startColumn": 16,
+            "endLine": 21,
+            "endColumn": 83
+          }
+        },
+        {
+          "id": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:26:23-26:65:true",
+          "conditionId": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:26:23-26:65",
+          "expression": "\"QUERY\".equals(parts[0]) && parts.length == 3",
+          "when": true,
+          "lineRange": {
+            "startLine": 26,
+            "startColumn": 23,
+            "endLine": 26,
+            "endColumn": 65
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/CalleeExecutor.java",
+      "methodId": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest)",
+      "location": {
+        "line": 28,
+        "column": 66,
+        "endLine": 28,
+        "endColumn": 85
+      },
+      "source": "props.get(\"EIMS_ID\")",
+      "expected": [
+        {
+          "expression": "\"EIMS\".equals(parts[0])",
+          "when": true
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:21:16-21:83:false",
+          "conditionId": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:21:16-21:83",
+          "expression": "\"JAVA\".equals(parts[0]) && parts[1].startsWith(\"demo.bank.callees.\")",
+          "when": false,
+          "lineRange": {
+            "startLine": 21,
+            "startColumn": 16,
+            "endLine": 21,
+            "endColumn": 83
+          }
+        },
+        {
+          "id": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:26:23-26:91:false",
+          "conditionId": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:26:23-26:91",
+          "expression": "\"QUERY\".equals(parts[0]) && parts.length == 3 && \"ONE\".equals(parts[2])",
+          "when": false,
+          "lineRange": {
+            "startLine": 26,
+            "startColumn": 23,
+            "endLine": 26,
+            "endColumn": 91
+          }
+        },
+        {
+          "id": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:28:23-28:45:true",
+          "conditionId": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:28:23-28:45",
+          "expression": "\"EIMS\".equals(parts[0])",
+          "when": true,
+          "lineRange": {
+            "startLine": 28,
+            "startColumn": 23,
+            "endLine": 28,
+            "endColumn": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/CalleeExecutor.java",
+      "methodId": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest)",
+      "location": {
+        "line": 28,
+        "column": 50,
+        "endLine": 28,
+        "endColumn": 86
+      },
+      "source": "parts[1].equals(props.get(\"EIMS_ID\"))",
+      "expected": [
+        {
+          "expression": "\"EIMS\".equals(parts[0])",
+          "when": true
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:21:16-21:83:false",
+          "conditionId": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:21:16-21:83",
+          "expression": "\"JAVA\".equals(parts[0]) && parts[1].startsWith(\"demo.bank.callees.\")",
+          "when": false,
+          "lineRange": {
+            "startLine": 21,
+            "startColumn": 16,
+            "endLine": 21,
+            "endColumn": 83
+          }
+        },
+        {
+          "id": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:26:23-26:91:false",
+          "conditionId": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:26:23-26:91",
+          "expression": "\"QUERY\".equals(parts[0]) && parts.length == 3 && \"ONE\".equals(parts[2])",
+          "when": false,
+          "lineRange": {
+            "startLine": 26,
+            "startColumn": 23,
+            "endLine": 26,
+            "endColumn": 91
+          }
+        },
+        {
+          "id": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:28:23-28:45:true",
+          "conditionId": "demo.bank.CalleeExecutor#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:28:23-28:45",
+          "expression": "\"EIMS\".equals(parts[0])",
+          "when": true,
+          "lineRange": {
+            "startLine": 28,
+            "startColumn": 23,
+            "endLine": 28,
+            "endColumn": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/DepositOpen.java",
+      "methodId": "demo.bank.callees.DepositOpen#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest)",
+      "location": {
+        "line": 14,
+        "column": 102,
+        "endLine": 14,
+        "endColumn": 126
+      },
+      "source": "product.get(\"MAX_AMOUNT\")",
+      "expected": [
+        {
+          "expression": "amount.compareTo((BigDecimal)product.get(\"MIN_AMOUNT\")) < 0",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.callees.DepositOpen#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:14:12-14:68:false",
+          "conditionId": "demo.bank.callees.DepositOpen#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:14:12-14:68",
+          "expression": "amount.compareTo((BigDecimal) product.get(\"MIN_AMOUNT\")) < 0",
+          "when": false,
+          "lineRange": {
+            "startLine": 14,
+            "startColumn": 12,
+            "endLine": 14,
+            "endColumn": 68
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/DepositOpen.java",
+      "methodId": "demo.bank.callees.DepositOpen#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest)",
+      "location": {
+        "line": 14,
+        "column": 73,
+        "endLine": 14,
+        "endColumn": 127
+      },
+      "source": "amount.compareTo((BigDecimal)product.get(\"MAX_AMOUNT\"))",
+      "expected": [
+        {
+          "expression": "amount.compareTo((BigDecimal)product.get(\"MIN_AMOUNT\")) < 0",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.callees.DepositOpen#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:14:12-14:68:false",
+          "conditionId": "demo.bank.callees.DepositOpen#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:14:12-14:68",
+          "expression": "amount.compareTo((BigDecimal) product.get(\"MIN_AMOUNT\")) < 0",
+          "when": false,
+          "lineRange": {
+            "startLine": 14,
+            "startColumn": 12,
+            "endLine": 14,
+            "endColumn": 68
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/TransferPolicy.java",
+      "methodId": "demo.bank.callees.TransferPolicy#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest)",
+      "location": {
+        "line": 16,
+        "column": 73,
+        "endLine": 16,
+        "endColumn": 88
+      },
+      "source": "amount.add(used)",
+      "expected": [
+        {
+          "expression": "amount.compareTo((BigDecimal)limit.get(\"PER_TRANSFER\")) > 0",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.callees.TransferPolicy#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:16:12-16:68:false",
+          "conditionId": "demo.bank.callees.TransferPolicy#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:16:12-16:68",
+          "expression": "amount.compareTo((BigDecimal) limit.get(\"PER_TRANSFER\")) > 0",
+          "when": false,
+          "lineRange": {
+            "startLine": 16,
+            "startColumn": 12,
+            "endLine": 16,
+            "endColumn": 68
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/TransferPolicy.java",
+      "methodId": "demo.bank.callees.TransferPolicy#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest)",
+      "location": {
+        "line": 16,
+        "column": 112,
+        "endLine": 16,
+        "endColumn": 135
+      },
+      "source": "limit.get(\"DAILY_LIMIT\")",
+      "expected": [
+        {
+          "expression": "amount.compareTo((BigDecimal)limit.get(\"PER_TRANSFER\")) > 0",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.callees.TransferPolicy#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:16:12-16:68:false",
+          "conditionId": "demo.bank.callees.TransferPolicy#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:16:12-16:68",
+          "expression": "amount.compareTo((BigDecimal) limit.get(\"PER_TRANSFER\")) > 0",
+          "when": false,
+          "lineRange": {
+            "startLine": 16,
+            "startColumn": 12,
+            "endLine": 16,
+            "endColumn": 68
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/TransferPolicy.java",
+      "methodId": "demo.bank.callees.TransferPolicy#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest)",
+      "location": {
+        "line": 16,
+        "column": 73,
+        "endLine": 16,
+        "endColumn": 136
+      },
+      "source": "amount.add(used).compareTo((BigDecimal)limit.get(\"DAILY_LIMIT\"))",
+      "expected": [
+        {
+          "expression": "amount.compareTo((BigDecimal)limit.get(\"PER_TRANSFER\")) > 0",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.callees.TransferPolicy#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:16:12-16:68:false",
+          "conditionId": "demo.bank.callees.TransferPolicy#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:16:12-16:68",
+          "expression": "amount.compareTo((BigDecimal) limit.get(\"PER_TRANSFER\")) > 0",
+          "when": false,
+          "lineRange": {
+            "startLine": 16,
+            "startColumn": 12,
+            "endLine": 16,
+            "endColumn": 68
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Cms.java",
+      "methodId": "demo.bank.Cms#path(String)",
+      "location": {
+        "line": 22,
+        "column": 28,
+        "endLine": 22,
+        "endColumn": 60
+      },
+      "source": "value.startsWith(\"/WEB-INF/jsp/\")",
+      "expected": [
+        {
+          "expression": "value == null",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.Cms#path(String):condition:22:12-22:22:false",
+          "conditionId": "demo.bank.Cms#path(String):condition:22:12-22:22",
+          "expression": "value == null",
+          "when": false,
+          "lineRange": {
+            "startLine": 22,
+            "startColumn": 12,
+            "endLine": 22,
+            "endColumn": 22
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Cms.java",
+      "methodId": "demo.bank.Cms#path(String)",
+      "location": {
+        "line": 22,
+        "column": 66,
+        "endLine": 22,
+        "endColumn": 87
+      },
+      "source": "value.endsWith(\".jsp\")",
+      "expected": [
+        {
+          "expression": "value == null || !value.startsWith(\"/WEB-INF/jsp/\")",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.Cms#path(String):condition:22:12-22:60:false",
+          "conditionId": "demo.bank.Cms#path(String):condition:22:12-22:60",
+          "expression": "value == null || !value.startsWith(\"/WEB-INF/jsp/\")",
+          "when": false,
+          "lineRange": {
+            "startLine": 22,
+            "startColumn": 12,
+            "endLine": 22,
+            "endColumn": 60
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Cms.java",
+      "methodId": "demo.bank.Cms#path(String)",
+      "location": {
+        "line": 22,
+        "column": 92,
+        "endLine": 22,
+        "endColumn": 111
+      },
+      "source": "value.contains(\"..\")",
+      "expected": [
+        {
+          "expression": "value == null || !value.startsWith(\"/WEB-INF/jsp/\") || !value.endsWith(\".jsp\")",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.Cms#path(String):condition:22:12-22:87:false",
+          "conditionId": "demo.bank.Cms#path(String):condition:22:12-22:87",
+          "expression": "value == null || !value.startsWith(\"/WEB-INF/jsp/\") || !value.endsWith(\".jsp\")",
+          "when": false,
+          "lineRange": {
+            "startLine": 22,
+            "startColumn": 12,
+            "endLine": 22,
+            "endColumn": 87
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Cms.java",
+      "methodId": "demo.bank.Cms#path(String)",
+      "location": {
+        "line": 22,
+        "column": 116,
+        "endLine": 22,
+        "endColumn": 134
+      },
+      "source": "value.contains(\"?\")",
+      "expected": [
+        {
+          "expression": "value == null || !value.startsWith(\"/WEB-INF/jsp/\") || !value.endsWith(\".jsp\") || value.contains(\"..\")",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.Cms#path(String):condition:22:12-22:111:false",
+          "conditionId": "demo.bank.Cms#path(String):condition:22:12-22:111",
+          "expression": "value == null || !value.startsWith(\"/WEB-INF/jsp/\") || !value.endsWith(\".jsp\") || value.contains(\"..\")",
+          "when": false,
+          "lineRange": {
+            "startLine": 22,
+            "startColumn": 12,
+            "endLine": 22,
+            "endColumn": 111
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Cms.java",
+      "methodId": "demo.bank.Cms#path(String)",
+      "location": {
+        "line": 22,
+        "column": 139,
+        "endLine": 22,
+        "endColumn": 158
+      },
+      "source": "value.contains(\"\\\\\")",
+      "expected": [
+        {
+          "expression": "value == null || !value.startsWith(\"/WEB-INF/jsp/\") || !value.endsWith(\".jsp\") || value.contains(\"..\") || value.contains(\"?\")",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.Cms#path(String):condition:22:12-22:134:false",
+          "conditionId": "demo.bank.Cms#path(String):condition:22:12-22:134",
+          "expression": "value == null || !value.startsWith(\"/WEB-INF/jsp/\") || !value.endsWith(\".jsp\") || value.contains(\"..\") || value.contains(\"?\")",
+          "when": false,
+          "lineRange": {
+            "startLine": 22,
+            "startColumn": 12,
+            "endLine": 22,
+            "endColumn": 134
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Cms.java",
+      "methodId": "demo.bank.Cms#component(Connection,String,Page)",
+      "location": {
+        "line": 30,
+        "column": 47,
+        "endLine": 30,
+        "endColumn": 60
+      },
+      "source": "r.getString(3)",
+      "expected": [
+        {
+          "expression": "!r.next()",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.Cms#component(Connection,String,Page):condition:30:20-30:28:false",
+          "conditionId": "demo.bank.Cms#component(Connection,String,Page):condition:30:20-30:28",
+          "expression": "!r.next()",
+          "when": false,
+          "lineRange": {
+            "startLine": 30,
+            "startColumn": 20,
+            "endLine": 30,
+            "endColumn": 28
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Cms.java",
+      "methodId": "demo.bank.Cms#component(Connection,String,Page)",
+      "location": {
+        "line": 30,
+        "column": 34,
+        "endLine": 30,
+        "endColumn": 61
+      },
+      "source": "\"JSP\".equals(r.getString(3))",
+      "expected": [
+        {
+          "expression": "!r.next()",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.Cms#component(Connection,String,Page):condition:30:20-30:28:false",
+          "conditionId": "demo.bank.Cms#component(Connection,String,Page):condition:30:20-30:28",
+          "expression": "!r.next()",
+          "when": false,
+          "lineRange": {
+            "startLine": 30,
+            "startColumn": 20,
+            "endLine": 30,
+            "endColumn": 28
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Cms.java",
+      "methodId": "demo.bank.Cms#load(String,int,HttpServletRequest)",
+      "location": {
+        "line": 59,
+        "column": 34,
+        "endLine": 59,
+        "endColumn": 55
+      },
+      "source": "\"content\".equals(area)",
+      "expected": [
+        {
+          "expression": "step > 0",
+          "when": true
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.Cms#load(String,int,HttpServletRequest):condition:57:82-57:89:true",
+          "conditionId": "demo.bank.Cms#load(String,int,HttpServletRequest):condition:57:82-57:89",
+          "expression": "r.next()",
+          "when": true,
+          "lineRange": {
+            "startLine": 57,
+            "startColumn": 82,
+            "endLine": 57,
+            "endColumn": 89
+          }
+        },
+        {
+          "id": "demo.bank.Cms#load(String,int,HttpServletRequest):condition:59:24-59:29:true",
+          "conditionId": "demo.bank.Cms#load(String,int,HttpServletRequest):condition:59:24-59:29",
+          "expression": "step > 0",
+          "when": true,
+          "lineRange": {
+            "startLine": 59,
+            "startColumn": 24,
+            "endLine": 59,
+            "endColumn": 29
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Cms.java",
+      "methodId": "demo.bank.Cms#load(String,int,HttpServletRequest)",
+      "location": {
+        "line": 76,
+        "column": 38,
+        "endLine": 76,
+        "endColumn": 57
+      },
+      "source": "request.getSession()",
+      "expected": [
+        {
+          "expression": "page.loginRequired",
+          "when": true
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.Cms#load(String,int,HttpServletRequest):condition:76:16-76:33:true",
+          "conditionId": "demo.bank.Cms#load(String,int,HttpServletRequest):condition:76:16-76:33",
+          "expression": "page.loginRequired",
+          "when": true,
+          "lineRange": {
+            "startLine": 76,
+            "startColumn": 16,
+            "endLine": 76,
+            "endColumn": 33
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Cms.java",
+      "methodId": "demo.bank.Cms#load(String,int,HttpServletRequest)",
+      "location": {
+        "line": 76,
+        "column": 38,
+        "endLine": 76,
+        "endColumn": 85
+      },
+      "source": "request.getSession().getAttribute(\"CUSTOMER_ID\")",
+      "expected": [
+        {
+          "expression": "page.loginRequired",
+          "when": true
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.Cms#load(String,int,HttpServletRequest):condition:76:16-76:33:true",
+          "conditionId": "demo.bank.Cms#load(String,int,HttpServletRequest):condition:76:16-76:33",
+          "expression": "page.loginRequired",
+          "when": true,
+          "lineRange": {
+            "startLine": 76,
+            "startColumn": 16,
+            "endLine": 76,
+            "endColumn": 33
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/EimsGateway.java",
+      "methodId": "demo.bank.EimsGateway#dispatch(Connection,WBFRecord,Map<String,String>)",
+      "location": {
+        "line": 11,
+        "column": 35,
+        "endLine": 11,
+        "endColumn": 61
+      },
+      "source": "input.getString(\"RULENAME\")",
+      "expected": [
+        {
+          "expression": "id == null",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.EimsGateway#dispatch(Connection,WBFRecord,Map<String,String>):condition:11:12-11:19:false",
+          "conditionId": "demo.bank.EimsGateway#dispatch(Connection,WBFRecord,Map<String,String>):condition:11:12-11:19",
+          "expression": "id == null",
+          "when": false,
+          "lineRange": {
+            "startLine": 11,
+            "startColumn": 12,
+            "endLine": 11,
+            "endColumn": 19
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/EimsGateway.java",
+      "methodId": "demo.bank.EimsGateway#dispatch(Connection,WBFRecord,Map<String,String>)",
+      "location": {
+        "line": 11,
+        "column": 25,
+        "endLine": 11,
+        "endColumn": 62
+      },
+      "source": "id.equals(input.getString(\"RULENAME\"))",
+      "expected": [
+        {
+          "expression": "id == null",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.EimsGateway#dispatch(Connection,WBFRecord,Map<String,String>):condition:11:12-11:19:false",
+          "conditionId": "demo.bank.EimsGateway#dispatch(Connection,WBFRecord,Map<String,String>):condition:11:12-11:19",
+          "expression": "id == null",
+          "when": false,
+          "lineRange": {
+            "startLine": 11,
+            "startColumn": 12,
+            "endLine": 11,
+            "endColumn": 19
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/EimsGateway.java",
+      "methodId": "demo.bank.EimsGateway#dispatch(Connection,WBFRecord,Map<String,String>)",
+      "location": {
+        "line": 15,
+        "column": 47,
+        "endLine": 15,
+        "endColumn": 60
+      },
+      "source": "r.getString(1)",
+      "expected": [
+        {
+          "expression": "!r.next()",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.EimsGateway#dispatch(Connection,WBFRecord,Map<String,String>):condition:15:20-15:28:false",
+          "conditionId": "demo.bank.EimsGateway#dispatch(Connection,WBFRecord,Map<String,String>):condition:15:20-15:28",
+          "expression": "!r.next()",
+          "when": false,
+          "lineRange": {
+            "startLine": 15,
+            "startColumn": 20,
+            "endLine": 15,
+            "endColumn": 28
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/EimsGateway.java",
+      "methodId": "demo.bank.EimsGateway#dispatch(Connection,WBFRecord,Map<String,String>)",
+      "location": {
+        "line": 15,
+        "column": 34,
+        "endLine": 15,
+        "endColumn": 61
+      },
+      "source": "\"SIM\".equals(r.getString(1))",
+      "expected": [
+        {
+          "expression": "!r.next()",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.EimsGateway#dispatch(Connection,WBFRecord,Map<String,String>):condition:15:20-15:28:false",
+          "conditionId": "demo.bank.EimsGateway#dispatch(Connection,WBFRecord,Map<String,String>):condition:15:20-15:28",
+          "expression": "!r.next()",
+          "when": false,
+          "lineRange": {
+            "startLine": 15,
+            "startColumn": 20,
+            "endLine": 15,
+            "endColumn": 28
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/EimsGateway.java",
+      "methodId": "demo.bank.EimsGateway#dispatch(Connection,WBFRecord,Map<String,String>)",
+      "location": {
+        "line": 15,
+        "column": 85,
+        "endLine": 15,
+        "endColumn": 98
+      },
+      "source": "r.getString(2)",
+      "expected": [
+        {
+          "expression": "!r.next() || !\"SIM\".equals(r.getString(1))",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.EimsGateway#dispatch(Connection,WBFRecord,Map<String,String>):condition:15:20-15:61:false",
+          "conditionId": "demo.bank.EimsGateway#dispatch(Connection,WBFRecord,Map<String,String>):condition:15:20-15:61",
+          "expression": "!r.next() || !\"SIM\".equals(r.getString(1))",
+          "when": false,
+          "lineRange": {
+            "startLine": 15,
+            "startColumn": 20,
+            "endLine": 15,
+            "endColumn": 61
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/EimsGateway.java",
+      "methodId": "demo.bank.EimsGateway#dispatch(Connection,WBFRecord,Map<String,String>)",
+      "location": {
+        "line": 15,
+        "column": 67,
+        "endLine": 15,
+        "endColumn": 99
+      },
+      "source": "\"MOCKHOST\".equals(r.getString(2))",
+      "expected": [
+        {
+          "expression": "!r.next() || !\"SIM\".equals(r.getString(1))",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.EimsGateway#dispatch(Connection,WBFRecord,Map<String,String>):condition:15:20-15:61:false",
+          "conditionId": "demo.bank.EimsGateway#dispatch(Connection,WBFRecord,Map<String,String>):condition:15:20-15:61",
+          "expression": "!r.next() || !\"SIM\".equals(r.getString(1))",
+          "when": false,
+          "lineRange": {
+            "startLine": 15,
+            "startColumn": 20,
+            "endLine": 15,
+            "endColumn": 61
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Operations.java",
+      "methodId": "demo.bank.Operations#consume(HttpServletRequest,String)",
+      "location": {
+        "line": 24,
+        "column": 47,
+        "endLine": 24,
+        "endColumn": 60
+      },
+      "source": "map.get(token)",
+      "expected": [
+        {
+          "expression": "token == null",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.Operations#consume(HttpServletRequest,String):condition:24:16-24:26:false",
+          "conditionId": "demo.bank.Operations#consume(HttpServletRequest,String):condition:24:16-24:26",
+          "expression": "token == null",
+          "when": false,
+          "lineRange": {
+            "startLine": 24,
+            "startColumn": 16,
+            "endLine": 24,
+            "endColumn": 26
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Operations.java",
+      "methodId": "demo.bank.Operations#consume(HttpServletRequest,String)",
+      "location": {
+        "line": 24,
+        "column": 32,
+        "endLine": 24,
+        "endColumn": 61
+      },
+      "source": "purpose.equals(map.get(token))",
+      "expected": [
+        {
+          "expression": "token == null",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.Operations#consume(HttpServletRequest,String):condition:24:16-24:26:false",
+          "conditionId": "demo.bank.Operations#consume(HttpServletRequest,String):condition:24:16-24:26",
+          "expression": "token == null",
+          "when": false,
+          "lineRange": {
+            "startLine": 24,
+            "startColumn": 16,
+            "endLine": 24,
+            "endColumn": 26
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/QueryEngine.java",
+      "methodId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String)",
+      "location": {
+        "line": 10,
+        "column": 28,
+        "endLine": 10,
+        "endColumn": 50
+      },
+      "source": "id.startsWith(\"DBANK.\")",
+      "expected": [
+        {
+          "expression": "id == null",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:10:13-10:22:false",
+          "conditionId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:10:13-10:22",
+          "expression": "id == null",
+          "when": false,
+          "lineRange": {
+            "startLine": 10,
+            "startColumn": 13,
+            "endLine": 10,
+            "endColumn": 22
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/QueryEngine.java",
+      "methodId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String)",
+      "location": {
+        "line": 24,
+        "column": 39,
+        "endLine": 24,
+        "endColumn": 62
+      },
+      "source": "\"S\".equals(expectedType)",
+      "expected": [
+        {
+          "expression": "sql.indexOf(';') >= 0",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:24:13-24:33:false",
+          "conditionId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:24:13-24:33",
+          "expression": "sql.indexOf(';') >= 0",
+          "when": false,
+          "lineRange": {
+            "startLine": 24,
+            "startColumn": 13,
+            "endLine": 24,
+            "endColumn": 33
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/QueryEngine.java",
+      "methodId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String)",
+      "location": {
+        "line": 24,
+        "column": 67,
+        "endLine": 24,
+        "endColumn": 98
+      },
+      "source": "normalized.startsWith(\"SELECT \")",
+      "expected": [
+        {
+          "expression": "sql.indexOf(';') >= 0",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:24:13-24:33:false",
+          "conditionId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:24:13-24:33",
+          "expression": "sql.indexOf(';') >= 0",
+          "when": false,
+          "lineRange": {
+            "startLine": 24,
+            "startColumn": 13,
+            "endLine": 24,
+            "endColumn": 33
+          }
+        },
+        {
+          "id": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:24:39-24:62:true",
+          "conditionId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:24:39-24:62",
+          "expression": "\"S\".equals(expectedType)",
+          "when": true,
+          "lineRange": {
+            "startLine": 24,
+            "startColumn": 39,
+            "endLine": 24,
+            "endColumn": 62
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/QueryEngine.java",
+      "methodId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String)",
+      "location": {
+        "line": 24,
+        "column": 104,
+        "endLine": 24,
+        "endColumn": 135
+      },
+      "source": "normalized.startsWith(\"UPDATE \")",
+      "expected": [
+        {
+          "expression": "sql.indexOf(';') >= 0",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:24:13-24:33:false",
+          "conditionId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:24:13-24:33",
+          "expression": "sql.indexOf(';') >= 0",
+          "when": false,
+          "lineRange": {
+            "startLine": 24,
+            "startColumn": 13,
+            "endLine": 24,
+            "endColumn": 33
+          }
+        },
+        {
+          "id": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:24:39-24:62:false",
+          "conditionId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:24:39-24:62",
+          "expression": "\"S\".equals(expectedType)",
+          "when": false,
+          "lineRange": {
+            "startLine": 24,
+            "startColumn": 39,
+            "endLine": 24,
+            "endColumn": 62
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/QueryEngine.java",
+      "methodId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String)",
+      "location": {
+        "line": 24,
+        "column": 140,
+        "endLine": 24,
+        "endColumn": 171
+      },
+      "source": "normalized.startsWith(\"INSERT \")",
+      "expected": [
+        {
+          "expression": "normalized.startsWith(\"UPDATE \")",
+          "when": false
+        },
+        {
+          "expression": "sql.indexOf(';') >= 0",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:24:13-24:33:false",
+          "conditionId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:24:13-24:33",
+          "expression": "sql.indexOf(';') >= 0",
+          "when": false,
+          "lineRange": {
+            "startLine": 24,
+            "startColumn": 13,
+            "endLine": 24,
+            "endColumn": 33
+          }
+        },
+        {
+          "id": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:24:39-24:62:false",
+          "conditionId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:24:39-24:62",
+          "expression": "\"S\".equals(expectedType)",
+          "when": false,
+          "lineRange": {
+            "startLine": 24,
+            "startColumn": 39,
+            "endLine": 24,
+            "endColumn": 62
+          }
+        },
+        {
+          "id": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:24:104-24:135:false",
+          "conditionId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:24:104-24:135",
+          "expression": "normalized.startsWith(\"UPDATE \")",
+          "when": false,
+          "lineRange": {
+            "startLine": 24,
+            "startColumn": 104,
+            "endLine": 24,
+            "endColumn": 135
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/QueryEngine.java",
+      "methodId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String)",
+      "location": {
+        "line": 33,
+        "column": 45,
+        "endLine": 33,
+        "endColumn": 65
+      },
+      "source": "input.hasField(field)",
+      "expected": [
+        {
+          "expression": "position != next++",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:31:23-31:30:true",
+          "conditionId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:31:23-31:30",
+          "expression": "r.next()",
+          "when": true,
+          "lineRange": {
+            "startLine": 31,
+            "startColumn": 23,
+            "endLine": 31,
+            "endColumn": 30
+          }
+        },
+        {
+          "id": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:33:24-33:39:false",
+          "conditionId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:33:24-33:39",
+          "expression": "position != next++",
+          "when": false,
+          "lineRange": {
+            "startLine": 33,
+            "startColumn": 24,
+            "endLine": 33,
+            "endColumn": 39
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/ServiceLocator.java",
+      "methodId": "demo.bank.ServiceLocator#lookup(String,Map<String,String>)",
+      "location": {
+        "line": 11,
+        "column": 27,
+        "endLine": 11,
+        "endColumn": 75
+      },
+      "source": "name.matches(\"java:comp/env/wfw/DBANK/[A-Za-z]+\")",
+      "expected": [
+        {
+          "expression": "name == null",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.ServiceLocator#lookup(String,Map<String,String>):condition:11:12-11:21:false",
+          "conditionId": "demo.bank.ServiceLocator#lookup(String,Map<String,String>):condition:11:12-11:21",
+          "expression": "name == null",
+          "when": false,
+          "lineRange": {
+            "startLine": 11,
+            "startColumn": 12,
+            "endLine": 11,
+            "endColumn": 21
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/ServiceLocator.java",
+      "methodId": "demo.bank.ServiceLocator#lookup(String,Map<String,String>)",
+      "location": {
+        "line": 16,
+        "column": 54,
+        "endLine": 16,
+        "endColumn": 71
+      },
+      "source": "service.getClass()",
+      "expected": [
+        {
+          "expression": "!(service instanceof TaskHandler)",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.ServiceLocator#lookup(String,Map<String,String>):condition:16:16-16:48:false",
+          "conditionId": "demo.bank.ServiceLocator#lookup(String,Map<String,String>):condition:16:16-16:48",
+          "expression": "!(service instanceof TaskHandler)",
+          "when": false,
+          "lineRange": {
+            "startLine": 16,
+            "startColumn": 16,
+            "endLine": 16,
+            "endColumn": 48
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/ServiceLocator.java",
+      "methodId": "demo.bank.ServiceLocator#lookup(String,Map<String,String>)",
+      "location": {
+        "line": 16,
+        "column": 54,
+        "endLine": 16,
+        "endColumn": 81
+      },
+      "source": "service.getClass().getName()",
+      "expected": [
+        {
+          "expression": "!(service instanceof TaskHandler)",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.ServiceLocator#lookup(String,Map<String,String>):condition:16:16-16:48:false",
+          "conditionId": "demo.bank.ServiceLocator#lookup(String,Map<String,String>):condition:16:16-16:48",
+          "expression": "!(service instanceof TaskHandler)",
+          "when": false,
+          "lineRange": {
+            "startLine": 16,
+            "startColumn": 16,
+            "endLine": 16,
+            "endColumn": 48
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/ServiceLocator.java",
+      "methodId": "demo.bank.ServiceLocator#lookup(String,Map<String,String>)",
+      "location": {
+        "line": 16,
+        "column": 54,
+        "endLine": 16,
+        "endColumn": 104
+      },
+      "source": "service.getClass().getName().equals(implementation)",
+      "expected": [
+        {
+          "expression": "!(service instanceof TaskHandler)",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.ServiceLocator#lookup(String,Map<String,String>):condition:16:16-16:48:false",
+          "conditionId": "demo.bank.ServiceLocator#lookup(String,Map<String,String>):condition:16:16-16:48",
+          "expression": "!(service instanceof TaskHandler)",
+          "when": false,
+          "lineRange": {
+            "startLine": 16,
+            "startColumn": 16,
+            "endLine": 16,
+            "endColumn": 48
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/BeneficiaryService.java",
+      "methodId": "demo.bank.services.BeneficiaryService#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest)",
+      "location": {
+        "line": 9,
+        "column": 49,
+        "endLine": 9,
+        "endColumn": 65
+      },
+      "source": "nickname.length()",
+      "expected": [
+        {
+          "expression": "!account.matches(\"[0-9-]{10,24}\")",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.services.BeneficiaryService#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:9:12-9:44:false",
+          "conditionId": "demo.bank.services.BeneficiaryService#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:9:12-9:44",
+          "expression": "!account.matches(\"[0-9-]{10,24}\")",
+          "when": false,
+          "lineRange": {
+            "startLine": 9,
+            "startColumn": 12,
+            "endLine": 9,
+            "endColumn": 44
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/BeneficiaryService.java",
+      "methodId": "demo.bank.services.BeneficiaryService#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest)",
+      "location": {
+        "line": 9,
+        "column": 72,
+        "endLine": 9,
+        "endColumn": 88
+      },
+      "source": "nickname.length()",
+      "expected": [
+        {
+          "expression": "!account.matches(\"[0-9-]{10,24}\") || nickname.length() < 1",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.services.BeneficiaryService#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:9:12-9:67:false",
+          "conditionId": "demo.bank.services.BeneficiaryService#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:9:12-9:67",
+          "expression": "!account.matches(\"[0-9-]{10,24}\") || nickname.length() < 1",
+          "when": false,
+          "lineRange": {
+            "startLine": 9,
+            "startColumn": 12,
+            "endLine": 9,
+            "endColumn": 67
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/DirectProductService.java",
+      "methodId": "demo.bank.services.DirectProductService#quote(String,String)",
+      "location": {
+        "line": 15,
+        "column": 112,
+        "endLine": 15,
+        "endColumn": 136
+      },
+      "source": "product.get(\"MAX_AMOUNT\")",
+      "expected": [
+        {
+          "expression": "principal.compareTo((BigDecimal)product.get(\"MIN_AMOUNT\")) < 0",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.services.DirectProductService#quote(String,String):condition:15:16-15:75:false",
+          "conditionId": "demo.bank.services.DirectProductService#quote(String,String):condition:15:16-15:75",
+          "expression": "principal.compareTo((BigDecimal) product.get(\"MIN_AMOUNT\")) < 0",
+          "when": false,
+          "lineRange": {
+            "startLine": 15,
+            "startColumn": 16,
+            "endLine": 15,
+            "endColumn": 75
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/DirectProductService.java",
+      "methodId": "demo.bank.services.DirectProductService#quote(String,String)",
+      "location": {
+        "line": 15,
+        "column": 80,
+        "endLine": 15,
+        "endColumn": 137
+      },
+      "source": "principal.compareTo((BigDecimal)product.get(\"MAX_AMOUNT\"))",
+      "expected": [
+        {
+          "expression": "principal.compareTo((BigDecimal)product.get(\"MIN_AMOUNT\")) < 0",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.services.DirectProductService#quote(String,String):condition:15:16-15:75:false",
+          "conditionId": "demo.bank.services.DirectProductService#quote(String,String):condition:15:16-15:75",
+          "expression": "principal.compareTo((BigDecimal) product.get(\"MIN_AMOUNT\")) < 0",
+          "when": false,
+          "lineRange": {
+            "startLine": 15,
+            "startColumn": 16,
+            "endLine": 15,
+            "endColumn": 75
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/LedgerService.java",
+      "methodId": "demo.bank.services.LedgerService#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest)",
+      "location": {
+        "line": 14,
+        "column": 36,
+        "endLine": 14,
+        "endColumn": 52
+      },
+      "source": "from.plusYears(1)",
+      "expected": [
+        {
+          "expression": "from.isAfter(to)",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.services.LedgerService#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:14:16-14:31:false",
+          "conditionId": "demo.bank.services.LedgerService#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:14:16-14:31",
+          "expression": "from.isAfter(to)",
+          "when": false,
+          "lineRange": {
+            "startLine": 14,
+            "startColumn": 16,
+            "endLine": 14,
+            "endColumn": 31
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/LedgerService.java",
+      "methodId": "demo.bank.services.LedgerService#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest)",
+      "location": {
+        "line": 14,
+        "column": 36,
+        "endLine": 14,
+        "endColumn": 65
+      },
+      "source": "from.plusYears(1).isBefore(to)",
+      "expected": [
+        {
+          "expression": "from.isAfter(to)",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.services.LedgerService#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:14:16-14:31:false",
+          "conditionId": "demo.bank.services.LedgerService#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:14:16-14:31",
+          "expression": "from.isAfter(to)",
+          "when": false,
+          "lineRange": {
+            "startLine": 14,
+            "startColumn": 16,
+            "endLine": 14,
+            "endColumn": 31
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/LimitService.java",
+      "methodId": "demo.bank.services.LimitService#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest)",
+      "location": {
+        "line": 11,
+        "column": 59,
+        "endLine": 11,
+        "endColumn": 71
+      },
+      "source": "daily.scale()",
+      "expected": [
+        {
+          "expression": "per.compareTo(new BigDecimal(\"1000\")) < 0",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.services.LimitService#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:11:16-11:54:false",
+          "conditionId": "demo.bank.services.LimitService#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:11:16-11:54",
+          "expression": "per.compareTo(new BigDecimal(\"1000\")) < 0",
+          "when": false,
+          "lineRange": {
+            "startLine": 11,
+            "startColumn": 16,
+            "endLine": 11,
+            "endColumn": 54
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/LimitService.java",
+      "methodId": "demo.bank.services.LimitService#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest)",
+      "location": {
+        "line": 11,
+        "column": 78,
+        "endLine": 11,
+        "endColumn": 97
+      },
+      "source": "daily.compareTo(per)",
+      "expected": [
+        {
+          "expression": "per.compareTo(new BigDecimal(\"1000\")) < 0 || daily.scale() > 2",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.services.LimitService#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:11:16-11:73:false",
+          "conditionId": "demo.bank.services.LimitService#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:11:16-11:73",
+          "expression": "per.compareTo(new BigDecimal(\"1000\")) < 0 || daily.scale() > 2",
+          "when": false,
+          "lineRange": {
+            "startLine": 11,
+            "startColumn": 16,
+            "endLine": 11,
+            "endColumn": 73
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/LimitService.java",
+      "methodId": "demo.bank.services.LimitService#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest)",
+      "location": {
+        "line": 11,
+        "column": 104,
+        "endLine": 11,
+        "endColumn": 146
+      },
+      "source": "daily.compareTo(new BigDecimal(\"10000000\"))",
+      "expected": [
+        {
+          "expression": "per.compareTo(new BigDecimal(\"1000\")) < 0 || daily.scale() > 2 || daily.compareTo(per) < 0",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.services.LimitService#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:11:16-11:99:false",
+          "conditionId": "demo.bank.services.LimitService#execute(Connection,WBFRecord,Map<String,String>,HttpServletRequest):condition:11:16-11:99",
+          "expression": "per.compareTo(new BigDecimal(\"1000\")) < 0 || daily.scale() > 2 || daily.compareTo(per) < 0",
+          "when": false,
+          "lineRange": {
+            "startLine": 11,
+            "startColumn": 16,
+            "endLine": 11,
+            "endColumn": 99
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/tags/FieldTag.java",
+      "methodId": "demo.bank.tags.FieldTag#doTag()",
+      "location": {
+        "line": 16,
+        "column": 46,
+        "endLine": 16,
+        "endColumn": 82
+      },
+      "source": "name.matches(\"[A-Z_][A-Z0-9_]{0,63}\")",
+      "expected": [
+        {
+          "expression": "task == null || name == null",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.tags.FieldTag#doTag():condition:16:13-16:40:false",
+          "conditionId": "demo.bank.tags.FieldTag#doTag():condition:16:13-16:40",
+          "expression": "task == null || name == null",
+          "when": false,
+          "lineRange": {
+            "startLine": 16,
+            "startColumn": 13,
+            "endLine": 16,
+            "endColumn": 40
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/tags/TaskTag.java",
+      "methodId": "demo.bank.tags.TaskTag#doTag()",
+      "location": {
+        "line": 28,
+        "column": 29,
+        "endLine": 28,
+        "endColumn": 65
+      },
+      "source": "var.matches(\"[A-Za-z_][A-Za-z0-9_]*\")",
+      "expected": [
+        {
+          "expression": "var == null",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.tags.TaskTag#doTag():condition:28:13-28:23:false",
+          "conditionId": "demo.bank.tags.TaskTag#doTag():condition:28:13-28:23",
+          "expression": "var == null",
+          "when": false,
+          "lineRange": {
+            "startLine": 28,
+            "startColumn": 13,
+            "endLine": 28,
+            "endColumn": 23
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/TransferDraft.java",
+      "methodId": "demo.bank.TransferDraft#create(HttpServletRequest)",
+      "location": {
+        "line": 19,
+        "column": 39,
+        "endLine": 19,
+        "endColumn": 67
+      },
+      "source": "from.matches(\"[0-9-]{10,24}\")",
+      "expected": [
+        {
+          "expression": "from == null || to == null",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.TransferDraft#create(HttpServletRequest):condition:19:12-19:33:false",
+          "conditionId": "demo.bank.TransferDraft#create(HttpServletRequest):condition:19:12-19:33",
+          "expression": "from == null || to == null",
+          "when": false,
+          "lineRange": {
+            "startLine": 19,
+            "startColumn": 12,
+            "endLine": 19,
+            "endColumn": 33
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/TransferDraft.java",
+      "methodId": "demo.bank.TransferDraft#create(HttpServletRequest)",
+      "location": {
+        "line": 19,
+        "column": 73,
+        "endLine": 19,
+        "endColumn": 99
+      },
+      "source": "to.matches(\"[0-9-]{10,24}\")",
+      "expected": [
+        {
+          "expression": "from == null || to == null || !from.matches(\"[0-9-]{10,24}\")",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.TransferDraft#create(HttpServletRequest):condition:19:12-19:67:false",
+          "conditionId": "demo.bank.TransferDraft#create(HttpServletRequest):condition:19:12-19:67",
+          "expression": "from == null || to == null || !from.matches(\"[0-9-]{10,24}\")",
+          "when": false,
+          "lineRange": {
+            "startLine": 19,
+            "startColumn": 12,
+            "endLine": 19,
+            "endColumn": 67
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/TransferDraft.java",
+      "methodId": "demo.bank.TransferDraft#create(HttpServletRequest)",
+      "location": {
+        "line": 19,
+        "column": 104,
+        "endLine": 19,
+        "endColumn": 118
+      },
+      "source": "from.equals(to)",
+      "expected": [
+        {
+          "expression": "from == null || to == null || !from.matches(\"[0-9-]{10,24}\") || !to.matches(\"[0-9-]{10,24}\")",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.TransferDraft#create(HttpServletRequest):condition:19:12-19:99:false",
+          "conditionId": "demo.bank.TransferDraft#create(HttpServletRequest):condition:19:12-19:99",
+          "expression": "from == null || to == null || !from.matches(\"[0-9-]{10,24}\") || !to.matches(\"[0-9-]{10,24}\")",
+          "when": false,
+          "lineRange": {
+            "startLine": 19,
+            "startColumn": 12,
+            "endLine": 19,
+            "endColumn": 99
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/TransferDraft.java",
+      "methodId": "demo.bank.TransferDraft#consume(HttpServletRequest)",
+      "location": {
+        "line": 30,
+        "column": 48,
+        "endLine": 30,
+        "endColumn": 80
+      },
+      "source": "request.getParameter(\"requestId\")",
+      "expected": [
+        {
+          "expression": "draft == null",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.TransferDraft#consume(HttpServletRequest):condition:30:16-30:26:false",
+          "conditionId": "demo.bank.TransferDraft#consume(HttpServletRequest):condition:30:16-30:26",
+          "expression": "draft == null",
+          "when": false,
+          "lineRange": {
+            "startLine": 30,
+            "startColumn": 16,
+            "endLine": 30,
+            "endColumn": 26
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/TransferDraft.java",
+      "methodId": "demo.bank.TransferDraft#consume(HttpServletRequest)",
+      "location": {
+        "line": 30,
+        "column": 32,
+        "endLine": 30,
+        "endColumn": 81
+      },
+      "source": "draft.id.equals(request.getParameter(\"requestId\"))",
+      "expected": [
+        {
+          "expression": "draft == null",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.TransferDraft#consume(HttpServletRequest):condition:30:16-30:26:false",
+          "conditionId": "demo.bank.TransferDraft#consume(HttpServletRequest):condition:30:16-30:26",
+          "expression": "draft == null",
+          "when": false,
+          "lineRange": {
+            "startLine": 30,
+            "startColumn": 16,
+            "endLine": 30,
+            "endColumn": 26
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Web.java",
+      "methodId": "demo.bank.Web#checkCsrf(HttpServletRequest)",
+      "location": {
+        "line": 50,
+        "column": 53,
+        "endLine": 50,
+        "endColumn": 65
+      },
+      "source": "csrf(request)",
+      "expected": [
+        {
+          "expression": "provided == null",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.Web#checkCsrf(HttpServletRequest):condition:50:12-50:25:false",
+          "conditionId": "demo.bank.Web#checkCsrf(HttpServletRequest):condition:50:12-50:25",
+          "expression": "provided == null",
+          "when": false,
+          "lineRange": {
+            "startLine": 50,
+            "startColumn": 12,
+            "endLine": 50,
+            "endColumn": 25
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Web.java",
+      "methodId": "demo.bank.Web#checkCsrf(HttpServletRequest)",
+      "location": {
+        "line": 50,
+        "column": 53,
+        "endLine": 50,
+        "endColumn": 98
+      },
+      "source": "csrf(request).getBytes(StandardCharsets.UTF_8)",
+      "expected": [
+        {
+          "expression": "provided == null",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.Web#checkCsrf(HttpServletRequest):condition:50:12-50:25:false",
+          "conditionId": "demo.bank.Web#checkCsrf(HttpServletRequest):condition:50:12-50:25",
+          "expression": "provided == null",
+          "when": false,
+          "lineRange": {
+            "startLine": 50,
+            "startColumn": 12,
+            "endLine": 50,
+            "endColumn": 25
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Web.java",
+      "methodId": "demo.bank.Web#checkCsrf(HttpServletRequest)",
+      "location": {
+        "line": 50,
+        "column": 100,
+        "endLine": 50,
+        "endColumn": 140
+      },
+      "source": "provided.getBytes(StandardCharsets.UTF_8)",
+      "expected": [
+        {
+          "expression": "provided == null",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.Web#checkCsrf(HttpServletRequest):condition:50:12-50:25:false",
+          "conditionId": "demo.bank.Web#checkCsrf(HttpServletRequest):condition:50:12-50:25",
+          "expression": "provided == null",
+          "when": false,
+          "lineRange": {
+            "startLine": 50,
+            "startColumn": 12,
+            "endLine": 50,
+            "endColumn": 25
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Web.java",
+      "methodId": "demo.bank.Web#checkCsrf(HttpServletRequest)",
+      "location": {
+        "line": 50,
+        "column": 31,
+        "endLine": 50,
+        "endColumn": 141
+      },
+      "source": "MessageDigest.isEqual(csrf(request).getBytes(StandardCharsets.UTF_8),provided.getBytes(StandardCharsets.UTF_8))",
+      "expected": [
+        {
+          "expression": "provided == null",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.Web#checkCsrf(HttpServletRequest):condition:50:12-50:25:false",
+          "conditionId": "demo.bank.Web#checkCsrf(HttpServletRequest):condition:50:12-50:25",
+          "expression": "provided == null",
+          "when": false,
+          "lineRange": {
+            "startLine": 50,
+            "startColumn": 12,
+            "endLine": 50,
+            "endColumn": 25
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Web.java",
+      "methodId": "demo.bank.Web#amount(String)",
+      "location": {
+        "line": 59,
+        "column": 37,
+        "endLine": 59,
+        "endColumn": 49
+      },
+      "source": "value.scale()",
+      "expected": [
+        {
+          "expression": "value.signum() <= 0",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.Web#amount(String):condition:59:16-59:32:false",
+          "conditionId": "demo.bank.Web#amount(String):condition:59:16-59:32",
+          "expression": "value.signum() <= 0",
+          "when": false,
+          "lineRange": {
+            "startLine": 59,
+            "startColumn": 16,
+            "endLine": 59,
+            "endColumn": 32
+          }
+        }
+      ]
+    },
+    {
+      "name": "each RHS call has its source-derived evaluation guards and incoming CFG route",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Web.java",
+      "methodId": "demo.bank.Web#amount(String)",
+      "location": {
+        "line": 59,
+        "column": 56,
+        "endLine": 59,
+        "endColumn": 97
+      },
+      "source": "value.compareTo(new BigDecimal(\"1000000\"))",
+      "expected": [
+        {
+          "expression": "value.signum() <= 0 || value.scale() > 2",
+          "when": false
+        }
+      ],
+      "actual": [
+        {
+          "id": "demo.bank.Web#amount(String):condition:59:16-59:51:false",
+          "conditionId": "demo.bank.Web#amount(String):condition:59:16-59:51",
+          "expression": "value.signum() <= 0 || value.scale() > 2",
+          "when": false,
+          "lineRange": {
+            "startLine": 59,
+            "startColumn": 16,
+            "endLine": 59,
+            "endColumn": 51
+          }
+        }
+      ]
+    },
+    {
+      "name": "QueryEngine id null path excludes startsWith",
+      "passed": true,
+      "file": "src/main/java/demo/bank/QueryEngine.java",
+      "methodId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String)",
+      "state": {
+        "initialization": "initialized",
+        "nullability": "non-null"
+      },
+      "guards": [
+        {
+          "id": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:10:13-10:22:false",
+          "conditionId": "demo.bank.QueryEngine#prepare(Connection,String,WBFRecord,String):condition:10:13-10:22",
+          "expression": "id == null",
+          "when": false,
+          "lineRange": {
+            "startLine": 10,
+            "startColumn": 13,
+            "endLine": 10,
+            "endColumn": 22
+          }
+        }
+      ]
+    },
+    {
+      "name": "one source continue",
+      "passed": true,
+      "source": 1,
+      "v2": 1
+    },
+    {
+      "name": "continue exact location and nearest owning loop destination",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Cms.java",
+      "methodId": "demo.bank.Cms#load(String,int,HttpServletRequest)",
+      "location": {
+        "line": 59,
+        "column": 58,
+        "endLine": 59,
+        "endColumn": 66
+      },
+      "source": "continue;",
+      "owner": {
+        "line": 57,
+        "column": 76,
+        "endLine": 62,
+        "endColumn": 17
+      },
+      "transition": {
+        "kind": "continue",
+        "targetNodeId": "demo.bank.Cms#load(String,int,HttpServletRequest):flow:while:condition:57:76-62:17:26",
+        "targetRange": {
+          "startLine": 57,
+          "startColumn": 76,
+          "endLine": 62,
+          "endColumn": 17
+        }
+      },
+      "target": {
+        "id": "demo.bank.Cms#load(String,int,HttpServletRequest):flow:while:condition:57:76-62:17:26",
+        "kind": "while:condition",
+        "lineRange": {
+          "startLine": 57,
+          "startColumn": 76,
+          "endLine": 62,
+          "endColumn": 17
+        }
+      }
+    },
+    {
+      "name": "continue skips remaining iteration before next loop condition",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Cms.java",
+      "methodId": "demo.bank.Cms#load(String,int,HttpServletRequest)",
+      "continueNodeId": "demo.bank.Cms#load(String,int,HttpServletRequest):v2:continue:59:58-59:66:flow",
+      "skippedCalls": [
+        {
+          "snippet": "page.areas.containsKey(area)",
+          "lineRange": {
+            "startLine": 60,
+            "startColumn": 25,
+            "endLine": 60,
+            "endColumn": 52
+          }
+        },
+        {
+          "snippet": "page.areas.get(area)",
+          "lineRange": {
+            "startLine": 61,
+            "startColumn": 21,
+            "endLine": 61,
+            "endColumn": 40
+          }
+        },
+        {
+          "snippet": "overrides.containsKey(id)",
+          "lineRange": {
+            "startLine": 61,
+            "startColumn": 58,
+            "endLine": 61,
+            "endColumn": 82
+          }
+        },
+        {
+          "snippet": "overrides.get(id)",
+          "lineRange": {
+            "startLine": 61,
+            "startColumn": 84,
+            "endLine": 61,
+            "endColumn": 100
+          }
+        },
+        {
+          "snippet": "component(c, overrides.containsKey(id) ? overrides.get(id) : id, page)",
+          "lineRange": {
+            "startLine": 61,
+            "startColumn": 46,
+            "endLine": 61,
+            "endColumn": 109
+          }
+        },
+        {
+          "snippet": "page.areas.get(area).add(component(c, overrides.containsKey(id) ? overrides.get(id) : id, page))",
+          "lineRange": {
+            "startLine": 61,
+            "startColumn": 21,
+            "endLine": 61,
+            "endColumn": 110
+          }
+        }
+      ]
+    }
+  ],
+  "failures": []
+}

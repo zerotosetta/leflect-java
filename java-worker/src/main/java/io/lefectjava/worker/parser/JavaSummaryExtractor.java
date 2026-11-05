@@ -46,6 +46,7 @@ import com.github.javaparser.ast.stmt.WhileStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.resolution.MethodUsage;
+import com.github.javaparser.symbolsolver.javaparsermodel.JavaParserFacade;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedConstructorDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedReferenceTypeDeclaration;
@@ -74,6 +75,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.nio.file.Path;
 
 public class JavaSummaryExtractor {
   public AstFileResult extract(String sourcePath, CompilationUnit unit, String sourceKind) {
@@ -101,6 +103,21 @@ public class JavaSummaryExtractor {
         collectMethodCalls(packageName, unit)
     );
     result.referenceDiagnostics = referenceDiagnostics;
+    unit.getStorage().ifPresent(storage -> {
+      Path relative = Path.of(sourcePath);
+      Path current = storage.getPath().toAbsolutePath().normalize();
+      if (!relative.isAbsolute() && current.endsWith(relative)) {
+        Path sourceRoot = current;
+        for (int i = 0; i < relative.getNameCount(); i++) sourceRoot = sourceRoot.getParent();
+        for (JavaMethodCallSite call : result.methodCalls) {
+          if (call.receiverDeclarationFile == null) continue;
+          Path declaration = Path.of(call.receiverDeclarationFile).toAbsolutePath().normalize();
+          if (declaration.startsWith(sourceRoot)) {
+            call.receiverDeclarationFile = sourceRoot.relativize(declaration).toString().replace('\\', '/');
+          }
+        }
+      }
+    });
     return result;
   }
 
@@ -211,6 +228,7 @@ public class JavaSummaryExtractor {
     );
     summary.modifiers = callable.getModifiers().stream()
         .map(modifier -> modifier.getKeyword().asString()).collect(Collectors.toList());
+    summary.executionModel = new JavaExecutionModelExtractor().extract(callable, methodId);
     return summary;
   }
 
@@ -365,7 +383,174 @@ public class JavaSummaryExtractor {
     if (callerClassId != null && isInStaticInitializer(call)) {
       site.callerKind = "static-initializer";
     }
+    enrichCallExpressionType(call, site);
+    enrichCallReceiver(call, site);
     return site;
+  }
+
+  private void enrichCallReceiver(MethodCallExpr call, JavaMethodCallSite site) {
+    site.receiverOriginKind = "unresolved";
+    if (call.getScope().isEmpty()) {
+      try {
+        ResolvedMethodDeclaration method = call.resolve();
+        String owner = method.declaringType().getQualifiedName();
+        site.receiverType = owner;
+        if (method.isStatic()) {
+          List<ImportDeclaration> imports = call.findCompilationUnit().map(CompilationUnit::getImports)
+              .map(values -> values.stream().filter(ImportDeclaration::isStatic)
+                  .filter(declaration -> declaration.isAsterisk()
+                      ? declaration.getNameAsString().equals(owner)
+                      : declaration.getNameAsString().equals(owner + "." + method.getName()))
+                  .collect(Collectors.toList())).orElse(List.of());
+          if (!imports.isEmpty()) {
+            site.receiverOriginKind = "static-import";
+            site.receiverTypeSpelling = method.getName();
+            if (imports.size() == 1) site.receiverDeclarationLocation = toSourceLocation(imports.get(0));
+            site.receiverDeclarationFile = call.findCompilationUnit().flatMap(CompilationUnit::getStorage)
+                .map(storage -> storage.getPath().toString().replace('\\', '/')).orElse(null);
+            return;
+          }
+        }
+        site.receiverOriginKind = owner.equals(site.callerClassId) ? "local" : "inherited";
+      } catch (RuntimeException ignored) { }
+      return;
+    }
+    Expression scope = call.getScope().get();
+    try { site.receiverType = scope.calculateResolvedType().describe(); }
+    catch (RuntimeException ignored) { }
+    try {
+      ResolvedValueDeclaration value = scope.isNameExpr() ? scope.asNameExpr().resolve()
+          : scope.isFieldAccessExpr() ? scope.asFieldAccessExpr().resolve() : null;
+      if (value != null) {
+        site.receiverType = value.getType().describe();
+        Optional<? extends Node> declaration = value.toAst();
+        if (declaration.isPresent()) {
+          Node node = declaration.get();
+          if (!(node instanceof Parameter) && !(node instanceof VariableDeclarator)) {
+            node = node.findAll(VariableDeclarator.class).stream()
+                .filter(variable -> variable.getNameAsString().equals(value.getName()))
+                .findFirst().map(variable -> (Node) variable).orElse(node);
+          }
+          if (node instanceof Parameter) site.receiverTypeSpelling = ((Parameter) node).getType().asString();
+          else if (node instanceof VariableDeclarator) site.receiverTypeSpelling = ((VariableDeclarator) node).getType().asString();
+          site.receiverDeclarationLocation = toSourceLocation(node);
+          if (node instanceof VariableDeclarator) {
+            Node declarationNode = node.getParentNode().orElse(node);
+            if (declarationNode instanceof VariableDeclarationExpr || declarationNode instanceof FieldDeclaration) {
+              site.receiverDeclarationLocation = toSourceLocation(declarationNode);
+            }
+          }
+          site.receiverDeclarationFile = node.findCompilationUnit().flatMap(CompilationUnit::getStorage)
+              .map(storage -> storage.getPath().toString().replace('\\', '/')).orElse(null);
+          site.receiverOriginKind = "receiver-declaration";
+          return;
+        }
+      }
+    } catch (RuntimeException ignored) { }
+    if (scope.isMethodCallExpr() || scope.isObjectCreationExpr()) {
+      site.receiverOriginKind = "receiver-call";
+      return;
+    }
+    try {
+      if (call.resolve().isStatic()) {
+        site.receiverType = call.resolve().declaringType().getQualifiedName();
+        site.receiverTypeSpelling = scope.toString();
+        site.receiverOriginKind = "static-owner";
+      } else if (scope.isThisExpr() || scope.isSuperExpr()) {
+        site.receiverOriginKind = "inherited";
+      }
+    } catch (RuntimeException ignored) { }
+  }
+
+  private void enrichCallExpressionType(MethodCallExpr call, JavaMethodCallSite site) {
+    try {
+      site.declaredReturnType = call.resolve().getReturnType().describe();
+    } catch (RuntimeException error) {
+      resolveMethodUsageFromScope(call).or(() -> resolveMethodUsageFromAstScope(call))
+          .or(() -> resolveMethodUsageFromEnclosingType(call))
+          .ifPresent(usage -> site.declaredReturnType = safeDescribe(usage.getDeclaration().getReturnType()));
+    }
+    try {
+      ResolvedType type = call.calculateResolvedType();
+      if (containsUnboundType(type) && call.getSymbolResolver() instanceof AnalysisSymbolResolver) {
+        type = JavaParserFacade.get(((AnalysisSymbolResolver) call.getSymbolResolver()).getTypeSolver())
+            .solveMethodAsUsage(call).returnType();
+      }
+      if (containsUnboundType(type)) type = specializeMethodTypeParameters(call, type);
+      site.expressionType = type.describe();
+      site.expressionTypeStatus = containsUnboundType(type) ? "partial" : "resolved";
+      if ("partial".equals(site.expressionTypeStatus)) {
+        site.expressionTypeReason = "Call-site type retains a type variable or wildcard bound";
+      }
+    } catch (RuntimeException error) {
+      Optional<MethodUsage> usage = resolveMethodUsageFromScope(call)
+          .or(() -> resolveMethodUsageFromAstScope(call)).or(() -> resolveMethodUsageFromEnclosingType(call));
+      if (usage.isPresent()) {
+        site.expressionType = safeDescribe(usage.get().returnType());
+        site.expressionTypeStatus = "partial";
+        site.expressionTypeReason = "Receiver-substituted method type; call-site inference was unavailable";
+      } else {
+        site.expressionTypeStatus = "unresolved";
+        site.expressionTypeReason = "Call-site type could not be resolved in the supplied analysis environment";
+      }
+    }
+  }
+
+  private boolean containsUnboundType(ResolvedType type) {
+    if (type.isTypeVariable() || type.isWildcard()) return true;
+    if (type.isArray()) return containsUnboundType(type.asArrayType().getComponentType());
+    return type.isReferenceType() && type.asReferenceType().typeParametersValues().stream()
+        .anyMatch(this::containsUnboundType);
+  }
+
+  /** Exact argument constraints only; conflicting or capture-dependent inference stays partial. */
+  private ResolvedType specializeMethodTypeParameters(MethodCallExpr call, ResolvedType result) {
+    ResolvedMethodDeclaration method = call.resolve();
+    Map<ResolvedTypeParameterDeclaration, ResolvedType> bindings = new LinkedHashMap<>();
+    List<String> conflicts = new ArrayList<>();
+    for (int i = 0; i < call.getArguments().size() && method.getNumberOfParams() > 0; i++) {
+      int index = Math.min(i, method.getNumberOfParams() - 1);
+      if (i >= method.getNumberOfParams() && !method.getParam(index).isVariadic()) break;
+      ResolvedType formal = method.getParam(index).getType();
+      ResolvedType actual = call.getArgument(i).calculateResolvedType();
+      if (method.getParam(index).isVariadic() && formal.isArray() && !actual.isArray()) {
+        formal = formal.asArrayType().getComponentType();
+      }
+      collectExactTypeBindings(formal, actual, method.getTypeParameters(), bindings, conflicts);
+    }
+    for (Map.Entry<ResolvedTypeParameterDeclaration, ResolvedType> binding : bindings.entrySet()) {
+      if (!conflicts.contains(binding.getKey().getQualifiedName())) {
+        result = result.replaceTypeVariables(binding.getKey(), binding.getValue());
+      }
+    }
+    return result;
+  }
+
+  private void collectExactTypeBindings(ResolvedType formal, ResolvedType actual,
+      List<ResolvedTypeParameterDeclaration> parameters,
+      Map<ResolvedTypeParameterDeclaration, ResolvedType> bindings, List<String> conflicts) {
+    if (actual.isNull() || actual.isWildcard() || actual.isPrimitive()) return;
+    if (formal.isWildcard()) {
+      if (formal.asWildcard().isBounded()) collectExactTypeBindings(formal.asWildcard().getBoundedType(), actual, parameters, bindings, conflicts);
+    } else if (formal.isTypeVariable()) {
+      ResolvedTypeParameterDeclaration parameter = formal.asTypeVariable().asTypeParameter();
+      if (parameters.stream().noneMatch(p -> p.getQualifiedName().equals(parameter.getQualifiedName()))) return;
+      ResolvedType old = bindings.putIfAbsent(parameter, actual);
+      if (old != null && !old.describe().equals(actual.describe())) conflicts.add(parameter.getQualifiedName());
+    } else if (formal.isArray() && actual.isArray()) {
+      collectExactTypeBindings(formal.asArrayType().getComponentType(), actual.asArrayType().getComponentType(), parameters, bindings, conflicts);
+    } else if (formal.isReferenceType() && actual.isReferenceType()) {
+      ResolvedReferenceType target = formal.asReferenceType();
+      ResolvedReferenceType source = actual.asReferenceType();
+      if (!target.getQualifiedName().equals(source.getQualifiedName())) {
+        source = source.getAllAncestors().stream().filter(a -> target.getQualifiedName().equals(a.getQualifiedName())).findFirst().orElse(null);
+      }
+      if (source == null) return;
+      List<ResolvedType> formals = target.typeParametersValues(), actuals = source.typeParametersValues();
+      for (int i = 0; i < Math.min(formals.size(), actuals.size()); i++) {
+        collectExactTypeBindings(formals.get(i), actuals.get(i), parameters, bindings, conflicts);
+      }
+    }
   }
 
   private JavaMethodCallSite toConstructorCallSite(String packageName, ExplicitConstructorInvocationStmt invocation) {
@@ -377,6 +562,8 @@ public class JavaSummaryExtractor {
         caller.getParameters().stream().map(parameter -> parameter.getType().asString()).collect(Collectors.toList())
     );
     JavaMethodCallSite site = new JavaMethodCallSite();
+    site.expressionTypeStatus = "not-applicable";
+    site.expressionTypeReason = "Explicit constructor delegation is a statement, not a value expression";
     site.callerClassId = callerClass;
     site.callerMethodId = callerMethod;
     site.invocationKind = invocation.isThis() ? "this-constructor" : "super-constructor";

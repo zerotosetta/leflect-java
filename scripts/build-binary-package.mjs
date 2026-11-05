@@ -4,6 +4,7 @@ import { build } from "esbuild";
 import {
   artifactsRoot,
   cliDistEntry,
+  copyDir,
   createBinaryPackageName,
   findJavaWorkerJar,
   readJson,
@@ -77,6 +78,7 @@ await fs.copyFile(workerJarPath, path.join(workDir, "java", workerJarName));
 await writeJson(path.join(workDir, "java", "worker-jar.json"), { fileName: workerJarName });
 await fs.copyFile(rootReadmePath, path.join(workDir, "README.md"));
 await fs.copyFile(rootLicensePath, path.join(workDir, "LICENSE"));
+await copyDir(path.join(repoRoot, "resources", "api-packs"), path.join(workDir, "api-packs"));
 
 await writeJson(path.join(workDir, "package.json"), {
   name: binaryPackageName,
@@ -91,7 +93,7 @@ await writeJson(path.join(workDir, "package.json"), {
     directory: "packages/cli"
   },
   pkg: {
-    assets: ["java/*.jar", "java/worker-jar.json"]
+    assets: ["java/*.jar", "java/worker-jar.json", "api-packs/**/*"]
   }
 });
 

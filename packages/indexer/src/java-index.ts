@@ -2,6 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 import { createReadStream } from "fs";
 import readline from "readline";
+import type { JavaExecutionModel } from "@leflect-java/schema";
 
 import { readSourceMetadataTree, removeFiles, writeSourceMetadataTree } from "./file-tree";
 
@@ -30,6 +31,7 @@ export type MethodIndexEntry = {
   location?: JavaSourceLocation;
   lineRange?: JavaLineRange;
   orderedSteps?: OrderedExecutionStepEntry[];
+  executionModel?: JavaExecutionModel;
 };
 
 export type FieldIndexEntry = {
@@ -52,7 +54,24 @@ export type MethodCallParameterEntry = {
   value?: string;
 };
 
-export type CallIndexEntry = {
+export type JavaImportOrigin = {
+  originKind: "import-declaration" | "explicit-import" | "on-demand-import" | "fully-qualified" |
+    "same-package" | "java-lang" | "local-type" | "receiver-declaration" | "static-owner" | "static-import" |
+    "receiver-call" | "inherited" | "unresolved" | "ambiguous";
+  originStatus: "resolved" | "not-required" | "unresolved" | "ambiguous";
+  originEvidence: {
+    spelling?: string;
+    type?: string;
+    file?: string;
+    location?: JavaSourceLocation;
+    importId?: string;
+    importKind?: JavaImportOrigin["originKind"];
+    candidateImportIds?: string[];
+    reason?: string;
+  };
+};
+
+export type CallIndexEntry = Partial<JavaImportOrigin> & {
   from?: string;
   to?: string;
   fromClassId?: string;
@@ -72,6 +91,10 @@ export type CallIndexEntry = {
   importId?: string;
   inputParameters?: MethodCallParameterEntry[];
   responseType?: string;
+  declaredReturnType?: string;
+  expressionType?: string;
+  expressionTypeStatus?: "resolved" | "partial" | "unresolved" | "not-applicable";
+  expressionTypeReason?: string;
   location?: JavaSourceLocation;
   lineRange?: JavaLineRange;
   snippet?: string;
@@ -104,7 +127,7 @@ export type JavaImportIndexEntry = {
   location?: JavaSourceLocation;
 };
 
-export type JavaClassReferenceIndexEntry = {
+export type JavaClassReferenceIndexEntry = Partial<JavaImportOrigin> & {
   file: string;
   className: string;
   name?: string;
@@ -178,6 +201,7 @@ export type JavaSummaryMethod = {
   location?: JavaSourceLocation;
   lineRange?: JavaLineRange;
   orderedSteps?: OrderedExecutionStepEntry[];
+  executionModel?: JavaExecutionModel;
 };
 
 export type JavaSummaryField = {
@@ -231,6 +255,15 @@ export type JavaSummaryMethodCall = {
   parameterTypes?: string[];
   argumentExpressions?: string[];
   responseType?: string;
+  declaredReturnType?: string;
+  expressionType?: string;
+  expressionTypeStatus?: "resolved" | "partial" | "unresolved" | "not-applicable";
+  expressionTypeReason?: string;
+  receiverType?: string;
+  receiverTypeSpelling?: string;
+  receiverDeclarationFile?: string;
+  receiverDeclarationLocation?: JavaSourceLocation;
+  receiverOriginKind?: "static-owner" | "static-import" | "receiver-declaration" | "receiver-call" | "inherited" | "local" | "unresolved";
   snippet?: string;
   location?: JavaSourceLocation;
   lineRange?: JavaLineRange;
@@ -253,9 +286,10 @@ export type WorkerIndex = {
 };
 
 type JavaImportLookup = {
-  byExact: Map<string, string>;
-  bySimple: Map<string, string>;
-  wildcards: JavaImportIndexEntry[];
+  entries: Array<JavaImportIndexEntry & ReturnType<typeof parseImportDeclaration>>;
+  file: string;
+  packageName?: string;
+  localTypes: Set<string>;
 };
 
 type PendingJavaCall = {
@@ -290,28 +324,41 @@ export function buildJavaIndex(workerIndex: WorkerIndex): JavaIndex {
     const fileClassIds: string[] = [];
     const fileMethodIds: string[] = [];
     const fileCallTargets: string[] = [];
-    const importLocations = new Map<string, JavaSourceLocation | undefined>();
+    const importDeclarations = (summary.classReferences ?? [])
+      .filter((reference) => reference.kind?.startsWith("import"))
+      .map((reference) => ({
+        ...parseImportDeclaration(reference.qualifiedName ?? reference.symbol, reference.kind, reference.snippet),
+        location: reference.location
+      }));
+    const referenceDiagnostics = [...(summary.referenceDiagnostics ?? [])];
 
-    for (const reference of summary.classReferences ?? []) {
-      if (reference.kind?.startsWith("import")) {
-        importLocations.set(reference.qualifiedName ?? reference.symbol, reference.location);
-      }
-    }
-
-    const fileImportEntries = fileImports.map((entry) => ({
-      id: buildImportId(file, entry),
-      file,
-      import: entry,
-      simpleName: extractSimpleName(entry),
-      location: importLocations.get(entry)
-    }));
-    const lookup = createImportLookup(fileImportEntries);
+    const fileImportEntries = fileImports.map((entry) => {
+      const declaration = parseImportDeclaration(entry);
+      const candidates = importDeclarations.filter((candidate) => candidate.name === declaration.name &&
+        candidate.wildcard === declaration.wildcard && (!declaration.staticSpecified || candidate.isStatic === declaration.isStatic));
+      // Older workers omit `static` in summary.imports. A unique raw declaration
+      // remains authoritative; ambiguous declarations must not borrow a range.
+      const location = candidates.length === 1 ? candidates[0].location : undefined;
+      if (!location) referenceDiagnostics.push({
+        snippet: entry,
+        message: candidates.length > 1 ? "Ambiguous import declaration source location" : "Import declaration source location is unavailable"
+      });
+      return {
+        id: buildImportId(file, entry), file, import: entry,
+        simpleName: extractSimpleName(entry), location
+      };
+    });
+    const lookup = createImportLookup(fileImportEntries, summary, importDeclarations);
     imports.push(...fileImportEntries);
 
     for (const reference of summary.classReferences ?? []) {
       const classPath = reference.qualifiedName
         ?? reference.resolvedClassId
         ?? resolveClassPath(reference.name ?? reference.symbol, lookup);
+      const origin = reference.kind?.startsWith("import")
+        ? resolveImportDeclarationOrigin(lookup, reference)
+        : resolveTypeImportOrigin(lookup, reference.resolvedClassId ?? classPath,
+          reference.snippet ?? reference.name ?? reference.symbol, reference.location);
       classReferences.push({
         file,
         className: reference.symbol,
@@ -319,7 +366,8 @@ export function buildJavaIndex(workerIndex: WorkerIndex): JavaIndex {
         qualifiedName: reference.qualifiedName,
         classPath,
         resolvedClassId: reference.resolvedClassId ?? classPath,
-        importId: resolveImportId(lookup, classPath, reference.symbol),
+        importId: origin.originEvidence.importId,
+        ...origin,
         kind: reference.kind,
         location: reference.location,
         lineRange: normalizeLineRange(reference.lineRange, reference.location),
@@ -382,7 +430,8 @@ export function buildJavaIndex(workerIndex: WorkerIndex): JavaIndex {
             callTargets: collectUnique(method.calls ?? []),
             location: method.location,
             lineRange: normalizeLineRange(method.lineRange, method.location),
-            orderedSteps: normalizeOrderedSteps(method.orderedSteps)
+            orderedSteps: normalizeOrderedSteps(method.orderedSteps),
+            executionModel: method.executionModel?.version === 2 ? method.executionModel : undefined
           });
           methodIds.add(method.id);
         }
@@ -411,7 +460,7 @@ export function buildJavaIndex(workerIndex: WorkerIndex): JavaIndex {
       classIds: collectUnique(fileClassIds),
       methodIds: collectUnique(fileMethodIds),
       callTargets: collectUnique(fileCallTargets),
-      referenceDiagnostics: summary.referenceDiagnostics
+      referenceDiagnostics: referenceDiagnostics.length ? referenceDiagnostics : summary.referenceDiagnostics
     });
   }
 
@@ -666,6 +715,7 @@ function buildCallIndexEntry(
     ? classPath
     : `unresolved:java-call:${pending.record.callerMethodId ?? "unknown"}:${normalizedTarget}`;
 
+  const origin = resolveCallImportOrigin(pending.lookup, pending.record);
   return {
     from: pending.record.callerMethodId,
     to: classPath ?? unresolvedTarget,
@@ -683,12 +733,17 @@ function buildCallIndexEntry(
     classPath,
     resolvedClassId: pending.record.resolvedClassId ?? classPath,
     resolvedMethodId: pending.record.resolvedMethodId ?? toMethodId,
-    importId: resolveImportId(pending.lookup, classPath, extractSimpleName(classPath)),
+    importId: origin.originEvidence.importId,
+    ...origin,
     inputParameters: buildMethodCallParameters(
       pending.record.parameterTypes ?? inferredMethod?.parameters,
       pending.record.argumentExpressions
     ),
     responseType: pending.record.responseType ?? inferredMethod?.returnType,
+    declaredReturnType: pending.record.declaredReturnType,
+    expressionType: pending.record.expressionType,
+    expressionTypeStatus: pending.record.expressionTypeStatus,
+    expressionTypeReason: pending.record.expressionTypeReason,
     location: pending.record.location,
     lineRange: normalizeLineRange(pending.record.lineRange, pending.record.location),
     snippet: pending.record.snippet
@@ -752,75 +807,185 @@ function buildMethodCallParameters(
   }));
 }
 
-function createImportLookup(entries: JavaImportIndexEntry[]): JavaImportLookup {
-  const byExact = new Map<string, string>();
-  const bySimple = new Map<string, string>();
-  const wildcards: JavaImportIndexEntry[] = [];
-
-  for (const entry of entries) {
-    byExact.set(entry.import, entry.id);
-    if (entry.import.endsWith(".*")) {
-      wildcards.push(entry);
-      continue;
-    }
-    if (entry.simpleName) {
-      bySimple.set(entry.simpleName, entry.id);
-    }
-  }
-
-  return { byExact, bySimple, wildcards };
+function createImportLookup(
+  entries: JavaImportIndexEntry[], summary: JavaSummaryRecord,
+  declarations: Array<ReturnType<typeof parseImportDeclaration> & { location?: JavaSourceLocation }>
+): JavaImportLookup {
+  return {
+    file: normalizePath(summary.path),
+    packageName: summary.packageName,
+    localTypes: new Set((summary.types ?? []).map(type => type.fqn)),
+    entries: entries.map(entry => {
+      const parsed = parseImportDeclaration(entry.import);
+      const raw = declarations.filter(declaration => declaration.name === parsed.name &&
+        declaration.wildcard === parsed.wildcard && serializeLocation(declaration.location) === serializeLocation(entry.location));
+      return { ...entry, ...(raw.length === 1 ? raw[0] : parsed) };
+    })
+  };
 }
 
-function resolveImportId(
-  lookup: JavaImportLookup,
-  classPath?: string,
-  symbol?: string
-): string | undefined {
-  if (classPath && lookup.byExact.has(classPath)) {
-    return lookup.byExact.get(classPath);
-  }
+function resolveImportDeclarationOrigin(lookup: JavaImportLookup, reference: JavaSummaryClassReference): JavaImportOrigin {
+  const parsed = parseImportDeclaration(reference.qualifiedName ?? reference.symbol, reference.kind, reference.snippet);
+  const candidates = lookup.entries.filter(entry => entry.name === parsed.name &&
+    entry.wildcard === parsed.wildcard && entry.isStatic === parsed.isStatic);
+  const evidence: JavaImportOrigin["originEvidence"] = {
+    spelling: reference.snippet ?? reference.symbol, type: parsed.name,
+    file: lookup.file, location: reference.location
+  };
+  if (candidates.length === 1) return {
+    originKind: "import-declaration", originStatus: "resolved",
+    originEvidence: { ...evidence, importId: candidates[0].id }
+  };
+  return {
+    originKind: candidates.length ? "ambiguous" : "unresolved",
+    originStatus: candidates.length ? "ambiguous" : "unresolved",
+    originEvidence: { ...evidence, candidateImportIds: candidates.map(entry => entry.id),
+      reason: "No unique corresponding import declaration" }
+  };
+}
 
-  const simpleName = extractSimpleName(classPath ?? symbol);
-  if (simpleName && lookup.bySimple.has(simpleName)) {
-    return lookup.bySimple.get(simpleName);
-  }
+function resolveTypeImportOrigin(
+  lookup: JavaImportLookup, resolvedType: string | undefined,
+  sourceSpelling: string | undefined, location?: JavaSourceLocation
+): JavaImportOrigin {
+  const type = normalizeTypeName(resolvedType);
+  const spelling = normalizeTypeName(sourceSpelling);
+  const evidence: JavaImportOrigin["originEvidence"] = { spelling: sourceSpelling, type, file: lookup.file, location };
+  const noImport = (originKind: JavaImportOrigin["originKind"]): JavaImportOrigin => ({
+    originKind, originStatus: "not-required", originEvidence: evidence
+  });
+  if (!type || !spelling) return {
+    originKind: "unresolved", originStatus: "unresolved",
+    originEvidence: { ...evidence, reason: "Resolved type or original type spelling is unavailable" }
+  };
+  if (spelling === type && spelling.includes(".")) return noImport("fully-qualified");
+  if (lookup.localTypes.has(type)) return noImport("local-type");
 
-  if (classPath) {
-    for (const wildcard of lookup.wildcards) {
-      const prefix = wildcard.import.slice(0, -2);
-      if (classPath.startsWith(`${prefix}.`)) {
-        return wildcard.id;
+  // Match the written outer type against its resolved canonical name. For
+  // Map.Entry, importing Map is evidence; java.util.* never imports Entry alone.
+  const [writtenOuter, ...members] = spelling.split(".");
+  const explicit = lookup.entries.filter(entry => !entry.wildcard &&
+    extractSimpleName(entry.name) === writtenOuter && [entry.name, ...members].join(".") === type);
+  if (explicit.length) return importCandidates(explicit, "explicit-import", evidence);
+  const suffix = `.${spelling}`;
+  const owner = type.endsWith(suffix) ? type.slice(0, -suffix.length) : undefined;
+  if (owner === lookup.packageName) return noImport("same-package");
+  if (owner === "java.lang") return noImport("java-lang");
+  const wildcards = lookup.entries.filter(entry => entry.wildcard && entry.name === owner);
+  if (wildcards.length) return importCandidates(wildcards, "on-demand-import", evidence);
+  return {
+    originKind: "unresolved", originStatus: "unresolved",
+    originEvidence: { ...evidence, reason: "No import or implicit declaration supports this source spelling" }
+  };
+}
+
+function importCandidates(
+  candidates: JavaImportIndexEntry[], kind: "explicit-import" | "on-demand-import",
+  evidence: JavaImportOrigin["originEvidence"]
+): JavaImportOrigin {
+  if (candidates.length === 1) return {
+    originKind: kind, originStatus: "resolved", originEvidence: { ...evidence, importId: candidates[0].id }
+  };
+  return {
+    originKind: "ambiguous", originStatus: "ambiguous",
+    originEvidence: { ...evidence, candidateImportIds: candidates.map(entry => entry.id).sort(),
+      reason: "Multiple declarations support the resolved source spelling" }
+  };
+}
+
+function resolveCallImportOrigin(lookup: JavaImportLookup, call: JavaSummaryMethodCall): JavaImportOrigin {
+  const kind = call.receiverOriginKind ?? "unresolved";
+  const file = call.receiverDeclarationFile ? normalizePath(call.receiverDeclarationFile) : undefined;
+  const evidence: JavaImportOrigin["originEvidence"] = {
+    spelling: call.receiverTypeSpelling, type: normalizeTypeName(call.receiverType),
+    file: file ?? lookup.file, location: call.receiverDeclarationLocation ?? call.location
+  };
+  if (kind === "static-import") {
+    const owner = normalizeTypeName(call.receiverType);
+    const methodName = call.targetMethodName ?? extractMethodName(call.target);
+    const resolvedOwner = normalizeTypeName(call.resolvedClassId ?? call.targetClassId ?? extractClassId(call.target));
+    if (!owner || owner !== resolvedOwner || !methodName || call.receiverTypeSpelling !== methodName || file !== lookup.file) return {
+      originKind: "unresolved", originStatus: "unresolved", originEvidence: {
+        ...evidence, reason: "Static import requires the resolved method owner, original method spelling, and current source file"
       }
-    }
+    };
+    const candidates = lookup.entries.filter(entry => entry.isStatic && (entry.wildcard
+      ? entry.name === owner : entry.name === `${owner}.${methodName}`));
+    if (candidates.length === 1) return {
+      originKind: "static-import", originStatus: "resolved", originEvidence: {
+        ...evidence, importId: candidates[0].id, location: candidates[0].location,
+        importKind: candidates[0].wildcard ? "on-demand-import" : "explicit-import"
+      }
+    };
+    return {
+      originKind: candidates.length ? "ambiguous" : "unresolved",
+      originStatus: candidates.length ? "ambiguous" : "unresolved",
+      originEvidence: { ...evidence, candidateImportIds: candidates.map(entry => entry.id).sort(), reason: candidates.length
+        ? "Multiple static declarations support this resolved unqualified method"
+        : "No static declaration supports this resolved unqualified method" }
+    };
   }
+  if (kind === "local") return {
+    originKind: "local-type", originStatus: "not-required",
+    originEvidence: { ...evidence, reason: "Unqualified method belongs to the enclosing source type" }
+  };
+  if (kind === "receiver-call" || kind === "inherited") return {
+    originKind: kind, originStatus: "not-required", originEvidence: {
+      ...evidence, reason: kind === "receiver-call" ? "Receiver type comes from another expression" : "Receiver is implicit or inherited"
+    }
+  };
+  if (kind === "receiver-declaration" && file && file !== lookup.file) return {
+    originKind: kind, originStatus: "not-required",
+    originEvidence: { ...evidence, reason: "Receiver declaration belongs to another source file" }
+  };
+  if ((kind === "receiver-declaration" && file && call.receiverDeclarationLocation) || kind === "static-owner") {
+    const resolved = resolveTypeImportOrigin(lookup, call.receiverType, call.receiverTypeSpelling, evidence.location);
+    return {
+      ...resolved,
+      originKind: resolved.originStatus === "unresolved" || resolved.originStatus === "ambiguous" ? resolved.originKind : kind,
+      originEvidence: { ...resolved.originEvidence, ...evidence, importKind: resolved.originKind }
+    };
+  }
+  return { originKind: "unresolved", originStatus: "unresolved", originEvidence: {
+    ...evidence, reason: "AST receiver declaration evidence is unavailable; method owner is not import provenance"
+  } };
+}
 
-  return undefined;
+function normalizeTypeName(value?: string): string | undefined {
+  if (!value) return undefined;
+  let depth = 0;
+  let result = "";
+  for (const character of value) {
+    if (character === "<") depth++;
+    else if (character === ">") depth--;
+    else if (!depth) result += character;
+  }
+  result = result.replace(/(?:\[\s*\]|\.\.\.)/g, "").replace(/\s+/g, "").replace(/\$/g, ".");
+  return /^[\p{L}_$][\p{L}\p{N}_$]*(?:\.[\p{L}_$][\p{L}\p{N}_$]*)*$/u.test(result) ? result : undefined;
 }
 
 function resolveClassPath(symbol: string | undefined, lookup: JavaImportLookup): string | undefined {
-  if (!symbol) {
-    return undefined;
-  }
-  if (symbol.includes(".")) {
-    return symbol;
-  }
-
-  const importId = lookup.bySimple.get(symbol);
-  if (!importId) {
-    return undefined;
-  }
-
-  for (const [qualifiedImport, id] of lookup.byExact.entries()) {
-    if (id === importId && !qualifiedImport.endsWith(".*")) {
-      return qualifiedImport;
-    }
-  }
-
-  return undefined;
+  const spelling = normalizeTypeName(symbol);
+  if (!spelling) return undefined;
+  const [outer, ...members] = spelling.split(".");
+  const candidates = lookup.entries.filter(entry => !entry.wildcard && extractSimpleName(entry.name) === outer);
+  // A unique explicit import is the only fallback that proves a type without a
+  // resolved AST symbol. On-demand imports require the actual resolved type.
+  return candidates.length === 1 ? [candidates[0].name, ...members].join(".") : undefined;
 }
 
 function buildImportId(file: string, value: string): string {
   return `java-import:${file}:${value}`;
+}
+
+function parseImportDeclaration(value: string, kind?: string, snippet?: string): {
+  name: string; wildcard: boolean; isStatic: boolean; staticSpecified: boolean;
+} {
+  const text = snippet?.trim().startsWith("import ") ? snippet.trim() : value.trim();
+  const isStatic = /^(?:import\s+)?static\s+/.test(text) || Boolean(kind?.includes("static"));
+  const spelling = text.replace(/^import\s+/, "").replace(/^static\s+/, "").replace(/;\s*$/, "").replace(/\s+/g, "");
+  const wildcard = spelling.endsWith(".*") || kind === "import-wildcard";
+  return { name: spelling.replace(/\.\*$/, ""), wildcard, isStatic, staticSpecified: isStatic };
 }
 
 function extractMethodName(target: string): string | undefined {

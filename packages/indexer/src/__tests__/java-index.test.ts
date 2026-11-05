@@ -327,7 +327,7 @@ describe("buildJavaIndex", () => {
         ]
       }
     ]);
-    expect(index.calls).toEqual([
+    expect(index.calls.map(({ originKind, originStatus, originEvidence, ...call }) => call)).toEqual([
       {
         from: "demo.App#run()",
         to: "demo.Service",
@@ -343,7 +343,7 @@ describe("buildJavaIndex", () => {
         classPath: "demo.Service",
         resolvedClassId: "demo.Service",
         resolvedMethodId: "demo.Service#work()",
-        importId: "java-import:src/main/java/demo/App.java:demo.Service",
+        importId: undefined,
         inputParameters: [
           {
             index: 0,
@@ -399,7 +399,11 @@ describe("buildJavaIndex", () => {
         snippet: "helper()"
       }
     ]);
-    expect(index.classReferences).toEqual([
+    expect(index.calls.map(call => [call.originKind, call.originStatus, call.originEvidence?.reason])).toEqual([
+      ["unresolved", "unresolved", "AST receiver declaration evidence is unavailable; method owner is not import provenance"],
+      ["unresolved", "unresolved", "AST receiver declaration evidence is unavailable; method owner is not import provenance"]
+    ]);
+    expect(index.classReferences.map(({ originKind, originStatus, originEvidence, ...reference }) => reference)).toEqual([
       {
         file: "src/main/java/demo/App.java",
         className: "demo.Service",

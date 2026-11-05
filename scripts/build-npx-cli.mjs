@@ -2,7 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { build } from "esbuild";
-import { findJavaWorkerJar, spawnExecutable } from "./release-common.mjs";
+import { copyDir, findJavaWorkerJar, spawnExecutable } from "./release-common.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,7 +39,8 @@ const publishedPackage = {
     "index.d.ts",
     "README.md",
     "LICENSE",
-    "java"
+    "java",
+    "api-packs"
   ]
 };
 
@@ -62,6 +63,7 @@ await fs.copyFile(cliTypesEntry, path.join(packageDir, "index.d.ts"));
 await fs.copyFile(rootReadmePath, path.join(packageDir, "README.md"));
 await fs.copyFile(rootLicensePath, path.join(packageDir, "LICENSE"));
 await copyOptionalWorkerJar();
+await copyDir(path.join(repoRoot, "resources", "api-packs"), path.join(packageDir, "api-packs"));
 await fs.writeFile(
   path.join(packageDir, "package.json"),
   JSON.stringify(publishedPackage, null, 2) + "\n",

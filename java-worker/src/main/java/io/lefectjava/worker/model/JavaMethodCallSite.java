@@ -18,6 +18,16 @@ public class JavaMethodCallSite {
   public List<String> parameterTypes;
   public List<String> argumentExpressions;
   public String responseType;
+  /** Declaration type and call-site type are separate; responseType stays legacy-compatible. */
+  public String declaredReturnType;
+  public String expressionType;
+  public String expressionTypeStatus;
+  public String expressionTypeReason;
+  public String receiverType;
+  public String receiverTypeSpelling;
+  public String receiverDeclarationFile;
+  public SourceLocation receiverDeclarationLocation;
+  public String receiverOriginKind;
   public String snippet;
   public SourceLocation location;
   public LineRange lineRange;

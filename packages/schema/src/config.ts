@@ -56,6 +56,13 @@ export type LeflectConfig = {
     javaHome?: string;
     classpath?: string[];
     mavenCommand?: string;
+    /** Include Maven compile/provided/runtime dependencies (default true). */
+    mavenClasspath?: boolean;
+    apiPacks?: {
+      mode?: "off" | "fallback";
+      /** Optional directory containing a verified API pack manifest.json. */
+      directory?: string;
+    };
   };
   jsp?: {
     astMode?: JspAstMode;
@@ -66,6 +73,7 @@ export type LeflectConfig = {
     semanticAstOut?: string;
     classpath?: string[];
     mavenCommand?: string;
+    mavenClasspath?: boolean;
     tld?: {
       autoLoad?: boolean;
       paths?: string[];

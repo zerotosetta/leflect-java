@@ -6,6 +6,7 @@ import {
   resolveSystemClasspathSearchRoots
 } from "./auto-classpath";
 import { createDependencyCacheInput, resolveDependencyClasspathEntries } from "./classpath";
+import { createApiPackCacheInput, resolveApiPackClasspath } from "./api-packs";
 
 const OUTPUT_DIRECTORIES = [
   "target/classes",
@@ -16,12 +17,14 @@ export async function resolveJspClasspathEntries(
   config: LeflectConfig,
   taglibUris: string[] = []
 ): Promise<string[]> {
-  const entries = await resolveDependencyClasspathEntries({
+  const projectEntries = await resolveDependencyClasspathEntries({
     root: config.root,
     configuredEntries: config.jsp?.classpath,
     mavenCommand: config.jsp?.mavenCommand,
+    mavenEnabled: config.jsp?.mavenClasspath,
     outputDirectories: OUTPUT_DIRECTORIES
   });
+  const entries = await resolveApiPackClasspath(config, projectEntries, "jsp");
 
   if (!isSystemClasspathDiscoveryEnabled(config) || taglibUris.length === 0) {
     return entries;
@@ -39,11 +42,12 @@ export async function resolveJspClasspathEntries(
 export async function createJspDependencyCacheInput(
   config: LeflectConfig
 ): Promise<Record<string, unknown>> {
-  return createDependencyCacheInput({
+  return { ...await createDependencyCacheInput({
     root: config.root,
     configuredEntries: config.jsp?.classpath,
     mavenCommand: config.jsp?.mavenCommand,
+    mavenEnabled: config.jsp?.mavenClasspath,
     markerFiles: ["pom.xml"],
     autoDiscovery: config.classpathDiscovery
-  });
+  }), apiPacks: await createApiPackCacheInput(config) };
 }

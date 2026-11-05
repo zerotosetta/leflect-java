@@ -33,6 +33,7 @@ node bin/leflect --help
 ```
 
 - Config guide: `docs/config-guide.md`
+- Project-first Servlet/JSP API packs: `docs/api-packs.md`
 - JSP semantic AST guide: `docs/jsp-tld-semantic-guide.md`
 - Design adaptation notes: `docs/design/README.md`
 - Programmatic CLI usage: `packages/cli/README.md`

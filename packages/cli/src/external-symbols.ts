@@ -2,6 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 import AdmZip from "adm-zip";
 import type { ExternalSymbolInfo, LeflectConfig } from "@leflect-java/schema";
+import { readSelectedApiPackSources } from "./api-packs";
 
 type Archive = { path: string; zip: AdmZip; version?: string };
 type Provider = ExternalSymbolInfo["provider"];
@@ -18,8 +19,9 @@ export async function withAnalysisClasspath(config: LeflectConfig): Promise<Lefl
       throw error;
     }
   }));
-  const classpath = [...new Set([...manifests.flat(), ...(config.java?.classpath ?? []), ...(config.jsp?.classpath ?? [])])];
-  return { ...config, java: { ...config.java, classpath }, jsp: { ...config.jsp, classpath } };
+  const classpath = [...new Set([...(config.java?.classpath ?? []), ...(config.jsp?.classpath ?? []), ...manifests.flat()])];
+  const librarySources = [...(config.java?.librarySources ?? []), ...await readSelectedApiPackSources(config, classpath)];
+  return { ...config, java: { ...config.java, classpath, librarySources }, jsp: { ...config.jsp, classpath } };
 }
 
 export function createExternalSymbolResolver(config: LeflectConfig) {
