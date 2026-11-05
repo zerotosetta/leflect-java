@@ -1,0 +1,239 @@
+{
+  "generatedAt": "2026-11-05T09:25:31.772Z",
+  "status": "work-preparation-only",
+  "workspaceVersion": "0.1.8",
+  "baseline": {
+    "gitCommit": "3689742e1fcf534a34422d78c6b88ea18597cb4e",
+    "sourceFileCount": 84,
+    "analysisArtifactCount": 208,
+    "sourceUnchanged": true,
+    "analysisArtifactsUnchanged": true,
+    "localBaselineManifest": "analysis/work-preparation/baseline.json",
+    "baselineManifestSha256": "85e043b0ebfcd72f1174ce9de2adc0a9b83ffa8c97c6a281ee4d77d7381834a3"
+  },
+  "apiPack": {
+    "profileId": "javaee8-servlet4-jsp23",
+    "defaultMode": "disabled",
+    "policy": {
+      "projectDependenciesFirst": true,
+      "projectVersionFirst": true,
+      "binaryAndSourceIdentityMustMatch": true,
+      "namespaceMigrationAutomatic": false,
+      "runtimeWorkerClasspathMustRemainIsolated": true
+    },
+    "artifacts": [
+      {
+        "mavenCoordinates": "javax.servlet:javax.servlet-api:4.0.1",
+        "namespace": "javax.servlet",
+        "specVersion": "4.0",
+        "files": [
+          {
+            "classifier": "binary",
+            "filename": "javax.servlet-api-4.0.1.jar",
+            "url": "https://repo.maven.apache.org/maven2/javax/servlet/javax.servlet-api/4.0.1/javax.servlet-api-4.0.1.jar",
+            "checksumUrl": "https://repo.maven.apache.org/maven2/javax/servlet/javax.servlet-api/4.0.1/javax.servlet-api-4.0.1.jar.sha1",
+            "bytes": 95505,
+            "sha1": "a27082684a2ff0bf397666c3943496c44541d1ca",
+            "sha256": "83a03dd877d3674576f0da7b90755c8524af099ccf0607fc61aa971535ad7c60",
+            "checksumPassed": true,
+            "representativeEntry": "javax/servlet/http/HttpServlet.class",
+            "representativePresent": true,
+            "providerAsCurrentlyDetected": {
+              "name": "javax.servlet-api",
+              "version": "4.0.1"
+            },
+            "classFileVersions": {
+              "classes": 85,
+              "minMajor": 52,
+              "maxMajor": 52,
+              "java8Compatible": true
+            },
+            "notices": [
+              {
+                "entry": "META-INF/LICENSE.txt",
+                "sha256": "a4c80869daf4350b6773bd5e6ee1d0a6cc52b63db3a3d2dc20961b0cdd272a5c",
+                "bytes": 36116
+              }
+            ]
+          },
+          {
+            "classifier": "sources",
+            "filename": "javax.servlet-api-4.0.1-sources.jar",
+            "url": "https://repo.maven.apache.org/maven2/javax/servlet/javax.servlet-api/4.0.1/javax.servlet-api-4.0.1-sources.jar",
+            "checksumUrl": "https://repo.maven.apache.org/maven2/javax/servlet/javax.servlet-api/4.0.1/javax.servlet-api-4.0.1-sources.jar.sha1",
+            "bytes": 203006,
+            "sha1": "49a9da44db6e6b5f44ce15ddfcfe2b6666151b25",
+            "sha256": "a2826761ae88535afb0a3a049eacc846494e22627a1dcf14de37b956ca8748d6",
+            "checksumPassed": true,
+            "representativeEntry": "javax/servlet/http/HttpServlet.java",
+            "representativePresent": true,
+            "notices": [
+              {
+                "entry": "META-INF/LICENSE.txt",
+                "sha256": "a4c80869daf4350b6773bd5e6ee1d0a6cc52b63db3a3d2dc20961b0cdd272a5c",
+                "bytes": 36116
+              }
+            ]
+          },
+          {
+            "classifier": "pom",
+            "filename": "javax.servlet-api-4.0.1.pom",
+            "url": "https://repo.maven.apache.org/maven2/javax/servlet/javax.servlet-api/4.0.1/javax.servlet-api-4.0.1.pom",
+            "checksumUrl": "https://repo.maven.apache.org/maven2/javax/servlet/javax.servlet-api/4.0.1/javax.servlet-api-4.0.1.pom.sha1",
+            "bytes": 15502,
+            "sha1": "0ba6fc9f9da2c136756c5536798cff7f72621518",
+            "sha256": "14055e6155b8a2a632a5eec6a1e5be0c0a0ba380f7e93f9cb4cb8f7e4f959bf1",
+            "checksumPassed": true,
+            "pomMetadata": {
+              "groupId": "javax.servlet",
+              "artifactId": "javax.servlet-api",
+              "version": "4.0.1",
+              "name": "Java Servlet API",
+              "url": "https://javaee.github.io/servlet-spec/",
+              "licenses": [
+                {
+                  "name": "CDDL + GPLv2 with classpath exception",
+                  "url": "https://oss.oracle.com/licenses/CDDL+GPL-1.1",
+                  "distribution": "repo",
+                  "comments": "A business-friendly OSS license"
+                }
+              ],
+              "dependencies": [],
+              "scm": {
+                "connection": "scm:git:https://github.com/javaee/servlet-spec.git",
+                "developerConnection": "scm:git:git@github.com:javaee/servlet-spec.git",
+                "url": "https://github.com/javaee/servlet-spec",
+                "tag": "4.0.1"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "mavenCoordinates": "javax.servlet.jsp:javax.servlet.jsp-api:2.3.3",
+        "namespace": "javax.servlet.jsp",
+        "specVersion": "2.3",
+        "files": [
+          {
+            "classifier": "binary",
+            "filename": "javax.servlet.jsp-api-2.3.3.jar",
+            "url": "https://repo.maven.apache.org/maven2/javax/servlet/jsp/javax.servlet.jsp-api/2.3.3/javax.servlet.jsp-api-2.3.3.jar",
+            "checksumUrl": "https://repo.maven.apache.org/maven2/javax/servlet/jsp/javax.servlet.jsp-api/2.3.3/javax.servlet.jsp-api-2.3.3.jar.sha1",
+            "bytes": 54200,
+            "sha1": "81191ab80e342912dc9cea735c30ff4eddc64de3",
+            "sha256": "409a534d275ef0958a2c1692472da30e3706bfe6933d56c039376f53f13689b7",
+            "checksumPassed": true,
+            "representativeEntry": "javax/servlet/jsp/JspPage.class",
+            "representativePresent": true,
+            "providerAsCurrentlyDetected": {
+              "name": "javax.servlet.jsp-api",
+              "version": "2.3.3"
+            },
+            "classFileVersions": {
+              "classes": 58,
+              "minMajor": 51,
+              "maxMajor": 51,
+              "java8Compatible": true
+            },
+            "notices": []
+          },
+          {
+            "classifier": "sources",
+            "filename": "javax.servlet.jsp-api-2.3.3-sources.jar",
+            "url": "https://repo.maven.apache.org/maven2/javax/servlet/jsp/javax.servlet.jsp-api/2.3.3/javax.servlet.jsp-api-2.3.3-sources.jar",
+            "checksumUrl": "https://repo.maven.apache.org/maven2/javax/servlet/jsp/javax.servlet.jsp-api/2.3.3/javax.servlet.jsp-api-2.3.3-sources.jar.sha1",
+            "bytes": 165411,
+            "sha1": "2fb60d849b2ed487a5655e1fa55686ce47b48d60",
+            "sha256": "13fabca49c563bbaf0ce5a75963d72c58b0290eef0e724d2fbd36633bf953d8b",
+            "checksumPassed": true,
+            "representativeEntry": "javax/servlet/jsp/JspPage.java",
+            "representativePresent": true,
+            "notices": []
+          },
+          {
+            "classifier": "pom",
+            "filename": "javax.servlet.jsp-api-2.3.3.pom",
+            "url": "https://repo.maven.apache.org/maven2/javax/servlet/jsp/javax.servlet.jsp-api/2.3.3/javax.servlet.jsp-api-2.3.3.pom",
+            "checksumUrl": "https://repo.maven.apache.org/maven2/javax/servlet/jsp/javax.servlet.jsp-api/2.3.3/javax.servlet.jsp-api-2.3.3.pom.sha1",
+            "bytes": 12502,
+            "sha1": "df90d7beda167d0e5b2c6ce2b869ca5f872f7101",
+            "sha256": "814c71e10870ff788535f8f8f9ba7568b872522c93f7f29dc9da6e84e2965f28",
+            "checksumPassed": true,
+            "pomMetadata": {
+              "groupId": "javax.servlet.jsp",
+              "artifactId": "javax.servlet.jsp-api",
+              "version": "2.3.3",
+              "name": "JavaServer Pages(TM) API",
+              "url": "https://javaee.github.io/javaee-jsp-api",
+              "licenses": [
+                {
+                  "name": "CDDL + GPLv2 with classpath exception",
+                  "url": "://oss.oracle.com/licenses/CDDL+GPL-1.1",
+                  "distribution": "repo",
+                  "comments": "A business-friendly OSS license"
+                }
+              ],
+              "dependencies": [
+                {
+                  "groupId": "javax.servlet",
+                  "artifactId": "javax.servlet-api",
+                  "version": "3.0.1",
+                  "scope": "provided"
+                },
+                {
+                  "groupId": "javax.el",
+                  "artifactId": "javax.el-api",
+                  "version": "[3.0.1-b06,)",
+                  "scope": "provided"
+                }
+              ],
+              "scm": {
+                "connection": "scm:git:https://github.com/javaee/javaee-jsp-api.git",
+                "developerConnection": "scm:git:ssh://git@github.com/javaee/javaee-jsp-api.git",
+                "url": "https://github.com/javaee/javaee-jsp-api",
+                "tag": "2.3.3"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "redistributionReview": {
+      "status": "pending-before-product-bundling",
+      "legalPermissionConclusion": "not-assessed",
+      "todo": "Confirm LICENSE/NOTICE preservation and artifact provenance before product redistribution."
+    },
+    "integratedWithAnalyzer": false,
+    "published": false
+  },
+  "sourceCompile": {
+    "sourceFiles": 42,
+    "compiledClasses": 43,
+    "exitCode": 0,
+    "classpath": [
+      {
+        "path": "<WORKSPACE>\\analysis\\work-preparation\\api-pack-javaee8\\artifacts\\javax.servlet-api\\4.0.1\\javax.servlet-api-4.0.1.jar",
+        "sha256": "83a03dd877d3674576f0da7b90755c8524af099ccf0607fc61aa971535ad7c60"
+      },
+      {
+        "path": "<WORKSPACE>\\analysis\\work-preparation\\api-pack-javaee8\\artifacts\\javax.servlet.jsp-api\\2.3.3\\javax.servlet.jsp-api-2.3.3.jar",
+        "sha256": "409a534d275ef0958a2c1692472da30e3706bfe6933d56c039376f53f13689b7"
+      },
+      {
+        "path": "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\war\\WEB-INF\\lib\\taglibs-standard-impl-1.2.5.jar",
+        "sha256": "d075cb77d94e2d115b4d90a897b57d65cc31ed8e1b95d65361da324642705728"
+      },
+      {
+        "path": "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\war\\WEB-INF\\lib\\taglibs-standard-spec-1.2.5.jar",
+        "sha256": "81a195f8acab3f072fe4d6c279b7c29575bcac49081076e3d08bbda829275189"
+      }
+    ],
+    "originalSourcesUnchanged": true,
+    "passed": true,
+    "limits": "This validates javac source compilation with the exact project API versions only. It does not validate analyzer classloader isolation, runtime/container linkage, or complete EL transitive dependency coverage."
+  },
+  "implementationStarted": false,
+  "npmPublished": false,
+  "releaseTagCreated": false,
+  "scope": "Seven audit corrections are implementation work items; the API pack is separate. API fixtures, resolver isolation and analyzer integration remain pending."
+}
