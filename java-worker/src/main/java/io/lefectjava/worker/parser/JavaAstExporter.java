@@ -43,6 +43,7 @@ public class JavaAstExporter {
     ParseResult<CompilationUnit> result = parser.parse(content);
     List<ParseProblemRecord> problems = problemCollector.collect(relativePath, content, result);
     CompilationUnit unit = result.getResult().orElseGet(CompilationUnit::new);
+    unit.setStorage(source.toAbsolutePath().normalize());
     AstFileResult ast = summaryExtractor.extract(relativePath, unit, sourceKind);
     String rawAstJson = astSerializer.serialize(unit);
     return new ExportResult(ast, rawAstJson, problems);
