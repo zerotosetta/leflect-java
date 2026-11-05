@@ -288,7 +288,7 @@ public Object getField(String name) { return fields.get(name); }
 
 예시의 목표는 선언형 `V`, 호출식 타입 `java.lang.Object`를 함께 확인하는 것입니다. 기존 `responseType`은 0.1.8 형식의 호환용 값으로 유지하고 의미를 조용히 바꾸지 않습니다. 새 값/리소스 추적 소비자는 해석된 `expressionType`을 우선 사용하고, 없으면 선언형과 미해석 상태를 함께 표시합니다. 기존 결과 파일에는 새 필드가 없을 수 있으므로 읽을 수는 있어도 구체 타입이 해석됐다고 간주하지 않습니다.
 
-`expressionTypeStatus`는 resolved/partial/unresolved로 나누고 근거·진단을 남깁니다. wildcard/capture·raw type·상한만 알려진 타입은 가능한 정보를 보존합니다. 단순히 Object로 대체해 해석 성공으로 만들지 않습니다. void 호출과 호출식이 아닌 명시적 생성자 위임도 구별합니다. API 설명은 동일한 실제 대상 시그니처와 대상 버전의 소스/Javadoc에 연결하고, 문서 미제공 상태는 타입 해석 상태와 별도로 유지합니다.
+`expressionTypeStatus`는 resolved/partial/unresolved/not-applicable로 나누고 근거·진단을 남깁니다. wildcard/capture·raw type·상한만 알려진 타입은 가능한 정보를 보존합니다. 단순히 Object로 대체해 해석 성공으로 만들지 않습니다. void 메서드 호출은 해석된 void 타입으로 기록하고, 호출식이 아닌 명시적 생성자 위임에는 호출식 타입을 넣지 않고 not-applicable로 표시합니다. API 설명은 동일한 실제 대상 시그니처와 대상 버전의 소스/Javadoc에 연결하고, 문서 미제공 상태는 타입 해석 상태와 별도로 유지합니다.
 
 **완료 기준 초안**
 
