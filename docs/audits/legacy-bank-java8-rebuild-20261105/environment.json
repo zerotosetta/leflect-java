@@ -1,0 +1,1102 @@
+{
+  "generatedAt": "2026-11-05T01:34:01.160Z",
+  "sourceRoot": "<SOURCE_ROOT>",
+  "analysisOut": "<ANALYSIS_ROOT>",
+  "analyzerCommit": "dd0b520c33a7d60f3f59427e9bbcba0533e5aa70",
+  "runtime": "java version \"25.0.2\" 2026-01-20 LTS\r\nJava(TM) SE Runtime Environment (build 25.0.2+10-LTS-69)\r\nJava HotSpot(TM) 64-Bit Server VM (build 25.0.2+10-LTS-69, mixed mode, sharing)",
+  "compiler": "javac 25.0.2",
+  "methodology": "Hash all 84 original input files against immutable audited inventory; record freshly rebuilt analyzer and newly compiled Java 8 project binaries plus exact dependency/source archive hashes. Original source is read-only.",
+  "checks": {
+    "sourceInventoryUnchanged": true,
+    "freshProjectClassDirectory": true,
+    "java8CompiledClasses": true,
+    "workerPackageSucceeded": true,
+    "sourceCompileNoErrors": true,
+    "workerSurefirePassed": true,
+    "releaseTestsPassed": true,
+    "originalSourceUnchangedAfterAllChecks": true,
+    "rebuiltWorkerUnchangedAfterAllChecks": true
+  },
+  "passed": true,
+  "sourceHashes": [
+    {
+      "path": ".editorconfig",
+      "baseline": "sha1:6af1e5a3f9abfd35b3b06c2f8e2dcf4c1d341026",
+      "current": "sha1:6af1e5a3f9abfd35b3b06c2f8e2dcf4c1d341026",
+      "sha256": "3f976b84ebdf41a35696b13c376fcb4ca22fc0aea5f24e6ce1eba60b54204ceb",
+      "passed": true
+    },
+    {
+      "path": "db/01_business.sql",
+      "baseline": "sha1:4f6bbc0f42f1c39ff2c5b53f42dbb30521f2bcbf",
+      "current": "sha1:4f6bbc0f42f1c39ff2c5b53f42dbb30521f2bcbf",
+      "sha256": "8643d63ed2e1ea53db3f6f73f2a71f10d34bed2ddf3024536642b3c2971e818a",
+      "passed": true
+    },
+    {
+      "path": "db/02_metadata.sql",
+      "baseline": "sha1:099a22e6bb7581f0237abeb01043be0432e71325",
+      "current": "sha1:099a22e6bb7581f0237abeb01043be0432e71325",
+      "sha256": "e64dbce9a4a3f036f6da7ef0a3b274cff92ea363cd982c6694deaf75e6c18b3b",
+      "passed": true
+    },
+    {
+      "path": "db/03_expand_business.sql",
+      "baseline": "sha1:971ffb900764e5c904e51b5bf29c129d5ec36f79",
+      "current": "sha1:971ffb900764e5c904e51b5bf29c129d5ec36f79",
+      "sha256": "e6d3d2221e1aaebf7ca2d1ebc5c90a5aea693dd5e7494ad1bad58b184e4d4b44",
+      "passed": true
+    },
+    {
+      "path": "db/04_expand_metadata.sql",
+      "baseline": "sha1:c6a67ab469d82844a58870c2152046b6a8d42f97",
+      "current": "sha1:c6a67ab469d82844a58870c2152046b6a8d42f97",
+      "sha256": "c4240162f647b274816b779d3c392999b00c3b68b8f5fc370e67e486db80f495",
+      "passed": true
+    },
+    {
+      "path": "dependencies.json",
+      "baseline": "sha1:d7d94cbcb2974fd2f7e4b6559e7ef43d72a2e74e",
+      "current": "sha1:d7d94cbcb2974fd2f7e4b6559e7ef43d72a2e74e",
+      "sha256": "4348660a8ed3c6691e4bfba7dc3bc3e97969f3d8fbd2c0295772593b5e5bb20d",
+      "passed": true
+    },
+    {
+      "path": "pom.xml",
+      "baseline": "sha1:a94107ad72d8823aee94cf8e0dfcc6cd635ef837",
+      "current": "sha1:a94107ad72d8823aee94cf8e0dfcc6cd635ef837",
+      "sha256": "b655873de6f9cb8c6baae855f5d95a58232e91f6a4a7e4a040e1c9838a5d8c57",
+      "passed": true
+    },
+    {
+      "path": "README.md",
+      "baseline": "sha1:74bdcb1f9cdb3af473f3567a3f9ff5227eefdcc2",
+      "current": "sha1:74bdcb1f9cdb3af473f3567a3f9ff5227eefdcc2",
+      "sha256": "a025fa406929ad828a1a5b368970a2dc27d66660d90ff2d05d52fe396e85dd55",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/BankException.java",
+      "baseline": "sha1:d7e03f3484b01b57c0e47dbfef9e0ea38ad54070",
+      "current": "sha1:d7e03f3484b01b57c0e47dbfef9e0ea38ad54070",
+      "sha256": "691c35df5b6b9e75fbaaf95a58a09432f5aaf5f4f332d852b15765312a31af16",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/BankServlet.java",
+      "baseline": "sha1:98002c9304b904dd37422a21ad2433f8d62faba2",
+      "current": "sha1:98002c9304b904dd37422a21ad2433f8d62faba2",
+      "sha256": "7ac8e3e5e2dba4ad1ff97862757063ee08faf07d190ebd47e1b70006dbaaf891",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/BTConnector.java",
+      "baseline": "sha1:0988a3f30ac7a0d72f057690b8b9271333c36217",
+      "current": "sha1:0988a3f30ac7a0d72f057690b8b9271333c36217",
+      "sha256": "2cdc9c75a052c0a589afb648de5845aaf13bdaf99a40921019edf3d78a41e2f3",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/BTConnectorFactory.java",
+      "baseline": "sha1:babcf03a4182d9d43488dc82b53db8928e0b022d",
+      "current": "sha1:babcf03a4182d9d43488dc82b53db8928e0b022d",
+      "sha256": "31403e7dfdb470b586f6a00e90936e0986b508d356be798b477c329f3c2b08e4",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/CalleeExecutor.java",
+      "baseline": "sha1:a71fa2c86551c86f9ccf6799f1ca3434b745cfb9",
+      "current": "sha1:a71fa2c86551c86f9ccf6799f1ca3434b745cfb9",
+      "sha256": "2f08f402d43d0017817f937012a1c36869b558cdd34fc9241b538a603554f68f",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/callees/DepositClose.java",
+      "baseline": "sha1:71d70cf177fa01fe2b9526f20f34cbaca35802df",
+      "current": "sha1:71d70cf177fa01fe2b9526f20f34cbaca35802df",
+      "sha256": "a87d86eb4ff4108fd0afc53f4191f9a4144790adb7a4cfbe2e9b81ee75e05cc0",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/callees/DepositLedger.java",
+      "baseline": "sha1:9ea99452f6d172e08a421109e6c39a15018e3cc0",
+      "current": "sha1:9ea99452f6d172e08a421109e6c39a15018e3cc0",
+      "sha256": "5003b2174fc079d949c0c6626c0f462d419a6df131ec53b39caf6877c1581d53",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/callees/DepositOpen.java",
+      "baseline": "sha1:f951c0327ffb8e1ac77662b0ac39d6704213a767",
+      "current": "sha1:f951c0327ffb8e1ac77662b0ac39d6704213a767",
+      "sha256": "dcf2dc3052f6743f7558f89647afeca7a8a2f6a4ac1ae6765b460f6b6d61e9c4",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/callees/TransferLedger.java",
+      "baseline": "sha1:dbd8949fce815fb1c04798974e5f09b98ee7525e",
+      "current": "sha1:dbd8949fce815fb1c04798974e5f09b98ee7525e",
+      "sha256": "3edcde2a329442af8a8a6cca7486251e82e785e483fa755b467a1ddf48adb666",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/callees/TransferPolicy.java",
+      "baseline": "sha1:70dfdc84d93b438bd40f9d4420e74c582567157d",
+      "current": "sha1:70dfdc84d93b438bd40f9d4420e74c582567157d",
+      "sha256": "08124266123ec39a76499f65e4a8515eb7a95e1bdd7299db784b9f066958b9c9",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/Cms.java",
+      "baseline": "sha1:cd472af62f4261ae56051635869fb037ed0621a3",
+      "current": "sha1:cd472af62f4261ae56051635869fb037ed0621a3",
+      "sha256": "c4e45bab4ad94f2c1955ba1c5d694b12a46739bd10b11cb644c7ff0a3f0faefb",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/Db.java",
+      "baseline": "sha1:f83fcb370efd9d9c629af23839f930ae49969bf3",
+      "current": "sha1:f83fcb370efd9d9c629af23839f930ae49969bf3",
+      "sha256": "84fc9a6b5afdb6f05b4adfaed1238a05775f635fb164fbfb2f6769f8794fa582",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/EimsGateway.java",
+      "baseline": "sha1:b5736d3db6f11655f0e0b38558f55d3d1bb14215",
+      "current": "sha1:b5736d3db6f11655f0e0b38558f55d3d1bb14215",
+      "sha256": "ea4808b80c7731ea77c5c5502feebe3a3d7fdde30ab422d3ecdb1a8542ec3854",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/HealthServlet.java",
+      "baseline": "sha1:6bc3cfbf5aeec8cc6aee87d5dc1e559246aed86f",
+      "current": "sha1:6bc3cfbf5aeec8cc6aee87d5dc1e559246aed86f",
+      "sha256": "69cc506f10eb2c837b4b491ff7d6b9c63d96ce8f272dbc39e468562dfcadc828",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/Ledger.java",
+      "baseline": "sha1:c5f79564da7ad490fe6552e3fe0134d602b788c3",
+      "current": "sha1:c5f79564da7ad490fe6552e3fe0134d602b788c3",
+      "sha256": "b9fd339246944758d0b325fb12b40f0986055c01fcd572c05f42371bea9b4612",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/Operations.java",
+      "baseline": "sha1:adab2ccaf938e74c96d0f1f87920a29fd90e22d2",
+      "current": "sha1:adab2ccaf938e74c96d0f1f87920a29fd90e22d2",
+      "sha256": "b96c335175830bb9adce87120048761b68b38fcb337e954dbae90a77e39445c8",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/QueryEngine.java",
+      "baseline": "sha1:5e1e469190d0608205432804e8b0bd95b88f6f54",
+      "current": "sha1:5e1e469190d0608205432804e8b0bd95b88f6f54",
+      "sha256": "d742df69913423cc7ed46bb4493201e72b01cfcbdf8e20dc20cd1350cad0b3eb",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/ServiceLocator.java",
+      "baseline": "sha1:dddb646b1f9561d49a9f9f6f079945ac022fb419",
+      "current": "sha1:dddb646b1f9561d49a9f9f6f079945ac022fb419",
+      "sha256": "89177d3fd0c7d40d285308a7102e0ace9340c105eff32ba1fc075ec063a7dc41",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/services/AccountListService.java",
+      "baseline": "sha1:f402b4efb1b9ffe1a2821e37c2c40cda9687e11a",
+      "current": "sha1:f402b4efb1b9ffe1a2821e37c2c40cda9687e11a",
+      "sha256": "2fd17d6b93a1524a4540530e8e4ebb262b75c3f14ed9bd637e9ee39e95225bd5",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/services/BeneficiaryDeleteService.java",
+      "baseline": "sha1:9048dfa5b3c8ec66b04284e0a1c46f2c68a479d8",
+      "current": "sha1:9048dfa5b3c8ec66b04284e0a1c46f2c68a479d8",
+      "sha256": "a4b0eb97eb61cf953a9534e368701b7d36458ece122ee0106f27d29a488c0edd",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/services/BeneficiaryService.java",
+      "baseline": "sha1:8de450049e82153352c8b4c57cc8c87d19dfc309",
+      "current": "sha1:8de450049e82153352c8b4c57cc8c87d19dfc309",
+      "sha256": "df08ba8941e8e80c6aecab064b8dedd3e0195ab32694c8c3cfd1c92b83cec67e",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/services/ChainService.java",
+      "baseline": "sha1:7a88f2bc4dac9167134cb1960a9d7b6ea1ea2157",
+      "current": "sha1:7a88f2bc4dac9167134cb1960a9d7b6ea1ea2157",
+      "sha256": "9feae7932aecb35c14f8fc6c71a1682d642702eb18f4fba210e0f02cb6171c9c",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/services/DashboardService.java",
+      "baseline": "sha1:3320be3d4bf1d42948ae7f3d6804a30fc20540bd",
+      "current": "sha1:3320be3d4bf1d42948ae7f3d6804a30fc20540bd",
+      "sha256": "ee7eaa7f749a1567536937a42f258ceb3253f9036b11fd3888788227748dbe47",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/services/DirectProductService.java",
+      "baseline": "sha1:f700875bb56f465d847d7e53470fa9a3a7430eb0",
+      "current": "sha1:f700875bb56f465d847d7e53470fa9a3a7430eb0",
+      "sha256": "3c2c9bdbf34b4938a748d737efdef21f6e4bfeb80e7c7f903fa75a0ca892cb57",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/services/HistoryService.java",
+      "baseline": "sha1:04c84d288d809e45161f055f81c8b5edd521eb9e",
+      "current": "sha1:04c84d288d809e45161f055f81c8b5edd521eb9e",
+      "sha256": "a2d9af016f9f9bfda029a63c18ea80625ae5ecb98c25da1e339cbf63740a2e25",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/services/LedgerService.java",
+      "baseline": "sha1:43ee1343e9e32e2095187dcbd489f818f0b1b895",
+      "current": "sha1:43ee1343e9e32e2095187dcbd489f818f0b1b895",
+      "sha256": "2d49faf1d6416c7736103ada64ecc4805590114475417690daf5a1abba620f27",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/services/LimitService.java",
+      "baseline": "sha1:167182918f458fe189cd8d00cd13fe033e3d2138",
+      "current": "sha1:167182918f458fe189cd8d00cd13fe033e3d2138",
+      "sha256": "7139c93cd91b7b8795a7d647327f31ce8eec3daca27ad3006cbb246baf52a040",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/services/LoginService.java",
+      "baseline": "sha1:2beb9acde3df80514e01d0ecc7aa580249506bf7",
+      "current": "sha1:2beb9acde3df80514e01d0ecc7aa580249506bf7",
+      "sha256": "fb4e8124a3381e0142c02fa5e7578afa404b3a602c51e9d67163f7c6ad6a45c1",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/services/NoticeService.java",
+      "baseline": "sha1:2fd4e23ef8834c47787bf455b32dfaf65141363a",
+      "current": "sha1:2fd4e23ef8834c47787bf455b32dfaf65141363a",
+      "sha256": "33a02cd4ce6a33bb7dae3e90065549a790ec572f9f1719f765bb710293279657",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/services/QueryService.java",
+      "baseline": "sha1:b8d4724f730d2dd8304cf8930e6cdd4e8a663097",
+      "current": "sha1:b8d4724f730d2dd8304cf8930e6cdd4e8a663097",
+      "sha256": "c24546a5a0ebb44b480e030a247f0da9f98b33e6a3d4e5bbac8e17a336af1a32",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/services/ReceiptService.java",
+      "baseline": "sha1:9a8fb21ad6538192af5ce051666d0ad96bcbeccc",
+      "current": "sha1:9a8fb21ad6538192af5ce051666d0ad96bcbeccc",
+      "sha256": "c88f9fa3d9314e1337a153a592aaed16f6e4cbec30d444dc103a6eab1cb28251",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/services/TransferService.java",
+      "baseline": "sha1:57f342172be13690738550e590c7afb5e140cab5",
+      "current": "sha1:57f342172be13690738550e590c7afb5e140cab5",
+      "sha256": "e68a4046159f28f667914c319c895ca97c74835bb61b9c5923bd6f70df8043d6",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/tags/FieldTag.java",
+      "baseline": "sha1:f7f867f03740c9da8b02a249c6371afdc0649c9f",
+      "current": "sha1:f7f867f03740c9da8b02a249c6371afdc0649c9f",
+      "sha256": "4302e5c7984f44a7b4eb61899caecd8fd64c943bb4c0e1b3cb462f6591ac823e",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/tags/QuoteTag.java",
+      "baseline": "sha1:ca4121678c028f164f6f657394e166b86bdb62b8",
+      "current": "sha1:ca4121678c028f164f6f657394e166b86bdb62b8",
+      "sha256": "b49401b7bd78f00daad2aac1d8f9041b1cc46f964e55756f4827a70e46615548",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/tags/RejectTag.java",
+      "baseline": "sha1:0456f9cc3dfb75d44a135aa63709d92ab512a90d",
+      "current": "sha1:0456f9cc3dfb75d44a135aa63709d92ab512a90d",
+      "sha256": "e4b19a453db756449bd5695532e5541742b7bd812a8352704d357e6cff914008",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/tags/TaskTag.java",
+      "baseline": "sha1:55662ca39a08aeef99f766e03ce4c27a2bb8bc20",
+      "current": "sha1:55662ca39a08aeef99f766e03ce4c27a2bb8bc20",
+      "sha256": "463a22d029a3335987580873b45ca03ce9eec5a77aa6adbe5ed56a636a235388",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/tags/TokenTag.java",
+      "baseline": "sha1:d1b9fc38adc77b4a70a4f8e4e5900a5cd1a5b82e",
+      "current": "sha1:d1b9fc38adc77b4a70a4f8e4e5900a5cd1a5b82e",
+      "sha256": "8fcadd91a0af579f6b8f5ae83a13d3b0aa150bd7ebc421f92875a6f57b7ff322",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/tags/TransferDraftTag.java",
+      "baseline": "sha1:fa83be5b46c89f85c6cac94a0030e8e20e2480e9",
+      "current": "sha1:fa83be5b46c89f85c6cac94a0030e8e20e2480e9",
+      "sha256": "0e02d6f2a3cbb587d42144b9933db33333298b4570279f548b4422f318634ba5",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/TaskHandler.java",
+      "baseline": "sha1:158f9e0cf30ac90cbbdc9f16d6e793df3a16017e",
+      "current": "sha1:158f9e0cf30ac90cbbdc9f16d6e793df3a16017e",
+      "sha256": "1335cdcf484d86b7318ecca304d262fce6ded59b7d0547077f7f4344fb666ffb",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/TransferDraft.java",
+      "baseline": "sha1:3e78f9c64c01fbcafe31c33bf960a76730716b04",
+      "current": "sha1:3e78f9c64c01fbcafe31c33bf960a76730716b04",
+      "sha256": "cd2bf711140fa9cbc0ce0513d1cb2d7319f7d29853eb57492229c7442c69fec5",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/WBFRecord.java",
+      "baseline": "sha1:3892352349fb0284ec5cc331c95fe957cc3e6512",
+      "current": "sha1:3892352349fb0284ec5cc331c95fe957cc3e6512",
+      "sha256": "2a1b68b5d377fef871f21be61ad95db576ad80fdbba922f27b9d8185c62d1206",
+      "passed": true
+    },
+    {
+      "path": "src/main/java/demo/bank/Web.java",
+      "baseline": "sha1:090272caec48f24f034b3798d25e9f9540c7b0f3",
+      "current": "sha1:090272caec48f24f034b3798d25e9f9540c7b0f3",
+      "sha256": "a9dc392b1eb3c4563809aba468207e6880da2a02056cf7b9ce1c7b55d6ca614b",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/assets/bank.css",
+      "baseline": "sha1:0eebc4ab0021f276aa4ac04fd8f30db95216fbf2",
+      "current": "sha1:0eebc4ab0021f276aa4ac04fd8f30db95216fbf2",
+      "sha256": "3cba47aea4ac6d2bdacf5d78b2599415f401e9d119420dc45ff2c5a3680b752f",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/assets/expanded.css",
+      "baseline": "sha1:10a769606d9024c7a885f10330a64fd0f19012bd",
+      "current": "sha1:10a769606d9024c7a885f10330a64fd0f19012bd",
+      "sha256": "f783de060601aece2ea03e74bd122b3d1e987e21b8c3c33c135a9fbebbdeccdb",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/index.jsp",
+      "baseline": "sha1:8436b0cd988981b6c369a56ac3b16b0ceb3591c8",
+      "current": "sha1:8436b0cd988981b6c369a56ac3b16b0ceb3591c8",
+      "sha256": "36d7e3d40276195f6151d8254b2f8131abe59a8cb96e4df8f767dc70c5e471be",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/META-INF/context.xml",
+      "baseline": "sha1:b808676c65506ca73f818858206f7a2e1fecf519",
+      "current": "sha1:b808676c65506ca73f818858206f7a2e1fecf519",
+      "sha256": "37143112d5e71700653ca22eb104f9c569864a06f6fdd29feda985bc93d12ba0",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/jsp/bank/accounts.jsp",
+      "baseline": "sha1:3d3cd8fae3e39459937d1ea3160da768386df76a",
+      "current": "sha1:3d3cd8fae3e39459937d1ea3160da768386df76a",
+      "sha256": "e3bcaf2f641b2d947a45c5b423e0cf2047a4f75dc8788a5fc50d7b1f80fd750e",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/jsp/bank/beneficiaries.jsp",
+      "baseline": "sha1:d1413ea1674d99e667ff0db9c8d44c4679aefd9b",
+      "current": "sha1:d1413ea1674d99e667ff0db9c8d44c4679aefd9b",
+      "sha256": "71b8d0bf9923cf11b94fe7ab85fcf57c9bc789850017595ef8ddc29221773544",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/jsp/bank/dashboard.jsp",
+      "baseline": "sha1:5359ea16f3770264ffa3e6647c74179e6d991372",
+      "current": "sha1:5359ea16f3770264ffa3e6647c74179e6d991372",
+      "sha256": "5455f4ac4540cf7d76edf8b3c0dcaf4ea0d0236ab3f4f3e5adabdd310a062be8",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+      "baseline": "sha1:f7e1222b5670c72b41611af23cba1fb02f3abdbf",
+      "current": "sha1:f7e1222b5670c72b41611af23cba1fb02f3abdbf",
+      "sha256": "9e6d3b8eedf1403c9ff25c3700a184365ff26e7479e1596ce414459a1a7da165",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/jsp/bank/history.jsp",
+      "baseline": "sha1:dacb8910a96adf2aa8919fe72740d669274039db",
+      "current": "sha1:dacb8910a96adf2aa8919fe72740d669274039db",
+      "sha256": "84c577cb28bddc7f54ccdaa00d40e825abbcb3c88263cacf6e1214d83401f08f",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+      "baseline": "sha1:f56d4e736be42ad055ece32c3213501b00f4ddc7",
+      "current": "sha1:f56d4e736be42ad055ece32c3213501b00f4ddc7",
+      "sha256": "8c26a762f043e6c96b1931c806e0424c970f17554abce130f17e873a7bb65771",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/jsp/bank/limits.jsp",
+      "baseline": "sha1:873cd6c213c46622c052a857a1ac3067c5860d20",
+      "current": "sha1:873cd6c213c46622c052a857a1ac3067c5860d20",
+      "sha256": "73cb67c77984c4951efe3a16319df41be75eb141f4ed6e5b9ce3359058aa33f4",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/jsp/bank/login.jsp",
+      "baseline": "sha1:5a2e58fa8c9325ebf32e6eeddacc4e06719916ab",
+      "current": "sha1:5a2e58fa8c9325ebf32e6eeddacc4e06719916ab",
+      "sha256": "a1bd045b7c018cfdd1cf220e1e57d141db7aa7cfc4b981f30ffccd6c21278d93",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/jsp/bank/products.jsp",
+      "baseline": "sha1:e71e628f06377224bf892e4e1971ece77b902769",
+      "current": "sha1:e71e628f06377224bf892e4e1971ece77b902769",
+      "sha256": "db2681184748ec42bb5c708a3e0002f8e0e9759011c1de4cf873c7344af33042",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/jsp/bank/receipt.jsp",
+      "baseline": "sha1:f9c9c06ede65aac20eb6b6a932c7d998c46f4088",
+      "current": "sha1:f9c9c06ede65aac20eb6b6a932c7d998c46f4088",
+      "sha256": "eb137376daf8054cad6434b046ac0a535c2659a2ab4acb404f58e56d852f8dc7",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/jsp/bank/transfer-confirm.jsp",
+      "baseline": "sha1:afd524b21bec2c5e6e16b026d1cf93103244f1ae",
+      "current": "sha1:afd524b21bec2c5e6e16b026d1cf93103244f1ae",
+      "sha256": "eeb0dc04439dffb92f67e68d0632ba4f0790dfc54254835b939c48cf8d0ae8af",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/jsp/bank/transfer-input.jsp",
+      "baseline": "sha1:dfbab40bc0f837bea46fa7b515cdb28e9a1cb5fc",
+      "current": "sha1:dfbab40bc0f837bea46fa7b515cdb28e9a1cb5fc",
+      "sha256": "393600bbdf8207d5dade6fd19f81b87e4e95f330e0112e0fb962aba09fd77e57",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/jsp/bank/transfer-result.jsp",
+      "baseline": "sha1:e259569dd93439a6f9097f034e786686969f83ce",
+      "current": "sha1:e259569dd93439a6f9097f034e786686969f83ce",
+      "sha256": "cffec4533ead1b62f35c13dcb9bc3b5366488db1652240a864474fc6b5c3cb4f",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/jsp/common/area.jsp",
+      "baseline": "sha1:9ed3f2e6fcd3ea46bec8c30fdc8855032c3fdac3",
+      "current": "sha1:9ed3f2e6fcd3ea46bec8c30fdc8855032c3fdac3",
+      "sha256": "76cf46e7a9ea7f5eb27e003d6aa011bdbaa58bac28ef9435c6ca05acae1d6610",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/jsp/common/banner.jsp",
+      "baseline": "sha1:e66d4fa7435fddf70a2289deabd2117205b0ccab",
+      "current": "sha1:e66d4fa7435fddf70a2289deabd2117205b0ccab",
+      "sha256": "3866c266c32b185b1bec702a56bec539e3492bb73ebfee7cc17a4f2a11ed0be2",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/jsp/common/footer.jsp",
+      "baseline": "sha1:efca26c6a8ea17027240256d81cbbc5ab2ad8e37",
+      "current": "sha1:efca26c6a8ea17027240256d81cbbc5ab2ad8e37",
+      "sha256": "0cb4bbd644b79a58d90d075626c8b1a3892a6e9148333f20ee26c19592159ede",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/jsp/common/header.jsp",
+      "baseline": "sha1:8e5e88f7db7d9d73781be9603380f46c1278c0f0",
+      "current": "sha1:8e5e88f7db7d9d73781be9603380f46c1278c0f0",
+      "sha256": "8a9054106c8eeb016e4595405ef9b974c9fe6d8d81abf7ff53b6310dae519257",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/jsp/common/help.jsp",
+      "baseline": "sha1:b8ccfa7cf13c4824026f9044d90378e00abd6226",
+      "current": "sha1:b8ccfa7cf13c4824026f9044d90378e00abd6226",
+      "sha256": "1907109ea24b628c70a2fbe95b647918f93433c2732ed9ad2991f4775282cec2",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/jsp/common/taglibs.jspf",
+      "baseline": "sha1:3ebe13d0fc24a0841524ba4ca995f8e922ac4097",
+      "current": "sha1:3ebe13d0fc24a0841524ba4ca995f8e922ac4097",
+      "sha256": "25ec60c53d84b42b1b3087940970d80a598d9fc780ae823024ccbf77a98c72dd",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/jsp/common/transfer-banner.jsp",
+      "baseline": "sha1:68cef0f541a72868cfb4d125942057a678d24266",
+      "current": "sha1:68cef0f541a72868cfb4d125942057a678d24266",
+      "sha256": "79c097d9b011b48408f4817500e5ad91f9ada306a745c6ed3837c6321ed11e96",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/jsp/layout.jsp",
+      "baseline": "sha1:c3f846c53614e633374dd6c40d068b060ad65e5f",
+      "current": "sha1:c3f846c53614e633374dd6c40d068b060ad65e5f",
+      "sha256": "8cd04433f0ec1ba1e7e83fc0c0272c620debcc59ae6de770e489e6b7e5145273",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/tags/bank/amount.tag",
+      "baseline": "sha1:444cbcde904fb7205c2f40aedeec6d1429f98e19",
+      "current": "sha1:444cbcde904fb7205c2f40aedeec6d1429f98e19",
+      "sha256": "b3ea792c32d9daaa95afaad5ebc52422996d02404873ea3ef11915d1293be67c",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/tags/bank/csrf.tag",
+      "baseline": "sha1:71d2277a55c856496ead1f10e8490ff3471f9ce4",
+      "current": "sha1:71d2277a55c856496ead1f10e8490ff3471f9ce4",
+      "sha256": "201413a7b99cf49970dcb52d26eb9847721535e26de84843fea76a7d60730b27",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/tags/bank/empty.tag",
+      "baseline": "sha1:c5ba5d9d0b53ee009111828e26b96177dc935903",
+      "current": "sha1:c5ba5d9d0b53ee009111828e26b96177dc935903",
+      "sha256": "13df65a4bb229637be44b87af26749c863c0ba90f4284f820342b78e7fbfe900",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/tags/bank/status.tag",
+      "baseline": "sha1:460a9933ce84ce3e5ea537b20ff64cb01f7abd88",
+      "current": "sha1:460a9933ce84ce3e5ea537b20ff64cb01f7abd88",
+      "sha256": "ddd8360f38a6a6eb15460d8799bb76d70133e3075116cad459bd1d3a022aea33",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/tags/bank/steps.tag",
+      "baseline": "sha1:af3d22c49943d23d9b59e04ff082318951ef15a5",
+      "current": "sha1:af3d22c49943d23d9b59e04ff082318951ef15a5",
+      "sha256": "8c3081d1a359406950bb9cad18308b2a749d8cb1292da1528e9f8ff48112f763",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/tld/bank.tld",
+      "baseline": "sha1:dd52ff6dfb7473147cd427a26738a9a1b1c39ad3",
+      "current": "sha1:dd52ff6dfb7473147cd427a26738a9a1b1c39ad3",
+      "sha256": "5d298f4cb30432fe7ca0a66253a8e0d5a6d82ce67e651953fd19a366958202c3",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/tld/wfw.tld",
+      "baseline": "sha1:5c30af2f77caea84615c4509cee10e73c3a619a6",
+      "current": "sha1:5c30af2f77caea84615c4509cee10e73c3a619a6",
+      "sha256": "22341ca4b24295f7f8c927e36a94ed6c966b6e59528edbed17bab9317f258667",
+      "passed": true
+    },
+    {
+      "path": "src/main/webapp/WEB-INF/web.xml",
+      "baseline": "sha1:a1ace1ecc206237981969ec24bfc7e19d78639c4",
+      "current": "sha1:a1ace1ecc206237981969ec24bfc7e19d78639c4",
+      "sha256": "51c2ad3943071c70133fc4f78e173b62a39f083820d710bd8f7a8d70888053bd",
+      "passed": true
+    },
+    {
+      "path": "target/legacy-bank.war",
+      "baseline": "sha1:6bf2277fb132b3d420acf6c14ad06c89a3da17f7",
+      "current": "sha1:6bf2277fb132b3d420acf6c14ad06c89a3da17f7",
+      "sha256": "4052da05bc8b1f08f0e7e6a195e1752eefb185dbce5cee0ef67db4d95dfd30f9",
+      "passed": true
+    }
+  ],
+  "workerJar": {
+    "path": "<WORKSPACE>\\java-worker\\target\\leflectjava-java-worker-0.1.0.jar",
+    "size": 15717814,
+    "sha256": "58aed8794a5db519856d08b1b864364c195bd81ac9dad401a8f5fa98975f1324",
+    "modifiedAt": "2026-11-05T01:32:39.190Z"
+  },
+  "projectClasses": [
+    {
+      "path": "demo/bank/BankException.class",
+      "sha256": "90988417eecff2108a9523d26b66af3dbcc59b3c95068ed32e620658656bc26e",
+      "modifiedAt": "2026-11-05T01:32:55.131Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/BankServlet.class",
+      "sha256": "417e010f04a6ffbe2e4a7f771752284d838864ac43a92dac9bcb365fdce5f287",
+      "modifiedAt": "2026-11-05T01:32:55.141Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/BTConnector.class",
+      "sha256": "ba39ee227865cf10e6a833e79182b1b2174c5ecd8b7529676bdf4e033233d268",
+      "modifiedAt": "2026-11-05T01:32:55.115Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/BTConnectorFactory.class",
+      "sha256": "a00a3dfddd72a0f63d156f3471ab35372ded49ee105d6d733a3a0e7e3879528d",
+      "modifiedAt": "2026-11-05T01:32:55.119Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/CalleeExecutor.class",
+      "sha256": "6c80db610a5bc555bbe2c4b227d3bef961c3f7da457cd53ddd2680abe061594c",
+      "modifiedAt": "2026-11-05T01:32:55.127Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/callees/DepositClose.class",
+      "sha256": "aef485d7186885b383b8451f666c965bdec2922cbab82fa46bce38619f2cee29",
+      "modifiedAt": "2026-11-05T01:32:55.244Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/callees/DepositLedger.class",
+      "sha256": "608c1154d2b351fe7c9541c66240df9db0f33692c30833517fdd32eb343eba31",
+      "modifiedAt": "2026-11-05T01:32:55.240Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/callees/DepositOpen.class",
+      "sha256": "6250ad2a2142dd99d33329ad8c35c31bd0db05b93701e70b2ea4af6264c89077",
+      "modifiedAt": "2026-11-05T01:32:55.237Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/callees/TransferLedger.class",
+      "sha256": "9eac746836216d83e66c50cdb60be4a22c1c586e93248e9c4dd2cdc2077e5b6b",
+      "modifiedAt": "2026-11-05T01:32:55.233Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/callees/TransferPolicy.class",
+      "sha256": "320865b4fc072138746aaf6507acb6d9ccf41ae59c2e2e2c5e18af46632f6abb",
+      "modifiedAt": "2026-11-05T01:32:55.231Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/Cms$Page.class",
+      "sha256": "a9b389ed4bdc660ef4ec2e881717d204986ae2b372977d363140663186609705",
+      "modifiedAt": "2026-11-05T01:32:55.042Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/Cms.class",
+      "sha256": "79f2064a3c217a9171c997ff9b47fbe93fae392cf4838f00d35041a2cbc3c5ae",
+      "modifiedAt": "2026-11-05T01:32:55.050Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/Db.class",
+      "sha256": "51ae9d087f52d253404bac7f20e9da247446070074bfaad885dff4a4618e55b7",
+      "modifiedAt": "2026-11-05T01:32:54.998Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/EimsGateway.class",
+      "sha256": "62d716b4771c1f0ce3331c522d72712970fb72dd17a6827b0ff23f578052a434",
+      "modifiedAt": "2026-11-05T01:32:55.073Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/HealthServlet.class",
+      "sha256": "811d7e6aeae1b8f5f72e8f41bbbba0be74fb75d56bb274ae3179ce10e1c2f775",
+      "modifiedAt": "2026-11-05T01:32:55.064Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/Ledger.class",
+      "sha256": "7e517bdeb5a4861d112f18ea62f9735be377d669519b4bfa3298da82c94e7549",
+      "modifiedAt": "2026-11-05T01:32:55.020Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/Operations.class",
+      "sha256": "e5b532164caafd508993e5fc12466f75939a8f7d7ed55afcca7d7ceaed0cd5a9",
+      "modifiedAt": "2026-11-05T01:32:55.007Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/QueryEngine.class",
+      "sha256": "6b8148d97fd506ddaebdb65b99cf2edbd01f716bfdd716cd6329dc813b0220e9",
+      "modifiedAt": "2026-11-05T01:32:55.098Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/ServiceLocator.class",
+      "sha256": "385edebc02516eaf67cf5b00ad7faf9b4de2a0fd737910ccfd9ab3f4a1472f7c",
+      "modifiedAt": "2026-11-05T01:32:55.081Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/services/AccountListService.class",
+      "sha256": "f6c4cf42495c98f5be615015f045bf5db94b162613de8a3c4b670ae4ae4a454b",
+      "modifiedAt": "2026-11-05T01:32:55.176Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/services/BeneficiaryDeleteService.class",
+      "sha256": "34a29776e52e3ac5f21c8c97a2f30bef21aee99168a19af8337455e55e32f620",
+      "modifiedAt": "2026-11-05T01:32:55.181Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/services/BeneficiaryService.class",
+      "sha256": "58943886c3524d4e1b3b03a06194c606ad0a6ac25fc67115aca9cd23c96c9d75",
+      "modifiedAt": "2026-11-05T01:32:55.185Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/services/ChainService.class",
+      "sha256": "49389e56cbfcb7fae99c00abe9940ee374f3a8076f44eeb0cec92f76e9cb7017",
+      "modifiedAt": "2026-11-05T01:32:55.188Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/services/DashboardService.class",
+      "sha256": "c4d88e64c4df6b6d5393ce0a850ad05504abc110b2feccbca07a954ccfe0a528",
+      "modifiedAt": "2026-11-05T01:32:55.191Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/services/DirectProductService.class",
+      "sha256": "ae9358aa5b950236473b7230e2adf5893250c9240e30f608320cdd6515d1581e",
+      "modifiedAt": "2026-11-05T01:32:55.197Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/services/HistoryService.class",
+      "sha256": "0d32380be8931d462cad34e927fb2c122ab0ac533fad9e7552b97b56d01b3d8c",
+      "modifiedAt": "2026-11-05T01:32:55.201Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/services/LedgerService.class",
+      "sha256": "5db7a6f056ff205b84696d7218f7b9f551b0891231d048e747184a0b5d7a80cf",
+      "modifiedAt": "2026-11-05T01:32:55.209Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/services/LimitService.class",
+      "sha256": "e45f3a6631ad7431033939da2872f97f304b7b820666dee0fa9f70b37134f528",
+      "modifiedAt": "2026-11-05T01:32:55.219Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/services/LoginService.class",
+      "sha256": "66d15557d46a1df88de9f8c4b3f8459687831dd1a2f29b1053b4c36986e8fc44",
+      "modifiedAt": "2026-11-05T01:32:55.224Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/services/NoticeService.class",
+      "sha256": "333b471aa6f8b9afd1a6bc1110c239b6a40b0c0d683325aa027c9ed88793318c",
+      "modifiedAt": "2026-11-05T01:32:55.246Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/services/QueryService.class",
+      "sha256": "6d6a49924dd1e9a9c59a37e8777d19e1f7472778c2f97506052063c0e5374a99",
+      "modifiedAt": "2026-11-05T01:32:55.212Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/services/ReceiptService.class",
+      "sha256": "e70b73998535ca898859efb04ab2e3fb97bf29716b727598823cfafc85b5f959",
+      "modifiedAt": "2026-11-05T01:32:55.215Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/services/TransferService.class",
+      "sha256": "ff2eb3f4659ec906c69d9c07cd84df4c6ceee4c4e46bc5ed15d4c024e2d696f0",
+      "modifiedAt": "2026-11-05T01:32:55.221Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/tags/FieldTag.class",
+      "sha256": "43cf7df5beee93276ae2c44d0f98b9607f20ae081807f29db4c3fec7de738f73",
+      "modifiedAt": "2026-11-05T01:32:55.170Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/tags/QuoteTag.class",
+      "sha256": "696bbc79cc0c50f282eaa87b4fe68ad6ca17f5e1130ee932a24caababb172da7",
+      "modifiedAt": "2026-11-05T01:32:55.165Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/tags/RejectTag.class",
+      "sha256": "6941da407616f9f63c916d75b6225c0856a171a48dd50a16811df04f60e14e5c",
+      "modifiedAt": "2026-11-05T01:32:55.162Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/tags/TaskTag.class",
+      "sha256": "3f9e7aaf432e518aca60f8c488b1f85741f93df09b04b96590c05ec999f56d4c",
+      "modifiedAt": "2026-11-05T01:32:55.158Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/tags/TokenTag.class",
+      "sha256": "28e099a7fd16daeda9feb28cdf2e84d4d84a30abfa734300c154610f01ae1ae6",
+      "modifiedAt": "2026-11-05T01:32:55.153Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/tags/TransferDraftTag.class",
+      "sha256": "ec172fe1fbb7229da489829e1153a336c6b647901b54f4ad25cad6f115b2a8cb",
+      "modifiedAt": "2026-11-05T01:32:55.148Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/TaskHandler.class",
+      "sha256": "d8608fad4f9a77c91cae5ca2696440c32de4501c04b765c483a3a6d45cf5efcc",
+      "modifiedAt": "2026-11-05T01:32:54.985Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/TransferDraft.class",
+      "sha256": "ad7193327a94ad4ac6b0a533c7dffff7949392eebf52b87e1766744d5e1a2893",
+      "modifiedAt": "2026-11-05T01:32:54.982Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/WBFRecord.class",
+      "sha256": "55b849dededd435d8bdb6812c6b59affff0d1d893329d22f706cfe9f7ddeb6fa",
+      "modifiedAt": "2026-11-05T01:32:54.974Z",
+      "majorVersion": 52
+    },
+    {
+      "path": "demo/bank/Web.class",
+      "sha256": "ace37b569a7aaea76da21b228f53be1b8e28fc2ef3933114302b57dd5f046d40",
+      "modifiedAt": "2026-11-05T01:32:54.950Z",
+      "majorVersion": 52
+    }
+  ],
+  "dependencies": [
+    {
+      "path": "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\war\\WEB-INF\\lib\\taglibs-standard-impl-1.2.5.jar",
+      "size": 206430,
+      "sha256": "d075cb77d94e2d115b4d90a897b57d65cc31ed8e1b95d65361da324642705728",
+      "modifiedAt": "2026-11-03T04:42:46.000Z"
+    },
+    {
+      "path": "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\war\\WEB-INF\\lib\\taglibs-standard-spec-1.2.5.jar",
+      "size": 40153,
+      "sha256": "81a195f8acab3f072fe4d6c279b7c29575bcac49081076e3d08bbda829275189",
+      "modifiedAt": "2026-11-03T04:42:46.000Z"
+    },
+    {
+      "path": "<MAVEN_REPOSITORY>\\org\\apache\\tomcat\\tomcat-servlet-api\\9.0.102\\tomcat-servlet-api-9.0.102.jar",
+      "size": 285735,
+      "sha256": "87390ea92a9997d60c7cd4c69fcb2406ac238e32e64080474b652c08fb2cf3bd",
+      "modifiedAt": "2026-03-12T01:24:09.515Z"
+    },
+    {
+      "path": "<MAVEN_REPOSITORY>\\org\\apache\\tomcat\\tomcat-jsp-api\\9.0.102\\tomcat-jsp-api-9.0.102.jar",
+      "size": 73912,
+      "sha256": "ecfae7b6ec347bf74fc0d5e616ad48b6e87c8fb24efb547225f4e268556e0558",
+      "modifiedAt": "2026-03-12T01:24:09.504Z"
+    }
+  ],
+  "archives": [
+    {
+      "path": "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\external-sources\\jdk8-src.zip",
+      "size": 33679,
+      "sha256": "b5827bb986f46f3ad0e7fd4239c34763bee0f787cd29f1e7573d7b02804cfcc1",
+      "modifiedAt": "2026-11-04T07:04:42.434Z"
+    },
+    {
+      "path": "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\external-sources\\tomcat-servlet-api-9.0.102-sources.jar",
+      "size": 358792,
+      "sha256": "42fd888af1583d00b6ff5591002eef2e583ad4dce7c61dcf14fa9177d99bcbda",
+      "modifiedAt": "2026-11-04T07:04:23.658Z"
+    },
+    {
+      "path": "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\external-sources\\tomcat-jsp-api-9.0.102-sources.jar",
+      "size": 106405,
+      "sha256": "bff57d306d8a284850e7a4f866d2ddf0abb0aec5802ab7226e9e17cb0244bb4c",
+      "modifiedAt": "2026-11-04T07:04:23.840Z"
+    }
+  ],
+  "logs": {
+    "clean": "clean.log",
+    "workerPackage": "worker-build.log",
+    "sourceCompilation": "source-compile.log"
+  },
+  "workerTests": {
+    "method": "Parse actual newly generated Surefire TEST-*.xml suite attributes",
+    "suites": [
+      {
+        "file": "TEST-io.lefectjava.worker.cli.ParseJavaCommandTest.xml",
+        "name": "io.lefectjava.worker.cli.ParseJavaCommandTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "file": "TEST-io.lefectjava.worker.cli.ParseJspCommandTest.xml",
+        "name": "io.lefectjava.worker.cli.ParseJspCommandTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "file": "TEST-io.lefectjava.worker.jsp.JasperJspCompilerTest.xml",
+        "name": "io.lefectjava.worker.jsp.JasperJspCompilerTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "file": "TEST-io.lefectjava.worker.parser.JavaAstExporterTest.xml",
+        "name": "io.lefectjava.worker.parser.JavaAstExporterTest",
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "file": "TEST-io.lefectjava.worker.parser.JavaRevisionAccuracyTest.xml",
+        "name": "io.lefectjava.worker.parser.JavaRevisionAccuracyTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ],
+    "total": {
+      "tests": 18,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "releaseTests": {
+    "testFiles": 38,
+    "tests": 114,
+    "buildCompleted": true,
+    "log": "release-check.log"
+  },
+  "afterVerification": {
+    "verifiedAt": "2026-11-05T01:35:47.373Z",
+    "sourceFiles": 84,
+    "unchanged": true,
+    "failures": [],
+    "rebuiltWorkerUnchanged": true,
+    "enabledNoop": {
+      "passed": true,
+      "artifacts": 144,
+      "differences": 0
+    },
+    "excludedNoop": {
+      "passed": true,
+      "artifacts": 143,
+      "differences": 0
+    },
+    "changedDeleted": {
+      "passed": true,
+      "artifacts": 142,
+      "differences": 0,
+      "checks": {
+        "deletedIndex": true,
+        "deletedAst": true,
+        "unchangedCallerUpdated": true,
+        "ctorStepUpdated": true,
+        "fieldStepUpdated": true,
+        "synchronizedBodyUpdated": true,
+        "sourceFunctionAdded": true,
+        "reportCallerAdded": true,
+        "taskCodeChanged": true,
+        "routeChanged": true
+      }
+    }
+  },
+  "config": {
+    "jsp": {
+      "classpath": [
+        "<ANALYSIS_ROOT>\\environment\\classes",
+        "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\war\\WEB-INF\\lib\\taglibs-standard-impl-1.2.5.jar",
+        "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\war\\WEB-INF\\lib\\taglibs-standard-spec-1.2.5.jar",
+        "<MAVEN_REPOSITORY>\\org\\apache\\tomcat\\tomcat-servlet-api\\9.0.102\\tomcat-servlet-api-9.0.102.jar",
+        "<MAVEN_REPOSITORY>\\org\\apache\\tomcat\\tomcat-jsp-api\\9.0.102\\tomcat-jsp-api-9.0.102.jar"
+      ],
+      "webappRoot": "src/main/webapp",
+      "tld": {
+        "autoLoad": true
+      }
+    },
+    "java": {
+      "classpath": [
+        "<ANALYSIS_ROOT>\\environment\\classes",
+        "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\war\\WEB-INF\\lib\\taglibs-standard-impl-1.2.5.jar",
+        "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\war\\WEB-INF\\lib\\taglibs-standard-spec-1.2.5.jar",
+        "<MAVEN_REPOSITORY>\\org\\apache\\tomcat\\tomcat-servlet-api\\9.0.102\\tomcat-servlet-api-9.0.102.jar",
+        "<MAVEN_REPOSITORY>\\org\\apache\\tomcat\\tomcat-jsp-api\\9.0.102\\tomcat-jsp-api-9.0.102.jar"
+      ],
+      "targetVersion": "8",
+      "sourceArchive": "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\external-sources\\jdk8-src.zip",
+      "workerJar": "<WORKSPACE>\\java-worker\\target\\leflectjava-java-worker-0.1.0.jar",
+      "librarySources": [
+        {
+          "provider": "javax.servlet",
+          "version": "4.0.FR",
+          "archive": "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\external-sources\\tomcat-servlet-api-9.0.102-sources.jar"
+        },
+        {
+          "provider": "javax.servlet.jsp",
+          "version": "2.3.FR",
+          "archive": "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\external-sources\\tomcat-jsp-api-9.0.102-sources.jar"
+        }
+      ]
+    },
+    "ignoreFile": "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\accuracy.ignore",
+    "analysisOut": "<ANALYSIS_ROOT>"
+  },
+  "excludedConfig": {
+    "jsp": {
+      "classpath": [
+        "<ANALYSIS_ROOT>\\environment\\classes",
+        "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\war\\WEB-INF\\lib\\taglibs-standard-impl-1.2.5.jar",
+        "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\war\\WEB-INF\\lib\\taglibs-standard-spec-1.2.5.jar",
+        "<MAVEN_REPOSITORY>\\org\\apache\\tomcat\\tomcat-servlet-api\\9.0.102\\tomcat-servlet-api-9.0.102.jar",
+        "<MAVEN_REPOSITORY>\\org\\apache\\tomcat\\tomcat-jsp-api\\9.0.102\\tomcat-jsp-api-9.0.102.jar"
+      ],
+      "webappRoot": "src/main/webapp",
+      "tld": {
+        "autoLoad": false
+      }
+    },
+    "java": {
+      "classpath": [
+        "<ANALYSIS_ROOT>\\environment\\classes",
+        "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\war\\WEB-INF\\lib\\taglibs-standard-impl-1.2.5.jar",
+        "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\war\\WEB-INF\\lib\\taglibs-standard-spec-1.2.5.jar",
+        "<MAVEN_REPOSITORY>\\org\\apache\\tomcat\\tomcat-servlet-api\\9.0.102\\tomcat-servlet-api-9.0.102.jar",
+        "<MAVEN_REPOSITORY>\\org\\apache\\tomcat\\tomcat-jsp-api\\9.0.102\\tomcat-jsp-api-9.0.102.jar"
+      ],
+      "targetVersion": "8",
+      "sourceArchive": "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\external-sources\\jdk8-src.zip",
+      "workerJar": "<WORKSPACE>\\java-worker\\target\\leflectjava-java-worker-0.1.0.jar",
+      "librarySources": [
+        {
+          "provider": "javax.servlet",
+          "version": "4.0.FR",
+          "archive": "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\external-sources\\tomcat-servlet-api-9.0.102-sources.jar"
+        },
+        {
+          "provider": "javax.servlet.jsp",
+          "version": "2.3.FR",
+          "archive": "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\external-sources\\tomcat-jsp-api-9.0.102-sources.jar"
+        }
+      ]
+    },
+    "ignoreFile": "<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\accuracy.ignore",
+    "analysisOut": "<ANALYSIS_ROOT>-excluded"
+  },
+  "sourceArchiveScope": "The pinned JDK8 validation source archive contains Date/HashMap, not a complete JDK source distribution. Type resolution and source documentation availability are checked separately."
+}

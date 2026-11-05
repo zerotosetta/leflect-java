@@ -1,0 +1,992 @@
+{
+  "analyzerCommit": "dd0b520c33a7d60f3f59427e9bbcba0533e5aa70",
+  "analysisRun": "rebuild-20261105-103212",
+  "excludedRun": "rebuild-20261105-103212-excluded",
+  "verifiedAt": "2026-11-05T01:36:15.360Z",
+  "passed": true,
+  "issueDeletion": {
+    "number": 11,
+    "requestedByUser": true,
+    "verifiedHttpStatus": 410,
+    "message": "This issue was deleted"
+  },
+  "results": {
+    "REV-JAVA-01": {
+      "status": "passed",
+      "checks": 3,
+      "failures": []
+    },
+    "REV-JAVA-02": {
+      "status": "passed",
+      "checks": 2,
+      "failures": []
+    },
+    "REV-JAVA-03": {
+      "status": "passed",
+      "checks": 2,
+      "failures": []
+    },
+    "REV-JAVA-04": {
+      "status": "passed",
+      "checks": 2,
+      "failures": []
+    },
+    "REV-JSP-01": {
+      "status": "passed",
+      "checks": 3,
+      "failures": []
+    },
+    "REV-REPORT-01": {
+      "status": "passed",
+      "checks": 5,
+      "failures": []
+    },
+    "COMMON": {
+      "status": "passed",
+      "checks": 21,
+      "failures": []
+    }
+  },
+  "acceptanceChecks": [
+    {
+      "key": "COMMON",
+      "name": "independent audit extractor compiles",
+      "passed": true,
+      "evidence": {
+        "exitCode": 0,
+        "stderr": ""
+      }
+    },
+    {
+      "key": "COMMON",
+      "name": "independent javac --release8 attribution succeeds",
+      "passed": true,
+      "evidence": {
+        "exitCode": 0,
+        "stdout": "javac source count=42; errors=0\r\n",
+        "stderr": ""
+      }
+    },
+    {
+      "key": "COMMON",
+      "name": "all84 source files unchanged and captured",
+      "passed": true,
+      "evidence": {
+        "files": 84,
+        "failures": []
+      }
+    },
+    {
+      "key": "COMMON",
+      "name": "Java sources preserved",
+      "passed": true,
+      "evidence": {
+        "expected": 42,
+        "actual": 42
+      }
+    },
+    {
+      "key": "COMMON",
+      "name": "classes preserved",
+      "passed": true,
+      "evidence": {
+        "expected": 43,
+        "actual": 43
+      }
+    },
+    {
+      "key": "COMMON",
+      "name": "methods preserved",
+      "passed": true,
+      "evidence": {
+        "expected": 108,
+        "actual": 108
+      }
+    },
+    {
+      "key": "COMMON",
+      "name": "fields preserved",
+      "passed": true,
+      "evidence": {
+        "expected": 37,
+        "actual": 37
+      }
+    },
+    {
+      "key": "COMMON",
+      "name": "raw Java calls preserved",
+      "passed": true,
+      "evidence": {
+        "expected": 646,
+        "actual": 646
+      }
+    },
+    {
+      "key": "COMMON",
+      "name": "JSP-family docs preserved",
+      "passed": true,
+      "evidence": {
+        "expected": 27,
+        "actual": 27
+      }
+    },
+    {
+      "key": "COMMON",
+      "name": "JSP pages preserved",
+      "passed": true,
+      "evidence": {
+        "expected": 21,
+        "actual": 21
+      }
+    },
+    {
+      "key": "COMMON",
+      "name": "source declarations match IDs and ranges in both directions",
+      "passed": true,
+      "evidence": {
+        "classes": [],
+        "methods": [],
+        "fields": []
+      }
+    },
+    {
+      "key": "COMMON",
+      "name": "all646 raw call targets/origins/graph positions retained without extras",
+      "passed": true,
+      "evidence": {
+        "failures": []
+      }
+    },
+    {
+      "key": "COMMON",
+      "name": "all799 declared type positions retained",
+      "passed": true,
+      "evidence": {
+        "count": 799,
+        "failures": []
+      }
+    },
+    {
+      "key": "COMMON",
+      "name": "all emitted raw references source-backed",
+      "passed": true,
+      "evidence": {
+        "references": 966,
+        "failures": []
+      }
+    },
+    {
+      "key": "COMMON",
+      "name": "newType source occurrences retained",
+      "passed": true,
+      "evidence": {
+        "expected": 121,
+        "actual": 121,
+        "failures": []
+      }
+    },
+    {
+      "key": "COMMON",
+      "name": "import source occurrences retained",
+      "passed": true,
+      "evidence": {
+        "expected": 154,
+        "actual": 154,
+        "failures": []
+      }
+    },
+    {
+      "key": "REV-JAVA-01",
+      "name": "all6 exact static-owner ranges and external targets recorded",
+      "passed": true,
+      "evidence": {
+        "failures": []
+      }
+    },
+    {
+      "key": "REV-JAVA-01",
+      "name": "all5 file/type pairs connected once",
+      "passed": true,
+      "evidence": {
+        "pairs": [
+          "src/main/java/demo/bank/BTConnector.java|java.time.DayOfWeek",
+          "src/main/java/demo/bank/QueryEngine.java|java.util.Locale",
+          "src/main/java/demo/bank/Web.java|java.util.Locale",
+          "src/main/java/demo/bank/services/DirectProductService.java|java.math.RoundingMode",
+          "src/main/java/demo/bank/tags/QuoteTag.java|javax.servlet.jsp.PageContext"
+        ]
+      }
+    },
+    {
+      "key": "REV-JAVA-01",
+      "name": "package fragments do not become type references",
+      "passed": true,
+      "evidence": []
+    },
+    {
+      "key": "REV-JAVA-02",
+      "name": "all24 synchronized body calls occur once with target and lock scope",
+      "passed": true,
+      "evidence": {
+        "failures": []
+      }
+    },
+    {
+      "key": "REV-JAVA-02",
+      "name": "all4 lock scopes retain body/control/return ownership",
+      "passed": true,
+      "evidence": {
+        "failures": []
+      }
+    },
+    {
+      "key": "REV-JAVA-03",
+      "name": "super canonical target appears once in method callTargets",
+      "passed": true,
+      "evidence": {
+        "site": {
+          "file": "src/main/java/demo/bank/BankException.java",
+          "methodId": "demo.bank.BankException#BankException(int,String,String)",
+          "methodName": "<init>",
+          "location": {
+            "line": 7,
+            "column": 9,
+            "endLine": 7,
+            "endColumn": 22
+          },
+          "target": "java.lang.RuntimeException#<init>(java.lang.String)",
+          "matched": false,
+          "source": "        super(message); this.status = status; this.code = code;",
+          "methodCallTargets": []
+        },
+        "methodId": "demo.bank.BankException#BankException(int,String,String)",
+        "callTargets": [
+          "java.lang.RuntimeException#<init>(java.lang.String)"
+        ],
+        "superSteps": [
+          {
+            "id": "demo.bank.BankException#BankException(int,String,String):step:1",
+            "kind": "constructor-call",
+            "snippet": "super(message)",
+            "branchPath": [],
+            "lineRange": {
+              "startLine": 7,
+              "startColumn": 9,
+              "endLine": 7,
+              "endColumn": 22
+            },
+            "call": {
+              "targetText": "super",
+              "resolvedMethodId": "java.lang.RuntimeException#<init>(java.lang.String)",
+              "resolvedClassId": "java.lang.RuntimeException",
+              "methodName": "<init>"
+            }
+          }
+        ],
+        "allSteps": [
+          {
+            "id": "demo.bank.BankException#BankException(int,String,String):step:1",
+            "kind": "constructor-call",
+            "snippet": "super(message)",
+            "branchPath": [],
+            "lineRange": {
+              "startLine": 7,
+              "startColumn": 9,
+              "endLine": 7,
+              "endColumn": 22
+            },
+            "call": {
+              "targetText": "super",
+              "resolvedMethodId": "java.lang.RuntimeException#<init>(java.lang.String)",
+              "resolvedClassId": "java.lang.RuntimeException",
+              "methodName": "<init>"
+            }
+          },
+          {
+            "id": "demo.bank.BankException#BankException(int,String,String):step:2",
+            "kind": "field-write",
+            "snippet": "this.status = status",
+            "branchPath": [],
+            "lineRange": {
+              "startLine": 7,
+              "startColumn": 25,
+              "endLine": 7,
+              "endColumn": 44
+            },
+            "field": {
+              "id": "demo.bank.BankException#status",
+              "classId": "demo.bank.BankException",
+              "name": "status"
+            }
+          },
+          {
+            "id": "demo.bank.BankException#BankException(int,String,String):step:3",
+            "kind": "field-write",
+            "snippet": "this.code = code",
+            "branchPath": [],
+            "lineRange": {
+              "startLine": 7,
+              "startColumn": 47,
+              "endLine": 7,
+              "endColumn": 62
+            },
+            "field": {
+              "id": "demo.bank.BankException#code",
+              "classId": "demo.bank.BankException",
+              "name": "code"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "key": "REV-JAVA-03",
+      "name": "super7:9-22 ordered before both field assignments",
+      "passed": true,
+      "evidence": {
+        "site": {
+          "file": "src/main/java/demo/bank/BankException.java",
+          "methodId": "demo.bank.BankException#BankException(int,String,String)",
+          "methodName": "<init>",
+          "location": {
+            "line": 7,
+            "column": 9,
+            "endLine": 7,
+            "endColumn": 22
+          },
+          "target": "java.lang.RuntimeException#<init>(java.lang.String)",
+          "matched": false,
+          "source": "        super(message); this.status = status; this.code = code;",
+          "methodCallTargets": []
+        },
+        "methodId": "demo.bank.BankException#BankException(int,String,String)",
+        "callTargets": [
+          "java.lang.RuntimeException#<init>(java.lang.String)"
+        ],
+        "superSteps": [
+          {
+            "id": "demo.bank.BankException#BankException(int,String,String):step:1",
+            "kind": "constructor-call",
+            "snippet": "super(message)",
+            "branchPath": [],
+            "lineRange": {
+              "startLine": 7,
+              "startColumn": 9,
+              "endLine": 7,
+              "endColumn": 22
+            },
+            "call": {
+              "targetText": "super",
+              "resolvedMethodId": "java.lang.RuntimeException#<init>(java.lang.String)",
+              "resolvedClassId": "java.lang.RuntimeException",
+              "methodName": "<init>"
+            }
+          }
+        ],
+        "allSteps": [
+          {
+            "id": "demo.bank.BankException#BankException(int,String,String):step:1",
+            "kind": "constructor-call",
+            "snippet": "super(message)",
+            "branchPath": [],
+            "lineRange": {
+              "startLine": 7,
+              "startColumn": 9,
+              "endLine": 7,
+              "endColumn": 22
+            },
+            "call": {
+              "targetText": "super",
+              "resolvedMethodId": "java.lang.RuntimeException#<init>(java.lang.String)",
+              "resolvedClassId": "java.lang.RuntimeException",
+              "methodName": "<init>"
+            }
+          },
+          {
+            "id": "demo.bank.BankException#BankException(int,String,String):step:2",
+            "kind": "field-write",
+            "snippet": "this.status = status",
+            "branchPath": [],
+            "lineRange": {
+              "startLine": 7,
+              "startColumn": 25,
+              "endLine": 7,
+              "endColumn": 44
+            },
+            "field": {
+              "id": "demo.bank.BankException#status",
+              "classId": "demo.bank.BankException",
+              "name": "status"
+            }
+          },
+          {
+            "id": "demo.bank.BankException#BankException(int,String,String):step:3",
+            "kind": "field-write",
+            "snippet": "this.code = code",
+            "branchPath": [],
+            "lineRange": {
+              "startLine": 7,
+              "startColumn": 47,
+              "endLine": 7,
+              "endColumn": 62
+            },
+            "field": {
+              "id": "demo.bank.BankException#code",
+              "classId": "demo.bank.BankException",
+              "name": "code"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "key": "REV-JAVA-04",
+      "name": "all6 explicit this writes classified as fields at exact ranges",
+      "passed": true,
+      "evidence": {
+        "failures": []
+      }
+    },
+    {
+      "key": "REV-JAVA-04",
+      "name": "existing this.id classification preserved",
+      "passed": true,
+      "evidence": [
+        {
+          "id": "demo.bank.TransferDraft#TransferDraft(String,String,BigDecimal):step:1",
+          "kind": "call",
+          "snippet": "UUID.randomUUID()",
+          "branchPath": [],
+          "lineRange": {
+            "startLine": 15,
+            "startColumn": 78,
+            "endLine": 15,
+            "endColumn": 94
+          },
+          "call": {
+            "targetText": "UUID.randomUUID",
+            "resolvedMethodId": "java.util.UUID#randomUUID()",
+            "resolvedClassId": "java.util.UUID",
+            "methodName": "randomUUID"
+          }
+        },
+        {
+          "id": "demo.bank.TransferDraft#TransferDraft(String,String,BigDecimal):step:2",
+          "kind": "call",
+          "snippet": "UUID.randomUUID().toString()",
+          "branchPath": [],
+          "lineRange": {
+            "startLine": 15,
+            "startColumn": 78,
+            "endLine": 15,
+            "endColumn": 105
+          },
+          "call": {
+            "targetText": "UUID.randomUUID().toString",
+            "resolvedMethodId": "java.util.UUID#toString()",
+            "resolvedClassId": "java.util.UUID",
+            "methodName": "toString"
+          }
+        },
+        {
+          "id": "demo.bank.TransferDraft#TransferDraft(String,String,BigDecimal):step:3",
+          "kind": "field-write",
+          "snippet": "this.id = UUID.randomUUID().toString()",
+          "branchPath": [],
+          "lineRange": {
+            "startLine": 15,
+            "startColumn": 70,
+            "endLine": 15,
+            "endColumn": 105
+          },
+          "field": {
+            "id": "demo.bank.TransferDraft#id",
+            "classId": "demo.bank.TransferDraft",
+            "name": "id"
+          }
+        },
+        {
+          "id": "demo.bank.TransferDraft#TransferDraft(String,String,BigDecimal):step:4",
+          "kind": "field-write",
+          "snippet": "this.from = from",
+          "branchPath": [],
+          "lineRange": {
+            "startLine": 15,
+            "startColumn": 108,
+            "endLine": 15,
+            "endColumn": 121
+          },
+          "field": {
+            "id": "demo.bank.TransferDraft#from",
+            "classId": "demo.bank.TransferDraft",
+            "name": "from"
+          }
+        },
+        {
+          "id": "demo.bank.TransferDraft#TransferDraft(String,String,BigDecimal):step:5",
+          "kind": "field-write",
+          "snippet": "this.to = to",
+          "branchPath": [],
+          "lineRange": {
+            "startLine": 15,
+            "startColumn": 124,
+            "endLine": 15,
+            "endColumn": 133
+          },
+          "field": {
+            "id": "demo.bank.TransferDraft#to",
+            "classId": "demo.bank.TransferDraft",
+            "name": "to"
+          }
+        },
+        {
+          "id": "demo.bank.TransferDraft#TransferDraft(String,String,BigDecimal):step:6",
+          "kind": "field-write",
+          "snippet": "this.amount = amount",
+          "branchPath": [],
+          "lineRange": {
+            "startLine": 15,
+            "startColumn": 136,
+            "endLine": 15,
+            "endColumn": 153
+          },
+          "field": {
+            "id": "demo.bank.TransferDraft#amount",
+            "classId": "demo.bank.TransferDraft",
+            "name": "amount"
+          }
+        }
+      ]
+    },
+    {
+      "key": "REV-JSP-01",
+      "name": "all40 standard and4 custom function occurrences match actual signatures/provenance",
+      "passed": true,
+      "evidence": {
+        "actual": 44,
+        "standard": 40,
+        "custom": 4,
+        "failures": []
+      }
+    },
+    {
+      "key": "REV-JSP-01",
+      "name": "no duplicate function graph edges and external targets stay external",
+      "passed": true,
+      "evidence": {
+        "functionEdges": 44
+      }
+    },
+    {
+      "key": "REV-REPORT-01",
+      "name": "allfunction signatures/source positions reflected in liveCLI and persisted summary",
+      "passed": true,
+      "evidence": {
+        "failures": []
+      }
+    },
+    {
+      "key": "REV-REPORT-01",
+      "name": "Web query lists4 unique source-function callers",
+      "passed": true,
+      "evidence": {
+        "expected": [
+          "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+          "src/main/webapp/WEB-INF/jsp/bank/login.jsp",
+          "src/main/webapp/WEB-INF/tags/bank/csrf.tag",
+          "src/main/webapp/WEB-INF/tags/bank/status.tag"
+        ],
+        "actual": [
+          "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+          "src/main/webapp/WEB-INF/jsp/bank/login.jsp",
+          "src/main/webapp/WEB-INF/tags/bank/csrf.tag",
+          "src/main/webapp/WEB-INF/tags/bank/status.tag"
+        ]
+      }
+    },
+    {
+      "key": "REV-REPORT-01",
+      "name": "standardfunctions query lists12 external-library callerfiles",
+      "passed": true,
+      "evidence": {
+        "expected": [
+          "src/main/webapp/WEB-INF/jsp/bank/accounts.jsp",
+          "src/main/webapp/WEB-INF/jsp/bank/beneficiaries.jsp",
+          "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+          "src/main/webapp/WEB-INF/jsp/bank/history.jsp",
+          "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+          "src/main/webapp/WEB-INF/jsp/bank/products.jsp",
+          "src/main/webapp/WEB-INF/jsp/bank/transfer-confirm.jsp",
+          "src/main/webapp/WEB-INF/jsp/bank/transfer-input.jsp",
+          "src/main/webapp/WEB-INF/jsp/bank/transfer-result.jsp",
+          "src/main/webapp/WEB-INF/jsp/common/header.jsp",
+          "src/main/webapp/WEB-INF/jsp/layout.jsp",
+          "src/main/webapp/WEB-INF/tags/bank/status.tag"
+        ],
+        "actual": [
+          "src/main/webapp/WEB-INF/jsp/bank/accounts.jsp",
+          "src/main/webapp/WEB-INF/jsp/bank/beneficiaries.jsp",
+          "src/main/webapp/WEB-INF/jsp/bank/deposits.jsp",
+          "src/main/webapp/WEB-INF/jsp/bank/history.jsp",
+          "src/main/webapp/WEB-INF/jsp/bank/ledger.jsp",
+          "src/main/webapp/WEB-INF/jsp/bank/products.jsp",
+          "src/main/webapp/WEB-INF/jsp/bank/transfer-confirm.jsp",
+          "src/main/webapp/WEB-INF/jsp/bank/transfer-input.jsp",
+          "src/main/webapp/WEB-INF/jsp/bank/transfer-result.jsp",
+          "src/main/webapp/WEB-INF/jsp/common/header.jsp",
+          "src/main/webapp/WEB-INF/jsp/layout.jsp",
+          "src/main/webapp/WEB-INF/tags/bank/status.tag"
+        ]
+      }
+    },
+    {
+      "key": "REV-REPORT-01",
+      "name": "both tag-only function files appear in impactsummary",
+      "passed": true
+    },
+    {
+      "key": "REV-REPORT-01",
+      "name": "Markdown impact retains custom and standardfunction targets",
+      "passed": true
+    },
+    {
+      "key": "COMMON",
+      "name": "JSP_USES_TAG original source occurrences retained",
+      "passed": true,
+      "evidence": {
+        "expected": 59,
+        "actual": 59
+      }
+    },
+    {
+      "key": "COMMON",
+      "name": "JSP_USES_TAG_FILE original source occurrences retained",
+      "passed": true,
+      "evidence": {
+        "expected": 42,
+        "actual": 42
+      }
+    },
+    {
+      "key": "COMMON",
+      "name": "4static action plus17directive includes preserved",
+      "passed": true
+    },
+    {
+      "key": "COMMON",
+      "name": "TASK22 uses/17codes andHTTP2 registrations preserved",
+      "passed": true,
+      "evidence": {
+        "task": {
+          "occurrences": 22,
+          "literalOccurrences": 22,
+          "distinctCodes": 17,
+          "dynamicOccurrences": 0,
+          "invalidOccurrences": 0
+        },
+        "http": 2
+      }
+    },
+    {
+      "key": "COMMON",
+      "name": "no ungrounded runtime target edges introduced",
+      "passed": true,
+      "evidence": {
+        "deferred": [
+          "AUD-ENTRY-03",
+          "AUD-DB-01",
+          "AUD-DB-02"
+        ]
+      }
+    },
+    {
+      "key": "REV-JSP-01",
+      "name": "opt-out preserves40locations and exclusionreasons withoutfalseedges",
+      "passed": true,
+      "evidence": {
+        "failures": []
+      }
+    }
+  ],
+  "regressions": [
+    {
+      "name": "baseline117",
+      "passed": true,
+      "exitCode": 0,
+      "report": "report/baseline-117-verification.json",
+      "summary": {
+        "total": 117,
+        "passed": 117,
+        "unresolvedAfter": 0
+      }
+    },
+    {
+      "name": "parser",
+      "passed": true,
+      "exitCode": 0,
+      "report": "verification/parser.json",
+      "summary": {
+        "AUD-JSP-01": {
+          "expected": 38,
+          "passed": 38
+        },
+        "AUD-JSP-02": {
+          "source": 269,
+          "raw": 269,
+          "semantic": 269,
+          "matched": 269
+        },
+        "AUD-JSP-03": {
+          "expected": 2,
+          "passed": 2
+        },
+        "AUD-JSP-08": {
+          "expectedFiles": 27,
+          "files": 27,
+          "filesWithAllShards": 27,
+          "tagAttributes": 6,
+          "matchedTagAttributes": 6
+        },
+        "negativeFixtures": {
+          "total": 5,
+          "passed": 5
+        },
+        "failures": 0
+      }
+    },
+    {
+      "name": "semantic",
+      "passed": true,
+      "exitCode": 0,
+      "report": "verification/semantic.json",
+      "summary": {
+        "checks": 314,
+        "failures": 0
+      }
+    },
+    {
+      "name": "report-entry-task",
+      "passed": true,
+      "exitCode": 0,
+      "report": "verification/report-entry-task.json",
+      "summary": {
+        "AUD-REPORT-01": {
+          "tagFileUses": 42,
+          "fixedIncludeUses": 4,
+          "matched": 46,
+          "files": 17
+        },
+        "AUD-ENTRY-01": {
+          "routes": 2,
+          "matched": 2
+        },
+        "AUD-ENTRY-02": {
+          "originalJavaFiles": 42,
+          "currentJavaFiles": 42,
+          "originalHandlers": 59,
+          "originalTags": 272,
+          "matchedTags": 272,
+          "controllers": 2
+        },
+        "AUD-TASK-01": {
+          "occurrences": 22,
+          "literalOccurrences": 22,
+          "distinctCodes": 17,
+          "dynamicOccurrences": 0,
+          "invalidOccurrences": 0,
+          "matched": 22,
+          "files": 12
+        },
+        "failures": 0
+      }
+    },
+    {
+      "name": "new-imports",
+      "passed": true,
+      "exitCode": 0,
+      "report": "verification/java-new-imports.json"
+    },
+    {
+      "name": "source-jsp",
+      "passed": true,
+      "exitCode": 0,
+      "report": "verification/issue11-jsp-source.json",
+      "summary": {
+        "files": 27,
+        "tags": 861,
+        "customTags": 290,
+        "attributes": 987,
+        "expressions": 286,
+        "comments": 4,
+        "directives": 45,
+        "scriptlets": 0,
+        "functions": 44,
+        "standardFunctions": 40,
+        "customFunctions": 4,
+        "structuralFailures": 0
+      }
+    }
+  ],
+  "enabledCounts": {
+    "classes": 43,
+    "methods": 108,
+    "jsps": 21,
+    "taglibs": 14,
+    "javaCallEdges": 646,
+    "jspJavaEdges": 103,
+    "unresolvedEdges": 0
+  },
+  "excludedCounts": {
+    "classes": 43,
+    "methods": 108,
+    "jsps": 21,
+    "taglibs": 5,
+    "javaCallEdges": 646,
+    "jspJavaEdges": 63,
+    "unresolvedEdges": 0
+  },
+  "tests": {
+    "release": {
+      "testFiles": 38,
+      "tests": 114,
+      "buildCompleted": true,
+      "log": "release-check.log"
+    },
+    "worker": {
+      "tests": 18,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "noOp": {
+    "generatedAt": "2026-11-05T01:35:04.952Z",
+    "checkedFiles": 144,
+    "differences": [],
+    "baselineSourceFiles": 84,
+    "currentSourceFiles": 84,
+    "sourceDiff": [],
+    "passed": true
+  },
+  "excludedNoOp": {
+    "generatedAt": "2026-11-05T01:35:15.189Z",
+    "checkedFiles": 143,
+    "differences": [],
+    "baselineSourceFiles": 84,
+    "currentSourceFiles": 84,
+    "sourceDiff": [],
+    "passed": true
+  },
+  "changedDeleted": {
+    "passed": true,
+    "copiedSourceFiles": 84,
+    "mutations": [
+      {
+        "type": "java-signature-change",
+        "path": "src/main/java/demo/bank/Cms.java",
+        "before": "load(String pageId,int step,",
+        "after": "load(String pageId,long step,"
+      },
+      {
+        "type": "java-call-cast",
+        "path": "src/main/java/demo/bank/Cms.java",
+        "before": "p.setInt(2,step)",
+        "after": "p.setInt(2,(int)step)"
+      },
+      {
+        "type": "constructor-step-change",
+        "path": "src/main/java/demo/bank/BankException.java",
+        "before": "super(message);",
+        "after": "super(\"review:\" + message);"
+      },
+      {
+        "type": "field-write-value-change",
+        "path": "src/main/java/demo/bank/BankException.java",
+        "before": "this.code = code;",
+        "after": "this.code = code.trim();"
+      },
+      {
+        "type": "synchronized-body-change",
+        "path": "src/main/java/demo/bank/Web.java",
+        "before": "session.getAttribute(\"CSRF\")",
+        "after": "session.getAttribute(\"CSRF_REVIEW\")"
+      },
+      {
+        "type": "standard-function-expression-change",
+        "path": "src/main/webapp/WEB-INF/jsp/bank/accounts.jsp",
+        "before": "${fn:length(accounts)}",
+        "after": "${fn:length(noticeResult.rows)}"
+      },
+      {
+        "type": "add-source-function-caller",
+        "path": "src/main/webapp/WEB-INF/jsp/bank/accounts.jsp",
+        "after": "${bank:statusLabel(param.state)}"
+      },
+      {
+        "type": "task-code-change",
+        "path": "src/main/webapp/WEB-INF/jsp/bank/accounts.jsp",
+        "before": "DBANK_NOTICE_00J",
+        "after": "DBANK_NOTICE_01J"
+      },
+      {
+        "type": "route-change",
+        "path": "src/main/webapp/WEB-INF/web.xml",
+        "before": "<url-pattern>/page</url-pattern>",
+        "after": "<url-pattern>/page-review</url-pattern>"
+      },
+      {
+        "type": "delete-java",
+        "path": "src/main/java/demo/bank/HealthServlet.java"
+      }
+    ],
+    "comparedArtifacts": 142,
+    "differences": [],
+    "checks": {
+      "deletedIndex": true,
+      "deletedAst": true,
+      "unchangedCallerUpdated": true,
+      "ctorStepUpdated": true,
+      "fieldStepUpdated": true,
+      "synchronizedBodyUpdated": true,
+      "sourceFunctionAdded": true,
+      "reportCallerAdded": true,
+      "taskCodeChanged": true,
+      "routeChanged": true
+    }
+  },
+  "sourceFreshnessChecks": {
+    "sourceInventoryUnchanged": true,
+    "freshProjectClassDirectory": true,
+    "java8CompiledClasses": true,
+    "workerPackageSucceeded": true,
+    "sourceCompileNoErrors": true,
+    "workerSurefirePassed": true,
+    "releaseTestsPassed": true,
+    "originalSourceUnchangedAfterAllChecks": true,
+    "rebuiltWorkerUnchangedAfterAllChecks": true
+  },
+  "deferred": [
+    {
+      "key": "AUD-ENTRY-03",
+      "status": "deferred"
+    },
+    {
+      "key": "AUD-DB-01",
+      "status": "deferred"
+    },
+    {
+      "key": "AUD-DB-02",
+      "status": "deferred"
+    }
+  ],
+  "evidence": {
+    "staticQualifierSites": 6,
+    "synchronizedScopes": 4,
+    "synchronizedCallSites": 24,
+    "thisFieldWrites": 6,
+    "functionSites": 44,
+    "excludedStandardFunctions": 40,
+    "functionFiles": 14
+  },
+  "scope": "Static source and artifact verification only. CMS, query and metadata-selected reflection links remain deferred. No application/database execution or browser visual test."
+}
