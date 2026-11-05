@@ -129,6 +129,62 @@ describe("Java import provenance", () => {
       originEvidence: { importKind: "fully-qualified" } });
   });
 
+  const staticCall = (extra: Partial<JavaSummaryMethodCall> = {}): JavaSummaryMethodCall => ({
+    target: "java.util.Collections#emptyList()", receiverOriginKind: "static-import",
+    receiverType: "java.util.Collections", receiverTypeSpelling: "emptyList",
+    receiverDeclarationFile: file, receiverDeclarationLocation: location(2), location: location(8), ...extra
+  });
+  const buildStaticCalls = (imports: string[], calls: JavaSummaryMethodCall[]) => buildJavaIndex({ files: [file], summaries: [{
+    path: file, imports, methodCalls: calls, classReferences: imports.map((entry, i) => {
+      const spelling = entry.replace(/^static /, "");
+      return reference(spelling.replace(/\.\*$/, ""), i + 2, spelling.endsWith(".*"), true);
+    })
+  }] }).calls;
+
+  it("links unqualified static methods to exact explicit or on-demand static declarations", () => {
+    // The explicit case also covers older summaries whose import spelling omits static.
+    const explicit = buildStaticCalls(["java.util.Collections.emptyList"], [staticCall()])[0];
+    expect(explicit).toMatchObject({ importId: `java-import:${file}:java.util.Collections.emptyList`,
+      originKind: "static-import", originStatus: "resolved", originEvidence: {
+        spelling: "emptyList", type: "java.util.Collections", file, location: location(2), importKind: "explicit-import"
+      } });
+    const wildcard = buildStaticCalls(["static java.util.Collections.*"], [staticCall()])[0];
+    expect(wildcard).toMatchObject({ importId: `java-import:${file}:static java.util.Collections.*`,
+      originKind: "static-import", originStatus: "resolved", originEvidence: { importKind: "on-demand-import", location: location(2) } });
+  });
+
+  it("keeps overlapping static declaration evidence ambiguous without choosing a declaration", () => {
+    const call = buildStaticCalls(["static java.util.Collections.emptyList", "static java.util.Collections.*"], [staticCall()])[0];
+    expect(call).toMatchObject({ importId: undefined, originKind: "ambiguous", originStatus: "ambiguous", originEvidence: {
+      candidateImportIds: [`java-import:${file}:static java.util.Collections.*`, `java-import:${file}:static java.util.Collections.emptyList`],
+      reason: "Multiple static declarations support this resolved unqualified method"
+    } });
+  });
+
+  it("does not borrow static imports for ordinary own or inherited unqualified calls", () => {
+    const calls = buildStaticCalls(["static java.util.Collections.emptyList"], [
+      staticCall({ target: "demo.Example#emptyList()", receiverOriginKind: "local" }),
+      staticCall({ target: "demo.Base#emptyList()", receiverOriginKind: "inherited" })
+    ]);
+    expect(calls.map(call => [call.originKind, call.originStatus, call.importId])).toEqual([
+      ["inherited", "not-required", undefined], ["local-type", "not-required", undefined]
+    ]);
+  });
+
+  it("requires actual static declarations and matching method owner, spelling, and file", () => {
+    const calls = buildStaticCalls(["static java.util.Collections.emptyList"], [
+      staticCall({ receiverType: "java.util.List", location: location(8) }),
+      staticCall({ receiverTypeSpelling: "other", location: location(9) }),
+      staticCall({ receiverDeclarationFile: "src/demo/Other.java", location: location(10) }),
+      staticCall({ target: "java.util.Collections#singletonList(java.lang.Object)", receiverTypeSpelling: "singletonList", location: location(11) })
+    ]);
+    expect(calls.every(call => call.importId === undefined && call.originKind === "unresolved" && call.originStatus === "unresolved" && call.originEvidence?.reason)).toBe(true);
+    const ordinaryImport = buildJavaIndex({ files: [file], summaries: [{ path: file,
+      imports: ["java.util.Collections.*"], classReferences: [reference("java.util.Collections", 2, true)], methodCalls: [staticCall()]
+    }] }).calls[0];
+    expect(ordinaryImport).toMatchObject({ importId: undefined, originKind: "unresolved", originStatus: "unresolved" });
+  });
+
   it("replays every confirmed type-reference finding against the original source spelling and expected import", () => {
     const findings = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../../../../docs/audits/legacy-bank-java8-source-audit-20261105/findings.json"), "utf8"));
     const sites = findings.confirmed.find((finding: { key: string }) => finding.key === "AUD2-IMPORT-02").occurrences;

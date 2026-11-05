@@ -101,6 +101,7 @@ public final class JavaExecutionModelExtractor {
   }
 
   private record Handler(CatchClause clause, String node) {}
+  private record ExceptionDispatch(List<Handler> handlers, boolean unhandled, boolean definite) {}
   private record Pending(String token, String target, List<FinallyRegion> remaining, String kind) {}
 
   private static final class FinallyRegion {
@@ -181,12 +182,16 @@ public final class JavaExecutionModelExtractor {
           "coverage", map("status", unsupported.isEmpty() && Boolean.TRUE.equals(stateResult.get("complete")) ? "complete" : "partial",
               "sourceScope", "explicit-source-method-local", "unsupportedNodes", unsupported, "stateAnalysis", stateResult.get("analysis"),
               "limits", List.of("No interprocedural/heap alias analysis or implicit resource-close/constructor operations",
-                  "Unknown callee effects retain possible exception paths and invalidate tracked field null states", "No automatic null-dereference warnings")));
+                  "Unknown callee effects retain possible exception paths and invalidate tracked field null states",
+                  "Exception routes cover explicit throw and calls; implicit arithmetic/array/null/monitor exceptions are outside this model", "No automatic null-dereference warnings")));
     }
 
     private boolean belongs(Node node) {
       for (Node n = node; n != null && n != callable; n = n.getParentNode().orElse(null)) {
         if (n instanceof LambdaExpr || n instanceof TypeDeclaration<?> || (n instanceof CallableDeclaration<?> && n != callable)) return false;
+        Node parent=n.getParentNode().orElse(null);
+        if(parent instanceof ObjectCreationExpr creation && creation.getAnonymousClassBody().isPresent())
+          for(BodyDeclaration<?> member:creation.getAnonymousClassBody().get())if(member==n)return false;
       }
       return contains(callable, node);
     }
@@ -206,7 +211,9 @@ public final class JavaExecutionModelExtractor {
       Node parent = v.getParentNode().orElse(v);
       Node owner = parent.getParentNode().orElse(parent);
       if (owner instanceof ForStmt || owner instanceof ForEachStmt || owner instanceof TryStmt) return owner;
-      return v.findAncestor(BlockStmt.class).map(n -> (Node)n).orElse(callable);
+      for(Node cursor=owner;cursor!=null&&cursor!=callable;cursor=cursor.getParentNode().orElse(null))
+        if(cursor instanceof BlockStmt||cursor instanceof SwitchStmt)return cursor;
+      return callable;
     }
 
     private Symbol addSymbol(Node declaration, String name, String type, String kind, Node scope, boolean primitive, String binding) {
@@ -226,30 +233,54 @@ public final class JavaExecutionModelExtractor {
               || (depth(candidate.scope) == depth(best.scope) && begin(candidate.declaration) > begin(best.declaration))) best = candidate;
         }
         if (best != null) return best;
+        // JavaParser can select a foreach binding while resolving its iterable. Java scopes
+        // that binding to the body; resolve the actual enclosing field declaration instead.
+        boolean foreachIterable=false;
+        for(Symbol candidate:symbols.values())if(candidate.name.equals(name)&&candidate.scope instanceof ForEachStmt loop&&contains(loop.getIterable(),expression)){foreachIterable=true;break;}
+        if(foreachIterable)try{
+          TypeDeclaration<?> owner=callable.findAncestor(TypeDeclaration.class).orElse(null);
+          if(owner!=null){var resolved=owner.resolve();var field=resolved.getDeclaredFields().stream().filter(f->f.getName().equals(name)).findFirst();if(field.isEmpty())field=resolved.getVisibleFields().stream().filter(f->f.getName().equals(name)).findFirst();if(field.isPresent())return fieldSymbol(field.get(),expression);}
+        }catch(RuntimeException unresolved){/* Preserve an unresolved read if the declaration is unavailable. */}
       }
       if (expression instanceof NameExpr || expression instanceof FieldAccessExpr) {
         try {
           var value = expression instanceof NameExpr ? ((NameExpr)expression).resolve() : ((FieldAccessExpr)expression).resolve();
-          if (value.isField()) {
-            ResolvedFieldDeclaration field = value.asField();
-            String receiver = expression instanceof FieldAccessExpr ? ((FieldAccessExpr) expression).getScope().toString() : "this";
-            // Only this/static storage has a stable receiver in this method-local model.
-            // Two occurrences of factory().field or reassignedLocal.field must not alias by text.
-            boolean stable=field.isStatic()||!(expression instanceof FieldAccessExpr)||((FieldAccessExpr)expression).getScope() instanceof ThisExpr||((FieldAccessExpr)expression).getScope() instanceof SuperExpr;
-            String identity=field.isStatic()?"static":stable?"this":receiver+":"+position(expression);
-            String id = field.declaringType().getQualifiedName() + "#" + field.getName() + "@" + identity;
-            return symbols.computeIfAbsent(id, k -> new Symbol(id, field.getName(), field.getType().describe(), "field", field.toAst().map(n -> (Node)n).orElse(callable), callable,
-                field.getType().isPrimitive(), receiver));
-          }
+          if (value.isField()) return fieldSymbol(value.asField(),expression);
         } catch (RuntimeException ignored) { /* Explicit unresolved target remains visible in effects. */ }
       }
       return null;
+    }
+
+    private Symbol fieldSymbol(ResolvedFieldDeclaration field,Expression expression){
+      String receiver=expression instanceof FieldAccessExpr?((FieldAccessExpr)expression).getScope().toString():"this";
+      // Only this/static storage has a stable receiver; equal source text is not a heap alias.
+      String identity=fieldReceiverIdentity(field,expression);
+      String id=field.declaringType().getQualifiedName()+"#"+field.getName()+"@"+identity;
+      return symbols.computeIfAbsent(id,k->new Symbol(id,field.getName(),field.getType().describe(),"field",field.toAst().map(n->(Node)n).orElse(callable),callable,field.getType().isPrimitive(),receiver));
+    }
+
+    private String fieldReceiverIdentity(ResolvedFieldDeclaration field,Expression expression){
+      if(field.isStatic())return "static";
+      if(!(expression instanceof FieldAccessExpr))return "this";
+      Expression scope=unwrap(((FieldAccessExpr)expression).getScope());
+      Optional<com.github.javaparser.ast.expr.Name> qualifier=scope instanceof ThisExpr?((ThisExpr)scope).getTypeName():scope instanceof SuperExpr?((SuperExpr)scope).getTypeName():null;
+      if(qualifier==null)return scope+":"+position(expression);
+      if(qualifier.isEmpty())return "this";
+      String written=qualifier.get().asString();TypeDeclaration<?> current=callable.findAncestor(TypeDeclaration.class).orElse(null);
+      if(current!=null)try{
+        String qualified=current.resolve().getQualifiedName();
+        if(written.equals(current.getNameAsString())||written.equals(qualified))return "this";
+      }catch(RuntimeException unresolved){/* Keep qualified storage distinct when its owner cannot be proven. */}
+      // An enclosing instance can inherit the same field declaration as the current instance.
+      // The declaration owner alone therefore cannot identify its storage.
+      return "enclosing-this:"+written;
     }
 
     private boolean inScope(Symbol symbol, Node use) {
       if (!contains(symbol.scope, use)) return false;
       if (symbol.kind.equals("parameter") || symbol.kind.equals("catch")) return true;
       if (begin(symbol.declaration) > begin(use)) return false;
+      if(symbol.scope instanceof ForEachStmt)return contains(((ForEachStmt)symbol.scope).getBody(),use);
       if (symbol.scope instanceof TryStmt) {
         TryStmt t = (TryStmt)symbol.scope;
         return contains(t.getTryBlock(), use) || t.getResources().stream().anyMatch(r -> contains(r, use));
@@ -364,8 +395,11 @@ public final class JavaExecutionModelExtractor {
       }
       if(statement instanceof ThrowStmt) {
         ThrowStmt s=(ThrowStmt)statement;Fragment value=expression(s.getExpression(),context);Map<String,Object> step=step("throw",s,context);
-        Fragment result=sequence(value,single(step));Handler h=matchingHandler(s.getExpression(),context.handlers);
-        if(h!=null)route(node(step),h.node,h.clause,context,"throw");else route(node(step),exceptionalExit,null,context,"throw");
+        Fragment result=sequence(value,single(step));ExceptionDispatch dispatch=exceptionDispatch(s.getExpression(),context.handlers);
+        String transferKind=dispatch.definite?"throw":"throw:possible";
+        if(!dispatch.definite)step.put("exceptionDispatch",exactThrownType(s.getExpression())?"possible-unresolved-catch-types":"possible-runtime-subtypes");
+        for(Handler handler:dispatch.handlers)route(node(step),handler.node,handler.clause,context,transferKind);
+        if(dispatch.unhandled)route(node(step),exceptionalExit,null,context,transferKind);
         return new Fragment(result.entry,List.of());
       }
       if(statement instanceof LocalClassDeclarationStmt) return single(step("local-type",statement,context));
@@ -446,13 +480,27 @@ public final class JavaExecutionModelExtractor {
       first.pending.add(new Pending(token,target,List.copyOf(through.subList(1,through.size())),kind));
     }
 
-    private Handler matchingHandler(Expression thrown,List<Handler> handlers) {
-      Set<String> typeNames=new LinkedHashSet<>();
-      try {ResolvedType type=thrown.calculateResolvedType();if(type.isReferenceType()){typeNames.add(type.asReferenceType().getQualifiedName());type.asReferenceType().getAllAncestors().forEach(a->typeNames.add(a.getQualifiedName()));}}catch(RuntimeException ignored){}
-      for(Handler h:handlers){List<String> names=h.clause.getParameter().getType() instanceof UnionType?((UnionType)h.clause.getParameter().getType()).getElements().stream().map(Node::toString).toList():List.of(h.clause.getParameter().getTypeAsString());
-        for(String n:names){if(n.equals("Throwable")||n.equals("java.lang.Throwable")||typeNames.stream().anyMatch(t->t.equals(n)||t.endsWith("."+n)))return h;}}
-      return null;
+    private ExceptionDispatch exceptionDispatch(Expression thrown,List<Handler> handlers) {
+      // Declared reference types do not identify the concrete runtime exception subtype.
+      if(!exactThrownType(thrown))return new ExceptionDispatch(handlers,true,false);
+      ResolvedType actual=thrown.calculateResolvedType();List<Handler> possible=new ArrayList<>();
+      for(Handler handler:handlers){
+        var parameterType=handler.clause.getParameter().getType();
+        List<com.github.javaparser.ast.type.Type> alternatives=new ArrayList<>();
+        if(parameterType instanceof UnionType)alternatives.addAll(((UnionType)parameterType).getElements());else alternatives.add(parameterType);
+        boolean matches=false,unknown=false;
+        for(var alternative:alternatives)try{
+          ResolvedType caught=alternative.resolve();
+          if(!caught.isReferenceType()||caught.asReferenceType().getTypeDeclaration().isEmpty()){unknown=true;continue;}
+          if(caught.asReferenceType().getTypeDeclaration().get().isAssignableBy(actual)){matches=true;break;}
+        }catch(RuntimeException unresolved){unknown=true;}
+        if(matches){boolean definite=possible.isEmpty();possible.add(handler);return new ExceptionDispatch(possible,false,definite);}
+        if(unknown)possible.add(handler);
+      }
+      return new ExceptionDispatch(possible,true,possible.isEmpty());
     }
+
+    private boolean exactThrownType(Expression thrown){if(!(unwrap(thrown) instanceof ObjectCreationExpr))return false;try{return thrown.calculateResolvedType().isReferenceType();}catch(RuntimeException unresolved){return false;}}
 
     private void possibleExceptions(String from,Context context) {
       callNodes.add(from);
@@ -513,7 +561,7 @@ public final class JavaExecutionModelExtractor {
 
     private Map<String,Object> targetInfo(Expression target,Symbol symbol){target=unwrap(target);Map<String,Object> info=map("symbolId",symbol==null?null:symbol.id,"expression",target.toString(),"lineRange",range(target),"resolutionStatus",symbol==null?(target instanceof ArrayAccessExpr?"array-element":"unresolved"):"resolved");if(symbol==null)info.put("reason",target instanceof ArrayAccessExpr?"Indexed storage is preserved; heap element aliases are not inferred":"No declaration could be resolved for this target");if(target instanceof FieldAccessExpr){Expression receiver=((FieldAccessExpr)target).getScope();info.put("receiver",receiver.toString());info.put("receiverEvaluation",evaluationReference(receiver));}if(target instanceof ArrayAccessExpr){ArrayAccessExpr a=(ArrayAccessExpr)target;info.put("receiver",a.getName().toString());info.put("index",a.getIndex().toString());info.put("receiverEvaluation",evaluationReference(a.getName()));info.put("indexEvaluation",evaluationReference(a.getIndex()));}return info;}
 
-    private Map<String,Object> evaluationReference(Expression source){List<String> ids=new ArrayList<>();for(Map.Entry<Node,Map<String,Map<String,Object>>> entry:canonical.entrySet())if(contains(source,entry.getKey()))for(Map<String,Object> step:entry.getValue().values())ids.add((String)step.get("flowNodeId"));return map("expression",source.toString(),"lineRange",range(source),"flowNodeIds",ids,"evaluationCount",1);}
+    private Map<String,Object> evaluationReference(Expression source){Set<String> included=new HashSet<>();for(Map.Entry<Node,Map<String,Map<String,Object>>> entry:canonical.entrySet())if(contains(source,entry.getKey()))for(Map<String,Object> step:entry.getValue().values())included.add((String)step.get("flowNodeId"));List<String> ids=steps.stream().map(s->(String)s.get("flowNodeId")).filter(included::contains).toList();return map("expression",source.toString(),"lineRange",range(source),"flowNodeIds",ids,"evaluationCount",1);}
 
     private Map<String,Object> callInfo(MethodCallExpr call){Map<String,Object> result=map("methodName",call.getNameAsString(),"targetText",call.getScope().map(s->s+".").orElse("")+call.getNameAsString());try{ResolvedMethodDeclaration d=call.resolve();result.put("resolvedClassId",d.declaringType().getQualifiedName());result.put("resolvedMethodId",d.declaringType().getQualifiedName()+"#"+d.getName()+"("+java.util.stream.IntStream.range(0,d.getNumberOfParams()).mapToObj(i->d.getParam(i).getType().describe()).collect(Collectors.joining(", "))+")");result.put("resolutionStatus","resolved");}catch(RuntimeException error){result.put("resolutionStatus","unresolved");}return result;}
     private void unsupported(Node node,String reason){unsupported.add(map("kind",node.getClass().getSimpleName(),"lineRange",range(node),"reason",reason));}

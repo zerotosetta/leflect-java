@@ -62,4 +62,23 @@ class JavaCallExpressionTypeTest {
     assertEquals("partial", generic.expressionTypeStatus);
     assertEquals("T", generic.expressionType);
   }
+
+  @Test void recordsActualStaticImportDeclarationsWithoutReclassifyingOwnMethods() throws Exception {
+    AstFileResult result = parse("""
+      import static java.util.Objects.requireNonNull;
+      import static java.util.Collections.*;
+      class Example {
+        void own() {}
+        Object run(Object x) { own(); emptyList(); return requireNonNull(x); }
+      }
+      """);
+    for (String name : List.of("emptyList", "requireNonNull")) {
+      JavaMethodCallSite call = result.methodCalls.stream().filter(c -> name.equals(c.targetMethodName)).findFirst().orElseThrow();
+      assertEquals("static-import", call.receiverOriginKind);
+      assertEquals(name, call.receiverTypeSpelling);
+      assertEquals("Example.java", call.receiverDeclarationFile);
+      assertNotNull(call.receiverDeclarationLocation);
+    }
+    assertEquals("local", result.methodCalls.stream().filter(c -> "own".equals(c.targetMethodName)).findFirst().orElseThrow().receiverOriginKind);
+  }
 }

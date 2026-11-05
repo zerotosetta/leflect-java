@@ -291,9 +291,10 @@ function string(value: unknown): string { return typeof value === "string" || ty
 async function readProjectDependencies(root: string, diagnostics: Diagnostic[]): Promise<Dependency[]> {
   const parser = new XMLParser({ removeNSPrefix: true, ignoreAttributes: false, parseTagValue: false });
   const visited = new Set<string>();
-  type Model = { properties: Record<string, string>; managed: Record<string, string>; dependencies: Dependency[] };
+  type RawDependency = Dependency & { type: string };
+  type Model = { properties: Record<string, string>; managed: RawDependency[]; dependencies: RawDependency[] };
   async function read(file: string): Promise<Model> {
-    if (visited.has(file)) return { properties: {}, managed: {}, dependencies: [] };
+    if (visited.has(file)) return { properties: {}, managed: [], dependencies: [] };
     visited.add(file);
     let project: {
       groupId?: unknown; artifactId?: unknown; version?: unknown;
@@ -305,9 +306,9 @@ async function readProjectDependencies(root: string, diagnostics: Diagnostic[]):
     try { project = parser.parse(await fs.readFile(file, "utf8")).project; }
     catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") diagnostics.push({ code: "pom-unreadable", message: `Cannot read declared Maven dependencies: ${(error as Error).message}` });
-      return { properties: {}, managed: {}, dependencies: [] };
+      return { properties: {}, managed: [], dependencies: [] };
     }
-    let parent: Model = { properties: {}, managed: {}, dependencies: [] };
+    let parent: Model = { properties: {}, managed: [], dependencies: [] };
     if (project?.parent) {
       const relative = project.parent.relativePath === "" ? "" : string(project.parent.relativePath) || "../pom.xml";
       if (relative) parent = await read(path.resolve(path.dirname(file), relative));
@@ -318,30 +319,37 @@ async function readProjectDependencies(root: string, diagnostics: Diagnostic[]):
     const version = string(project?.version) || string(project?.parent?.version);
     Object.assign(properties, { "project.groupId": group, "pom.groupId": group,
       "project.version": version, "pom.version": version, "project.artifactId": string(project?.artifactId) });
-    function expand(value: unknown): string {
-      let result = string(value);
-      for (let i = 0; i < 10; i++) {
-        const next = result.replace(/\$\{([^}]+)\}/g, (match, key: string) => properties[key] ?? match);
-        if (next === result) break;
-        result = next;
-      }
-      return result;
-    }
-    const managed = { ...parent.managed };
-    for (const dependency of array(project?.dependencyManagement?.dependencies?.dependency)) {
-      if (dependency.scope !== "import") managed[`${expand(dependency.groupId)}:${expand(dependency.artifactId)}`] = expand(dependency.version);
-    }
-    const dependencies = [...parent.dependencies];
-    for (const dependency of array(project?.dependencies?.dependency)) {
-      const scope = expand(dependency.scope) || "compile";
-      if (scope === "test" || expand(dependency.type) === "pom") continue;
-      const groupId = expand(dependency.groupId), artifactId = expand(dependency.artifactId);
-      const key = `${groupId}:${artifactId}`;
-      const actual = { groupId, artifactId, version: expand(dependency.version) || expand(managed[key]), scope };
-      const existing = dependencies.findIndex(d => `${d.groupId}:${d.artifactId}` === key);
-      if (existing >= 0) dependencies.splice(existing, 1, actual); else dependencies.push(actual);
-    }
+    // Inherited templates must be interpolated in the effective child context.
+    // Expanding a parent's ${api.version} here would silently ignore a child override.
+    const raw = (value: Record<string, unknown>): RawDependency => ({ groupId: string(value.groupId),
+      artifactId: string(value.artifactId), version: string(value.version), scope: string(value.scope), type: string(value.type) });
+    const managed = [...parent.managed, ...array(project?.dependencyManagement?.dependencies?.dependency).map(raw)];
+    const dependencies = [...parent.dependencies, ...array(project?.dependencies?.dependency).map(raw)];
     return { properties, managed, dependencies };
   }
-  return (await read(path.join(root, "pom.xml"))).dependencies;
+  const model = await read(path.join(root, "pom.xml"));
+  function expand(value: string): string {
+    for (let i = 0; i < 10; i++) {
+      const next = value.replace(/\$\{([^}]+)\}/g, (match, key: string) => model.properties[key] ?? match);
+      if (next === value) break;
+      value = next;
+    }
+    return value;
+  }
+  function effective(rows: RawDependency[]): Map<string, RawDependency> {
+    const result = new Map<string, RawDependency>();
+    for (const row of rows) {
+      const resolved = Object.fromEntries(Object.entries(row).map(([key, value]) => [key, expand(value)])) as RawDependency;
+      const key = `${resolved.groupId}:${resolved.artifactId}`;
+      const inherited = result.get(key);
+      result.set(key, { ...inherited, ...Object.fromEntries(Object.entries(resolved).filter(([, value]) => value !== "")) } as RawDependency);
+    }
+    return result;
+  }
+  const managed = effective(model.managed);
+  return [...effective(model.dependencies)].map(([key, dependency]) => ({
+    ...managed.get(key), ...Object.fromEntries(Object.entries(dependency).filter(([, value]) => value !== "")),
+    version: dependency.version || managed.get(key)?.version || "",
+    scope: dependency.scope || managed.get(key)?.scope || "compile"
+  } as RawDependency)).filter(dependency => dependency.scope !== "test" && dependency.scope !== "import" && dependency.type !== "pom");
 }

@@ -56,7 +56,7 @@ export type MethodCallParameterEntry = {
 
 export type JavaImportOrigin = {
   originKind: "import-declaration" | "explicit-import" | "on-demand-import" | "fully-qualified" |
-    "same-package" | "java-lang" | "local-type" | "receiver-declaration" | "static-owner" |
+    "same-package" | "java-lang" | "local-type" | "receiver-declaration" | "static-owner" | "static-import" |
     "receiver-call" | "inherited" | "unresolved" | "ambiguous";
   originStatus: "resolved" | "not-required" | "unresolved" | "ambiguous";
   originEvidence: {
@@ -263,7 +263,7 @@ export type JavaSummaryMethodCall = {
   receiverTypeSpelling?: string;
   receiverDeclarationFile?: string;
   receiverDeclarationLocation?: JavaSourceLocation;
-  receiverOriginKind?: "static-owner" | "receiver-declaration" | "receiver-call" | "inherited" | "local" | "unresolved";
+  receiverOriginKind?: "static-owner" | "static-import" | "receiver-declaration" | "receiver-call" | "inherited" | "local" | "unresolved";
   snippet?: string;
   location?: JavaSourceLocation;
   lineRange?: JavaLineRange;
@@ -900,6 +900,31 @@ function resolveCallImportOrigin(lookup: JavaImportLookup, call: JavaSummaryMeth
     spelling: call.receiverTypeSpelling, type: normalizeTypeName(call.receiverType),
     file: file ?? lookup.file, location: call.receiverDeclarationLocation ?? call.location
   };
+  if (kind === "static-import") {
+    const owner = normalizeTypeName(call.receiverType);
+    const methodName = call.targetMethodName ?? extractMethodName(call.target);
+    const resolvedOwner = normalizeTypeName(call.resolvedClassId ?? call.targetClassId ?? extractClassId(call.target));
+    if (!owner || owner !== resolvedOwner || !methodName || call.receiverTypeSpelling !== methodName || file !== lookup.file) return {
+      originKind: "unresolved", originStatus: "unresolved", originEvidence: {
+        ...evidence, reason: "Static import requires the resolved method owner, original method spelling, and current source file"
+      }
+    };
+    const candidates = lookup.entries.filter(entry => entry.isStatic && (entry.wildcard
+      ? entry.name === owner : entry.name === `${owner}.${methodName}`));
+    if (candidates.length === 1) return {
+      originKind: "static-import", originStatus: "resolved", originEvidence: {
+        ...evidence, importId: candidates[0].id, location: candidates[0].location,
+        importKind: candidates[0].wildcard ? "on-demand-import" : "explicit-import"
+      }
+    };
+    return {
+      originKind: candidates.length ? "ambiguous" : "unresolved",
+      originStatus: candidates.length ? "ambiguous" : "unresolved",
+      originEvidence: { ...evidence, candidateImportIds: candidates.map(entry => entry.id).sort(), reason: candidates.length
+        ? "Multiple static declarations support this resolved unqualified method"
+        : "No static declaration supports this resolved unqualified method" }
+    };
+  }
   if (kind === "local") return {
     originKind: "local-type", originStatus: "not-required",
     originEvidence: { ...evidence, reason: "Unqualified method belongs to the enclosing source type" }

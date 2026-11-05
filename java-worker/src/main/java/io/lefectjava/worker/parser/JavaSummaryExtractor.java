@@ -392,8 +392,25 @@ public class JavaSummaryExtractor {
     site.receiverOriginKind = "unresolved";
     if (call.getScope().isEmpty()) {
       try {
-        String owner = call.resolve().declaringType().getQualifiedName();
+        ResolvedMethodDeclaration method = call.resolve();
+        String owner = method.declaringType().getQualifiedName();
         site.receiverType = owner;
+        if (method.isStatic()) {
+          List<ImportDeclaration> imports = call.findCompilationUnit().map(CompilationUnit::getImports)
+              .map(values -> values.stream().filter(ImportDeclaration::isStatic)
+                  .filter(declaration -> declaration.isAsterisk()
+                      ? declaration.getNameAsString().equals(owner)
+                      : declaration.getNameAsString().equals(owner + "." + method.getName()))
+                  .collect(Collectors.toList())).orElse(List.of());
+          if (!imports.isEmpty()) {
+            site.receiverOriginKind = "static-import";
+            site.receiverTypeSpelling = method.getName();
+            if (imports.size() == 1) site.receiverDeclarationLocation = toSourceLocation(imports.get(0));
+            site.receiverDeclarationFile = call.findCompilationUnit().flatMap(CompilationUnit::getStorage)
+                .map(storage -> storage.getPath().toString().replace('\\', '/')).orElse(null);
+            return;
+          }
+        }
         site.receiverOriginKind = owner.equals(site.callerClassId) ? "local" : "inherited";
       } catch (RuntimeException ignored) { }
       return;

@@ -228,18 +228,132 @@ class JavaExecutionModelTest {
   @Test void nestedBodiesAndImplicitResourceCloseAreExcludedAndUnsupportedSyntaxIsLocated() {
     var m=model("""
       class Example {
-        void hidden() {} AutoCloseable resource() { return null; }
+        int value; void hidden() {} AutoCloseable resource() { return null; }
         void run() throws Exception {
           Runnable action = () -> hidden();
           class Local { void nested() { hidden(); } }
+          Object anonymous = new Object() { int value = 99; void nested() { hidden(); } };
+          value = 7;
           try(AutoCloseable r = resource()) { action.run(); }
         }
       }
       """);
     complete(m);assertFalse(steps(m).stream().anyMatch(s->"call".equals(s.get("kind"))&&List.of("hidden","close").contains(obj(s.get("call")).get("methodName"))));
+    assertTrue(list(m.get("symbols")).stream().filter(s->"value".equals(s.get("name"))).allMatch(s->"field".equals(s.get("kind"))));
+    assertTrue(((String)obj(find(m,"assignment","value = 7").get("target")).get("symbolId")).startsWith("Example#value@"));
     var partial=model("class Example { void run(boolean flag) { assert flag; } }");
     assertEquals("partial",obj(partial.get("coverage")).get("status"));var unsupported=list(obj(partial.get("coverage")).get("unsupportedNodes"));
     assertEquals(1,unsupported.size());assertEquals("AssertStmt",unsupported.get(0).get("kind"));assertFalse(obj(unsupported.get(0).get("lineRange")).isEmpty());
+  }
+
+  @Test void declaredExceptionVariablesKeepPossibleSubtypeCatchRoutes() {
+    var m=model("""
+      class Example {
+        void use(Exception ex) {}
+        void run(Exception problem) throws Exception {
+          try { throw problem; }
+          catch(IllegalArgumentException specific) { use(specific); }
+          catch(Exception broad) { use(broad); }
+        }
+      }
+      """);
+    complete(m);
+    assertEquals(true,snapshot(m,find(m,"call","use(specific)")).get("reachable"));
+    assertEquals(true,snapshot(m,find(m,"call","use(broad)")).get("reachable"));
+    assertEquals("possible-runtime-subtypes",find(m,"throw","throw problem;").get("exceptionDispatch"));
+  }
+
+  @Test void catchDispatchUsesResolvedQualifiedTypesAndUnionAssignability() {
+    var m=model("""
+      import javax.security.cert.CertificateException;
+      class Example {
+        void mayThrow() throws CertificateException {} void wrong() {} void right() {}
+        void run() {
+          try { mayThrow(); throw new java.security.cert.CertificateException(); }
+          catch(CertificateException ex) { wrong(); }
+          catch(java.security.cert.CertificateException | IllegalArgumentException ex) { right(); }
+        }
+      }
+      """);
+    complete(m);
+    var thrown=find(m,"throw","throw new java.security.cert.CertificateException();");
+    var outgoing=edges(m).stream().filter(e->thrown.get("flowNodeId").equals(e.get("from"))).toList();
+    assertEquals(1,outgoing.size());assertEquals("throw",outgoing.get(0).get("kind"));
+    var catchNode=list(obj(m.get("flowGraph")).get("nodes")).stream().filter(n->outgoing.get(0).get("to").equals(n.get("id"))).findFirst().orElseThrow();
+    assertEquals(7,obj(catchNode.get("lineRange")).get("startLine"));
+    assertFalse(reachable(m,(String)thrown.get("flowNodeId"),(String)call(m,"wrong").get("flowNodeId"),e->true));
+    assertTrue(reachable(m,(String)thrown.get("flowNodeId"),(String)call(m,"right").get("flowNodeId"),e->true));
+  }
+
+  @Test void enclosingThisFieldsDoNotAliasTheInheritedCurrentInstanceField() {
+    var m=model("""
+      class Example {
+        Object field;
+        class Inner extends Example {
+          void use(Object... values) {}
+          void run() {
+            Example.this.field = null;
+            this.field = new Object();
+            use(Example.this.field, Inner.this.field, this.field);
+          }
+        }
+      }
+      """);
+    complete(m);
+    String enclosing=(String)obj(find(m,"assignment","Example.this.field = null").get("target")).get("symbolId");
+    String current=(String)obj(find(m,"assignment","this.field = new Object()").get("target")).get("symbolId");
+    assertNotEquals(enclosing,current);
+    assertEquals("null",state(m,find(m,"assignment","Example.this.field = null"),"after",enclosing).get("nullability"));
+    // The intervening constructor call conservatively invalidates earlier field facts.
+    assertEquals("unknown",state(m,call(m,"use"),"before",enclosing).get("nullability"));
+    assertEquals("non-null",state(m,call(m,"use"),"before",current).get("nullability"));
+    assertEquals(current,find(m,"field-read","Inner.this.field").get("symbolId"));
+    assertEquals(enclosing,find(m,"field-read","Example.this.field").get("symbolId"));
+  }
+
+  @Test void switchAndForeachBindingsRespectTheirLexicalScope() {
+    var m=model("""
+      class Example {
+        int value; Iterable<String> names; void use(Object item) {}
+        void run(int code) {
+          switch(code) { case 1: int value = 1; use(value); break; default: break; }
+          value = 2;
+          for(String names:names) use(names);
+        }
+      }
+      """);
+    complete(m);
+    assertTrue(((String)obj(find(m,"assignment","value = 2").get("target")).get("symbolId")).startsWith("Example#value@"));
+    var namesReads=steps(m).stream().filter(s->"read".equals(s.get("kind"))&&"names".equals(s.get("snippet"))).toList();
+    assertEquals(2,namesReads.size());
+    assertTrue(((String)namesReads.get(0).get("symbolId")).startsWith("Example#names@"));
+    assertNotEquals(namesReads.get(0).get("symbolId"),namesReads.get(1).get("symbolId"));
+    assertEquals("local",list(m.get("symbols")).stream().filter(s->s.get("id").equals(namesReads.get(1).get("symbolId"))).findFirst().orElseThrow().get("kind"));
+  }
+
+  @Test void nestedFinallyResumesOnlyItsOwnPendingCompletionInOrder() {
+    var m=model("""
+      class Example {
+        void first() {} void second() {} void work() {} void after() {}
+        void run(boolean flag) {
+          while(flag) {
+            try {
+              try { if(flag) continue; work(); } finally { first(); }
+            } finally { second(); }
+            after();
+          }
+        }
+      }
+      """);
+    complete(m);
+    var continuing=steps(m).stream().filter(s->"continue".equals(s.get("kind"))).findFirst().orElseThrow();
+    String from=(String)continuing.get("flowNodeId"),first=(String)call(m,"first").get("flowNodeId"),second=(String)call(m,"second").get("flowNodeId"),target=(String)obj(continuing.get("transition")).get("targetNodeId");
+    assertTrue(reachable(m,from,target,e->true));
+    assertFalse(reachable(m,from,target,e->!first.equals(e.get("to"))));
+    assertFalse(reachable(m,from,target,e->!second.equals(e.get("to"))));
+    assertFalse(reachable(m,from,second,e->!first.equals(e.get("to"))));
+    assertFalse(reachable(m,from,(String)call(m,"after").get("flowNodeId"),e->!target.equals(e.get("to"))));
+    assertEquals(2,steps(m).stream().filter(s->"call".equals(s.get("kind"))&&List.of("first","second").contains(obj(s.get("call")).get("methodName"))).count());
   }
 
   /** Follow completion tokens, including filtering impossible finally resume edges. */

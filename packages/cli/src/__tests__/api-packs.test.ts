@@ -110,6 +110,21 @@ describe("project-first API reference packs", () => {
     expect(await resolveApiPackClasspath(config, [], "java")).toHaveLength(1);
   });
 
+  it.each(["inherited-dependency", "inherited-management"])("interpolates %s with child property overrides", async kind => {
+    const parent = path.join(root, "parent"), child = path.join(root, "child");
+    await fs.mkdir(parent); await fs.mkdir(child);
+    const dependency = `<dependency><groupId>javax.servlet</groupId><artifactId>javax.servlet-api</artifactId><version>\${api.version}</version><scope>provided</scope></dependency>`;
+    await fs.writeFile(path.join(parent, "pom.xml"), `<project><groupId>test</groupId><artifactId>parent</artifactId><version>1</version><properties><api.version>4.0.1</api.version></properties>${kind === "inherited-management" ? `<dependencyManagement><dependencies>${dependency}</dependencies></dependencyManagement>` : `<dependencies>${dependency}</dependencies>`}</project>`);
+    const writeChild = (version: string) => fs.writeFile(path.join(child, "pom.xml"), `<project><parent><groupId>test</groupId><artifactId>parent</artifactId><version>1</version><relativePath>../parent/pom.xml</relativePath></parent><artifactId>child</artifactId><properties><api.version>${version}</api.version></properties>${kind === "inherited-management" ? `<dependencies><dependency><groupId>javax.servlet</groupId><artifactId>javax.servlet-api</artifactId></dependency></dependencies>` : ""}</project>`);
+    config.root = child;
+    await writeChild("3.1.0");
+    expect(await resolveApiPackClasspath(config, [], "java")).toEqual([]);
+    expect((await environment()).decisions[0]).toMatchObject({ coordinate: "javax.servlet:javax.servlet-api:3.1.0", selection: "unavailable" });
+    await writeChild("4.0.1");
+    expect(await resolveApiPackClasspath(config, [], "java")).toHaveLength(1);
+    expect((await environment()).decisions[0]).toMatchObject({ coordinate: "javax.servlet:javax.servlet-api:4.0.1", selection: "pack" });
+  });
+
   it.each(["[3.0,5.0)", "${unresolved.version}", "", "LATEST", "3.1.0"])("does not invent a match for version %s", async version => {
     await pom(version);
     expect(await resolveApiPackClasspath(config, [], "java")).toEqual([]);
