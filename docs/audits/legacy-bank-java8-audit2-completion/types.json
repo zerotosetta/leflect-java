@@ -1,0 +1,1309 @@
+{
+  "generatedAt": "2026-11-05T10:03:10.159Z",
+  "passed": true,
+  "summary": {
+    "checks": 2063,
+    "passedChecks": 2063,
+    "failedChecks": 0,
+    "historicalSites": 78,
+    "currentCalls": 646,
+    "javacCallTypes": 646,
+    "javacDeclarationTypes": 646,
+    "expressionStatuses": {
+      "not-applicable": 1,
+      "resolved": 640,
+      "partial": 5
+    }
+  },
+  "fullReport": "analysis\\legacy-bank-java8\\audit2-20261105-1853\\verification\\audit2-types.json",
+  "fullReportSha256": "a45f3f803755b41e15bb8792f35fe9659d541c677f5c69408c0673a6559fa82c",
+  "checkDistribution": {
+    "fresh independent javac attribution completed": 1,
+    "fresh javac TSV matches execution metadata": 1,
+    "fresh javac covers 42 original Java files": 1,
+    "javac input hash matches current original source": 42,
+    "78 historical sites selected without historical expected types": 1,
+    "78 concrete expression types match fresh javac": 78,
+    "legacy responseType and canonical target preserved": 646,
+    "declaration return type matches fresh javac symbol": 646,
+    "expression type has honest resolution status": 646,
+    "646 calls retain output contracts": 1
+  },
+  "selectedChecks": [
+    {
+      "name": "fresh independent javac attribution completed",
+      "passed": true,
+      "exitCode": 0,
+      "generatedAt": "2026-11-05T09:47:08.452Z",
+      "command": [
+        "java",
+        "-classpath",
+        "<WORKSPACE>\\analysis\\legacy-bank-java8\\audit2-20261105-1845\\verification\\java-symbols\\classes",
+        "JavaAuditDetailed",
+        "<SOURCE>",
+        "<WORKSPACE>\\resources\\api-packs\\javax.servlet-api\\4.0.1\\javax.servlet-api-4.0.1.jar;<WORKSPACE>\\resources\\api-packs\\javax.servlet.jsp-api\\2.3.3\\javax.servlet.jsp-api-2.3.3.jar;<WORKSPACE>\\analysis\\legacy-bank-java8\\audit2-20261105-1845\\environment\\classes;<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\war\\WEB-INF\\lib\\taglibs-standard-impl-1.2.5.jar;<WORKSPACE>\\analysis\\legacy-bank-java8\\accuracy-support\\war\\WEB-INF\\lib\\taglibs-standard-spec-1.2.5.jar",
+        "<WORKSPACE>\\analysis\\legacy-bank-java8\\audit2-20261105-1845\\verification\\java-symbols\\source.tsv"
+      ]
+    },
+    {
+      "name": "fresh javac TSV matches execution metadata",
+      "passed": true,
+      "expected": "cae675a12eebf87a3bb10c87afe8590c700db886c5679553ff9c35d4b77d4a7a",
+      "actual": "cae675a12eebf87a3bb10c87afe8590c700db886c5679553ff9c35d4b77d4a7a"
+    },
+    {
+      "name": "fresh javac covers 42 original Java files",
+      "passed": true,
+      "sourceFiles": 42
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/BTConnector.java",
+      "location": {
+        "line": 38,
+        "column": 73,
+        "endLine": 38,
+        "endColumn": 117
+      },
+      "source": "properties.put(r.getString(1),r.getString(2))",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/BTConnector.java",
+      "location": {
+        "line": 42,
+        "column": 38,
+        "endLine": 42,
+        "endColumn": 67
+      },
+      "source": "properties.get(\"SERVICE_JNDI\")",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/CalleeExecutor.java",
+      "location": {
+        "line": 12,
+        "column": 40,
+        "endLine": 12,
+        "endColumn": 55
+      },
+      "source": "props.entrySet()",
+      "expected": "java.util.Set<java.util.Map.Entry<java.lang.String,java.lang.String>>",
+      "actual": "java.util.Set<java.util.Map.Entry<java.lang.String, java.lang.String>>",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/CalleeExecutor.java",
+      "location": {
+        "line": 12,
+        "column": 61,
+        "endLine": 12,
+        "endColumn": 70
+      },
+      "source": "p.getKey()",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/CalleeExecutor.java",
+      "location": {
+        "line": 13,
+        "column": 17,
+        "endLine": 13,
+        "endColumn": 26
+      },
+      "source": "p.getKey()",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/CalleeExecutor.java",
+      "location": {
+        "line": 14,
+        "column": 13,
+        "endLine": 14,
+        "endColumn": 46
+      },
+      "source": "chain.put(p.getKey(),p.getValue())",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/CalleeExecutor.java",
+      "location": {
+        "line": 14,
+        "column": 23,
+        "endLine": 14,
+        "endColumn": 32
+      },
+      "source": "p.getKey()",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/CalleeExecutor.java",
+      "location": {
+        "line": 14,
+        "column": 34,
+        "endLine": 14,
+        "endColumn": 45
+      },
+      "source": "p.getValue()",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/CalleeExecutor.java",
+      "location": {
+        "line": 18,
+        "column": 27,
+        "endLine": 18,
+        "endColumn": 40
+      },
+      "source": "chain.values()",
+      "expected": "java.util.Collection<java.lang.String>",
+      "actual": "java.util.Collection<java.lang.String>",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/CalleeExecutor.java",
+      "location": {
+        "line": 28,
+        "column": 66,
+        "endLine": 28,
+        "endColumn": 85
+      },
+      "source": "props.get(\"EIMS_ID\")",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/DepositClose.java",
+      "location": {
+        "line": 10,
+        "column": 36,
+        "endLine": 10,
+        "endColumn": 46
+      },
+      "source": "rows.get(0)",
+      "expected": "java.util.Map<java.lang.String,java.lang.Object>",
+      "actual": "java.util.Map<java.lang.String, java.lang.Object>",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/DepositClose.java",
+      "location": {
+        "line": 11,
+        "column": 27,
+        "endLine": 11,
+        "endColumn": 47
+      },
+      "source": "deposit.get(\"STATUS\")",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/DepositClose.java",
+      "location": {
+        "line": 12,
+        "column": 33,
+        "endLine": 12,
+        "endColumn": 56
+      },
+      "source": "deposit.get(\"PRINCIPAL\")",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/DepositClose.java",
+      "location": {
+        "line": 12,
+        "column": 83,
+        "endLine": 12,
+        "endColumn": 112
+      },
+      "source": "deposit.get(\"FUNDING_ACCOUNT\")",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/DepositClose.java",
+      "location": {
+        "line": 13,
+        "column": 41,
+        "endLine": 13,
+        "endColumn": 65
+      },
+      "source": "deposit.get(\"ACCOUNT_NO\")",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/DepositLedger.java",
+      "location": {
+        "line": 9,
+        "column": 40,
+        "endLine": 9,
+        "endColumn": 66
+      },
+      "source": "props.get(\"DEPOSIT_ACTION\")",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/DepositOpen.java",
+      "location": {
+        "line": 13,
+        "column": 36,
+        "endLine": 13,
+        "endColumn": 46
+      },
+      "source": "rows.get(0)",
+      "expected": "java.util.Map<java.lang.String,java.lang.Object>",
+      "actual": "java.util.Map<java.lang.String, java.lang.Object>",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/DepositOpen.java",
+      "location": {
+        "line": 14,
+        "column": 41,
+        "endLine": 14,
+        "endColumn": 65
+      },
+      "source": "product.get(\"MIN_AMOUNT\")",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/DepositOpen.java",
+      "location": {
+        "line": 14,
+        "column": 102,
+        "endLine": 14,
+        "endColumn": 126
+      },
+      "source": "product.get(\"MAX_AMOUNT\")",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/DepositOpen.java",
+      "location": {
+        "line": 20,
+        "column": 37,
+        "endLine": 20,
+        "endColumn": 62
+      },
+      "source": "product.get(\"ANNUAL_RATE\")",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/DepositOpen.java",
+      "location": {
+        "line": 20,
+        "column": 88,
+        "endLine": 20,
+        "endColumn": 113
+      },
+      "source": "product.get(\"TERM_MONTHS\")",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/DepositOpen.java",
+      "location": {
+        "line": 21,
+        "column": 38,
+        "endLine": 21,
+        "endColumn": 64
+      },
+      "source": "product.get(\"PRODUCT_NAME\")",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/TransferPolicy.java",
+      "location": {
+        "line": 14,
+        "column": 34,
+        "endLine": 14,
+        "endColumn": 46
+      },
+      "source": "limits.get(0)",
+      "expected": "java.util.Map<java.lang.String,java.lang.Object>",
+      "actual": "java.util.Map<java.lang.String, java.lang.Object>",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/TransferPolicy.java",
+      "location": {
+        "line": 15,
+        "column": 37,
+        "endLine": 15,
+        "endColumn": 108
+      },
+      "source": "QueryEngine.query(c,\"DBANK.DAILY_TOTAL\",input).get(0).get(\"USED_AMOUNT\")",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/TransferPolicy.java",
+      "location": {
+        "line": 15,
+        "column": 37,
+        "endLine": 15,
+        "endColumn": 89
+      },
+      "source": "QueryEngine.query(c,\"DBANK.DAILY_TOTAL\",input).get(0)",
+      "expected": "java.util.Map<java.lang.String,java.lang.Object>",
+      "actual": "java.util.Map<java.lang.String, java.lang.Object>",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/TransferPolicy.java",
+      "location": {
+        "line": 16,
+        "column": 41,
+        "endLine": 16,
+        "endColumn": 65
+      },
+      "source": "limit.get(\"PER_TRANSFER\")",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/callees/TransferPolicy.java",
+      "location": {
+        "line": 16,
+        "column": 112,
+        "endLine": 16,
+        "endColumn": 135
+      },
+      "source": "limit.get(\"DAILY_LIMIT\")",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Cms.java",
+      "location": {
+        "line": 48,
+        "column": 94,
+        "endLine": 48,
+        "endColumn": 147
+      },
+      "source": "page.areas.put(r.getString(1),new ArrayList<String>())",
+      "expected": "java.util.List<java.lang.String>",
+      "actual": "java.util.List<java.lang.String>",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Cms.java",
+      "location": {
+        "line": 53,
+        "column": 24,
+        "endLine": 53,
+        "endColumn": 67
+      },
+      "source": "overrides.put(r.getString(1),r.getString(2))",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Cms.java",
+      "location": {
+        "line": 61,
+        "column": 21,
+        "endLine": 61,
+        "endColumn": 40
+      },
+      "source": "page.areas.get(area)",
+      "expected": "java.util.List<java.lang.String>",
+      "actual": "java.util.List<java.lang.String>",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Cms.java",
+      "location": {
+        "line": 61,
+        "column": 84,
+        "endLine": 61,
+        "endColumn": 100
+      },
+      "source": "overrides.get(id)",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Cms.java",
+      "location": {
+        "line": 68,
+        "column": 43,
+        "endLine": 68,
+        "endColumn": 72
+      },
+      "source": "page.areas.get(r.getString(2))",
+      "expected": "java.util.List<java.lang.String>",
+      "actual": "java.util.List<java.lang.String>",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/EimsGateway.java",
+      "location": {
+        "line": 10,
+        "column": 19,
+        "endLine": 10,
+        "endColumn": 43
+      },
+      "source": "properties.get(\"EIMS_ID\")",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/EimsGateway.java",
+      "location": {
+        "line": 22,
+        "column": 30,
+        "endLine": 22,
+        "endColumn": 59
+      },
+      "source": "properties.get(\"OUTBOX_QUERY\")",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/HealthServlet.java",
+      "location": {
+        "line": 11,
+        "column": 13,
+        "endLine": 11,
+        "endColumn": 74
+      },
+      "source": "service.put(\"SERVICE_JNDI\",\"java:comp/env/wfw/DBANK/Accounts\")",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Ledger.java",
+      "location": {
+        "line": 21,
+        "column": 48,
+        "endLine": 21,
+        "endColumn": 70
+      },
+      "source": "Arrays.asList(accounts)",
+      "expected": "java.util.List<java.lang.String>",
+      "actual": "java.util.List<java.lang.String>",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Ledger.java",
+      "location": {
+        "line": 23,
+        "column": 33,
+        "endLine": 23,
+        "endColumn": 63
+      },
+      "source": "locked.put(account,rows.get(0))",
+      "expected": "java.util.Map<java.lang.String,java.lang.Object>",
+      "actual": "java.util.Map<java.lang.String, java.lang.Object>",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Ledger.java",
+      "location": {
+        "line": 23,
+        "column": 52,
+        "endLine": 23,
+        "endColumn": 62
+      },
+      "source": "rows.get(0)",
+      "expected": "java.util.Map<java.lang.String,java.lang.Object>",
+      "actual": "java.util.Map<java.lang.String, java.lang.Object>",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Operations.java",
+      "location": {
+        "line": 17,
+        "column": 70,
+        "endLine": 17,
+        "endColumn": 111
+      },
+      "source": "map.remove(map.keySet().iterator().next())",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Operations.java",
+      "location": {
+        "line": 17,
+        "column": 81,
+        "endLine": 17,
+        "endColumn": 110
+      },
+      "source": "map.keySet().iterator().next()",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Operations.java",
+      "location": {
+        "line": 17,
+        "column": 81,
+        "endLine": 17,
+        "endColumn": 103
+      },
+      "source": "map.keySet().iterator()",
+      "expected": "java.util.Iterator<java.lang.String>",
+      "actual": "java.util.Iterator<java.lang.String>",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Operations.java",
+      "location": {
+        "line": 17,
+        "column": 81,
+        "endLine": 17,
+        "endColumn": 92
+      },
+      "source": "map.keySet()",
+      "expected": "java.util.Set<java.lang.String>",
+      "actual": "java.util.Set<java.lang.String>",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Operations.java",
+      "location": {
+        "line": 18,
+        "column": 56,
+        "endLine": 18,
+        "endColumn": 77
+      },
+      "source": "map.put(token,purpose)",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Operations.java",
+      "location": {
+        "line": 24,
+        "column": 47,
+        "endLine": 24,
+        "endColumn": 60
+      },
+      "source": "map.get(token)",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/Operations.java",
+      "location": {
+        "line": 25,
+        "column": 13,
+        "endLine": 25,
+        "endColumn": 29
+      },
+      "source": "map.remove(token)",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/QueryEngine.java",
+      "location": {
+        "line": 46,
+        "column": 59,
+        "endLine": 46,
+        "endColumn": 104
+      },
+      "source": "row.put(meta.getColumnLabel(i),r.getObject(i))",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/ServiceLocator.java",
+      "location": {
+        "line": 10,
+        "column": 21,
+        "endLine": 10,
+        "endColumn": 50
+      },
+      "source": "properties.get(\"SERVICE_JNDI\")",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/AccountListService.java",
+      "location": {
+        "line": 8,
+        "column": 60,
+        "endLine": 8,
+        "endColumn": 80
+      },
+      "source": "props.get(\"QUERY_ID\")",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/BeneficiaryDeleteService.java",
+      "location": {
+        "line": 8,
+        "column": 33,
+        "endLine": 8,
+        "endColumn": 53
+      },
+      "source": "props.get(\"QUERY_ID\")",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/BeneficiaryService.java",
+      "location": {
+        "line": 15,
+        "column": 48,
+        "endLine": 15,
+        "endColumn": 84
+      },
+      "source": "existing.get(0).get(\"BENEFICIARY_ID\")",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/BeneficiaryService.java",
+      "location": {
+        "line": 15,
+        "column": 48,
+        "endLine": 15,
+        "endColumn": 62
+      },
+      "source": "existing.get(0)",
+      "expected": "java.util.Map<java.lang.String,java.lang.Object>",
+      "actual": "java.util.Map<java.lang.String, java.lang.Object>",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/DashboardService.java",
+      "location": {
+        "line": 8,
+        "column": 36,
+        "endLine": 8,
+        "endColumn": 90
+      },
+      "source": "QueryEngine.query(c,props.get(\"QUERY_ID\"),input).get(0)",
+      "expected": "java.util.Map<java.lang.String,java.lang.Object>",
+      "actual": "java.util.Map<java.lang.String, java.lang.Object>",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/DashboardService.java",
+      "location": {
+        "line": 8,
+        "column": 56,
+        "endLine": 8,
+        "endColumn": 76
+      },
+      "source": "props.get(\"QUERY_ID\")",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/DashboardService.java",
+      "location": {
+        "line": 9,
+        "column": 44,
+        "endLine": 9,
+        "endColumn": 61
+      },
+      "source": "summary.entrySet()",
+      "expected": "java.util.Set<java.util.Map.Entry<java.lang.String,java.lang.Object>>",
+      "actual": "java.util.Set<java.util.Map.Entry<java.lang.String, java.lang.Object>>",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/DashboardService.java",
+      "location": {
+        "line": 9,
+        "column": 79,
+        "endLine": 9,
+        "endColumn": 92
+      },
+      "source": "field.getKey()",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/DashboardService.java",
+      "location": {
+        "line": 9,
+        "column": 94,
+        "endLine": 9,
+        "endColumn": 109
+      },
+      "source": "field.getValue()",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/DirectProductService.java",
+      "location": {
+        "line": 14,
+        "column": 40,
+        "endLine": 14,
+        "endColumn": 50
+      },
+      "source": "rows.get(0)",
+      "expected": "java.util.Map<java.lang.String,java.lang.Object>",
+      "actual": "java.util.Map<java.lang.String, java.lang.Object>",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/DirectProductService.java",
+      "location": {
+        "line": 15,
+        "column": 48,
+        "endLine": 15,
+        "endColumn": 72
+      },
+      "source": "product.get(\"MIN_AMOUNT\")",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/DirectProductService.java",
+      "location": {
+        "line": 15,
+        "column": 112,
+        "endLine": 15,
+        "endColumn": 136
+      },
+      "source": "product.get(\"MAX_AMOUNT\")",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/DirectProductService.java",
+      "location": {
+        "line": 17,
+        "column": 64,
+        "endLine": 17,
+        "endColumn": 89
+      },
+      "source": "product.get(\"ANNUAL_RATE\")",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/DirectProductService.java",
+      "location": {
+        "line": 17,
+        "column": 113,
+        "endLine": 17,
+        "endColumn": 138
+      },
+      "source": "product.get(\"TERM_MONTHS\")",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/HistoryService.java",
+      "location": {
+        "line": 8,
+        "column": 60,
+        "endLine": 8,
+        "endColumn": 80
+      },
+      "source": "props.get(\"QUERY_ID\")",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/LedgerService.java",
+      "location": {
+        "line": 16,
+        "column": 34,
+        "endLine": 16,
+        "endColumn": 47
+      },
+      "source": "account.get(0)",
+      "expected": "java.util.Map<java.lang.String,java.lang.Object>",
+      "actual": "java.util.Map<java.lang.String, java.lang.Object>",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/LedgerService.java",
+      "location": {
+        "line": 17,
+        "column": 50,
+        "endLine": 17,
+        "endColumn": 70
+      },
+      "source": "props.get(\"QUERY_ID\")",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/LimitService.java",
+      "location": {
+        "line": 15,
+        "column": 33,
+        "endLine": 15,
+        "endColumn": 53
+      },
+      "source": "props.get(\"QUERY_ID\")",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/LoginService.java",
+      "location": {
+        "line": 8,
+        "column": 59,
+        "endLine": 8,
+        "endColumn": 79
+      },
+      "source": "props.get(\"QUERY_ID\")",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/LoginService.java",
+      "location": {
+        "line": 11,
+        "column": 57,
+        "endLine": 11,
+        "endColumn": 86
+      },
+      "source": "rows.get(0).get(\"CUSTOMER_ID\")",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/LoginService.java",
+      "location": {
+        "line": 11,
+        "column": 57,
+        "endLine": 11,
+        "endColumn": 67
+      },
+      "source": "rows.get(0)",
+      "expected": "java.util.Map<java.lang.String,java.lang.Object>",
+      "actual": "java.util.Map<java.lang.String, java.lang.Object>",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/LoginService.java",
+      "location": {
+        "line": 12,
+        "column": 59,
+        "endLine": 12,
+        "endColumn": 89
+      },
+      "source": "rows.get(0).get(\"DISPLAY_NAME\")",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/LoginService.java",
+      "location": {
+        "line": 12,
+        "column": 59,
+        "endLine": 12,
+        "endColumn": 69
+      },
+      "source": "rows.get(0)",
+      "expected": "java.util.Map<java.lang.String,java.lang.Object>",
+      "actual": "java.util.Map<java.lang.String, java.lang.Object>",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/NoticeService.java",
+      "location": {
+        "line": 8,
+        "column": 51,
+        "endLine": 8,
+        "endColumn": 70
+      },
+      "source": "props.get(\"MESSAGE\")",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/QueryService.java",
+      "location": {
+        "line": 8,
+        "column": 50,
+        "endLine": 8,
+        "endColumn": 70
+      },
+      "source": "props.get(\"QUERY_ID\")",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/services/ReceiptService.java",
+      "location": {
+        "line": 8,
+        "column": 59,
+        "endLine": 8,
+        "endColumn": 79
+      },
+      "source": "props.get(\"QUERY_ID\")",
+      "expected": "java.lang.String",
+      "actual": "java.lang.String",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/WBFRecord.java",
+      "location": {
+        "line": 11,
+        "column": 60,
+        "endLine": 11,
+        "endColumn": 82
+      },
+      "source": "fields.put(name, value)",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/WBFRecord.java",
+      "location": {
+        "line": 12,
+        "column": 50,
+        "endLine": 12,
+        "endColumn": 65
+      },
+      "source": "fields.get(name)",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/WBFRecord.java",
+      "location": {
+        "line": 13,
+        "column": 59,
+        "endLine": 13,
+        "endColumn": 74
+      },
+      "source": "fields.get(name)",
+      "expected": "java.lang.Object",
+      "actual": "java.lang.Object",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/WBFRecord.java",
+      "location": {
+        "line": 17,
+        "column": 52,
+        "endLine": 17,
+        "endColumn": 96
+      },
+      "source": "java.util.Collections.unmodifiableMap(fields)",
+      "expected": "java.util.Map<java.lang.String,java.lang.Object>",
+      "actual": "java.util.Map<java.lang.String, java.lang.Object>",
+      "status": "resolved",
+      "reason": null
+    },
+    {
+      "name": "78 concrete expression types match fresh javac",
+      "passed": true,
+      "file": "src/main/java/demo/bank/WBFRecord.java",
+      "location": {
+        "line": 18,
+        "column": 56,
+        "endLine": 18,
+        "endColumn": 99
+      },
+      "source": "java.util.Collections.unmodifiableList(rows)",
+      "expected": "java.util.List<java.util.Map<java.lang.String,java.lang.Object>>",
+      "actual": "java.util.List<java.util.Map<java.lang.String, java.lang.Object>>",
+      "status": "resolved",
+      "reason": null
+    }
+  ],
+  "failures": []
+}
