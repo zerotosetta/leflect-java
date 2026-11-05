@@ -132,6 +132,9 @@ importers:
       adm-zip:
         specifier: ^0.5.16
         version: 0.5.16
+      fast-xml-parser:
+        specifier: 5.5.9
+        version: 5.5.9
 
   packages/core:
     dependencies:

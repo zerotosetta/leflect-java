@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "id": "javaee8-servlet4-jsp23",
+  "components": [
+    {
+      "groupId": "javax.servlet",
+      "artifactId": "javax.servlet-api",
+      "version": "4.0.1",
+      "namespace": "javax.servlet",
+      "representativeClass": "javax.servlet.http.HttpServlet",
+      "provider": {
+        "name": "javax.servlet-api",
+        "version": "4.0.1"
+      },
+      "licenseFiles": [
+        "LICENSE-CDDL-GPL-CLASSPATH.txt",
+        "NOTICE.md"
+      ],
+      "binary": {
+        "path": "javax.servlet-api/4.0.1/javax.servlet-api-4.0.1.jar",
+        "sha256": "83a03dd877d3674576f0da7b90755c8524af099ccf0607fc61aa971535ad7c60",
+        "url": "https://repo.maven.apache.org/maven2/javax/servlet/javax.servlet-api/4.0.1/javax.servlet-api-4.0.1.jar"
+      },
+      "sources": {
+        "path": "javax.servlet-api/4.0.1/javax.servlet-api-4.0.1-sources.jar",
+        "sha256": "a2826761ae88535afb0a3a049eacc846494e22627a1dcf14de37b956ca8748d6",
+        "url": "https://repo.maven.apache.org/maven2/javax/servlet/javax.servlet-api/4.0.1/javax.servlet-api-4.0.1-sources.jar"
+      },
+      "pom": {
+        "path": "javax.servlet-api/4.0.1/javax.servlet-api-4.0.1.pom",
+        "sha256": "14055e6155b8a2a632a5eec6a1e5be0c0a0ba380f7e93f9cb4cb8f7e4f959bf1",
+        "url": "https://repo.maven.apache.org/maven2/javax/servlet/javax.servlet-api/4.0.1/javax.servlet-api-4.0.1.pom"
+      }
+    },
+    {
+      "groupId": "javax.servlet.jsp",
+      "artifactId": "javax.servlet.jsp-api",
+      "version": "2.3.3",
+      "namespace": "javax.servlet.jsp",
+      "excludedNamespaces": ["javax.servlet.jsp.jstl"],
+      "representativeClass": "javax.servlet.jsp.JspPage",
+      "provider": {
+        "name": "javax.servlet.jsp-api",
+        "version": "2.3.3"
+      },
+      "licenseFiles": [
+        "LICENSE-CDDL-GPL-CLASSPATH.txt",
+        "NOTICE.md"
+      ],
+      "binary": {
+        "path": "javax.servlet.jsp-api/2.3.3/javax.servlet.jsp-api-2.3.3.jar",
+        "sha256": "409a534d275ef0958a2c1692472da30e3706bfe6933d56c039376f53f13689b7",
+        "url": "https://repo.maven.apache.org/maven2/javax/servlet/jsp/javax.servlet.jsp-api/2.3.3/javax.servlet.jsp-api-2.3.3.jar"
+      },
+      "sources": {
+        "path": "javax.servlet.jsp-api/2.3.3/javax.servlet.jsp-api-2.3.3-sources.jar",
+        "sha256": "13fabca49c563bbaf0ce5a75963d72c58b0290eef0e724d2fbd36633bf953d8b",
+        "url": "https://repo.maven.apache.org/maven2/javax/servlet/jsp/javax.servlet.jsp-api/2.3.3/javax.servlet.jsp-api-2.3.3-sources.jar"
+      },
+      "pom": {
+        "path": "javax.servlet.jsp-api/2.3.3/javax.servlet.jsp-api-2.3.3.pom",
+        "sha256": "814c71e10870ff788535f8f8f9ba7568b872522c93f7f29dc9da6e84e2965f28",
+        "url": "https://repo.maven.apache.org/maven2/javax/servlet/jsp/javax.servlet.jsp-api/2.3.3/javax.servlet.jsp-api-2.3.3.pom"
+      }
+    }
+  ],
+  "licenseSha256": {
+    "LICENSE-CDDL-GPL-CLASSPATH.txt": "a4c80869daf4350b6773bd5e6ee1d0a6cc52b63db3a3d2dc20961b0cdd272a5c",
+    "NOTICE.md": "8f4ef4ab18249aaa156d4ff6c346544667f0f8c405090b559189cb77f732a1cf"
+  }
+}

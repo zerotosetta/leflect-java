@@ -148,6 +148,7 @@ async function stageWorkspacePackage(pkg, stageDir, versionMap, workerJarPath) {
   await fs.copyFile(rootReadmePath, path.join(stageDir, "README.md"));
   await fs.copyFile(rootLicensePath, path.join(stageDir, "LICENSE"));
   if (pkg.name === "@leflect-java/cli") {
+    await copyDir(path.join(repoRoot, "resources", "api-packs"), path.join(stageDir, "api-packs"));
     await fs.mkdir(path.join(stageDir, "java"), { recursive: true });
     const workerJarName = path.basename(workerJarPath);
     await fs.copyFile(workerJarPath, path.join(stageDir, "java", workerJarName));
