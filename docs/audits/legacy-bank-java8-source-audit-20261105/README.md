@@ -90,6 +90,7 @@ if(position!=next++ || !input.hasField(field)) throw new BankException(500,"QUER
 
 ## 검수 근거와 한계
 
+- [7개 항목의 수정 계획서 초안·사용자 제안란](../../plans/2026-11-05-source-audit-revision-plan.md) — 구현 전 검토용이며, 지원 범위와 완료 기준은 사용자 제안 후 확정합니다.
 - [전체 유형 및 위치별 원본·기대/실제 JSON](findings.json)
 - [파일·메서드별 대조 범위와 정상 검사 근거](coverage.json)
 - [앞선 클린 빌드·재분석 회귀 검사](../legacy-bank-java8-rebuild-20261105/README.md)
