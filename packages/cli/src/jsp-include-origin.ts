@@ -281,7 +281,9 @@ export function createServletAttributeTrace(analysisOut: string, summaries: read
     }
     const owner = call.resolvedClassId ?? call.targetClassId;
     const name = call.targetMethodName ?? node.name?.identifier;
-    const resourceResult = /^(?:java\.sql\.)?(?:Connection|Statement|PreparedStatement|CallableStatement|ResultSet)$/.test(call.responseType ?? "");
+    const resultType = call.expressionTypeStatus === "resolved" ? call.expressionType
+      : call.expressionTypeStatus ? undefined : call.responseType;
+    const resourceResult = /^(?:java\.sql\.)?(?:Connection|Statement|PreparedStatement|CallableStatement|ResultSet)$/.test(resultType ?? "");
     if (owner?.startsWith("java.sql.")) {
       const sql = node.arguments?.[0];
       const table = name === "prepareStatement" && typeof sql?.value === "string"
@@ -289,7 +291,7 @@ export function createServletAttributeTrace(analysisOut: string, summaries: read
       trace.add(body, node, table
         ? `Prepared SQL reads ${table}`
         : `Database ${resourceResult ? "resource" : "value"} through ${owner}.${name}`, resourceResult ? "resource" : "value",
-        undefined, call.responseType);
+        undefined, resultType);
       if (node.scope) {
         await traceExpression(body, node.scope, undefined, trace, next, bindings);
       }
@@ -307,7 +309,7 @@ export function createServletAttributeTrace(analysisOut: string, summaries: read
       return;
     }
     trace.add(body, node, `${resourceResult ? "Resource" : "Value"} from ${owner}.${name}()`,
-      resourceResult ? "resource" : "value", undefined, call.responseType);
+      resourceResult ? "resource" : "value", undefined, resultType);
     const target = await loadBody(candidate);
     if (target) {
       for (const returned of target.nodes) {

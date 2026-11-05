@@ -228,6 +228,7 @@ public class JavaSummaryExtractor {
     );
     summary.modifiers = callable.getModifiers().stream()
         .map(modifier -> modifier.getKeyword().asString()).collect(Collectors.toList());
+    summary.executionModel = new JavaExecutionModelExtractor().extract(callable, methodId);
     return summary;
   }
 
@@ -416,6 +417,12 @@ public class JavaSummaryExtractor {
           if (node instanceof Parameter) site.receiverTypeSpelling = ((Parameter) node).getType().asString();
           else if (node instanceof VariableDeclarator) site.receiverTypeSpelling = ((VariableDeclarator) node).getType().asString();
           site.receiverDeclarationLocation = toSourceLocation(node);
+          if (node instanceof VariableDeclarator) {
+            Node declarationNode = node.getParentNode().orElse(node);
+            if (declarationNode instanceof VariableDeclarationExpr || declarationNode instanceof FieldDeclaration) {
+              site.receiverDeclarationLocation = toSourceLocation(declarationNode);
+            }
+          }
           site.receiverDeclarationFile = node.findCompilationUnit().flatMap(CompilationUnit::getStorage)
               .map(storage -> storage.getPath().toString().replace('\\', '/')).orElse(null);
           site.receiverOriginKind = "receiver-declaration";

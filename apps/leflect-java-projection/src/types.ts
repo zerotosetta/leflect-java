@@ -232,7 +232,26 @@ export type ProjectionFileDetail = {
       fromClassId?: string;
       toMethodId?: string;
       to?: string;
+      declaredReturnType?: string;
+      expressionType?: string;
+      expressionTypeStatus?: string;
+      expressionTypeReason?: string;
+      originKind?: string;
+      originStatus?: string;
+      originEvidence?: Record<string, unknown>;
       location?: ProjectionSourceLocation;
+    }>;
+    methods?: Array<{
+      id: string;
+      orderedSteps?: unknown[];
+      executionModel?: {
+        version: 2;
+        coverage: Record<string, unknown>;
+        orderedSteps: Array<Record<string, unknown> & { id: string; kind: string; lineRange?: { startLine?: number; startColumn?: number; endLine?: number; endColumn?: number } }>;
+        flowGraph: Record<string, unknown>;
+        symbols: unknown[];
+        states: unknown;
+      };
     }>;
   };
   source?: ProjectionFileSource;

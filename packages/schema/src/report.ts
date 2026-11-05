@@ -1,5 +1,6 @@
 import { GraphEdge } from "./graph";
 import { ClassLabel, JspLabel, MethodLabel } from "./labels";
+import type { JavaExecutionModel } from "./java-execution";
 
 export type DiagnosticSeverity = "error" | "warning";
 
@@ -59,6 +60,14 @@ export type DiagnosticCauseGroup = {
 export type SummaryReport = {
   schemaVersion: string;
   generatedAt: string;
+  javaExecution?: Array<{
+    methodId: string;
+    modelVersion: 2 | "legacy";
+    steps: number;
+    flowNodes: number;
+    flowEdges: number;
+    coverage?: JavaExecutionModel["coverage"];
+  }>;
   counts: {
     classes: number;
     methods: number;

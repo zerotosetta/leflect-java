@@ -2,6 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 import { createReadStream } from "fs";
 import readline from "readline";
+import type { JavaExecutionModel } from "@leflect-java/schema";
 
 import { readSourceMetadataTree, removeFiles, writeSourceMetadataTree } from "./file-tree";
 
@@ -30,6 +31,7 @@ export type MethodIndexEntry = {
   location?: JavaSourceLocation;
   lineRange?: JavaLineRange;
   orderedSteps?: OrderedExecutionStepEntry[];
+  executionModel?: JavaExecutionModel;
 };
 
 export type FieldIndexEntry = {
@@ -89,6 +91,10 @@ export type CallIndexEntry = Partial<JavaImportOrigin> & {
   importId?: string;
   inputParameters?: MethodCallParameterEntry[];
   responseType?: string;
+  declaredReturnType?: string;
+  expressionType?: string;
+  expressionTypeStatus?: "resolved" | "partial" | "unresolved" | "not-applicable";
+  expressionTypeReason?: string;
   location?: JavaSourceLocation;
   lineRange?: JavaLineRange;
   snippet?: string;
@@ -195,6 +201,7 @@ export type JavaSummaryMethod = {
   location?: JavaSourceLocation;
   lineRange?: JavaLineRange;
   orderedSteps?: OrderedExecutionStepEntry[];
+  executionModel?: JavaExecutionModel;
 };
 
 export type JavaSummaryField = {
@@ -248,6 +255,10 @@ export type JavaSummaryMethodCall = {
   parameterTypes?: string[];
   argumentExpressions?: string[];
   responseType?: string;
+  declaredReturnType?: string;
+  expressionType?: string;
+  expressionTypeStatus?: "resolved" | "partial" | "unresolved" | "not-applicable";
+  expressionTypeReason?: string;
   receiverType?: string;
   receiverTypeSpelling?: string;
   receiverDeclarationFile?: string;
@@ -419,7 +430,8 @@ export function buildJavaIndex(workerIndex: WorkerIndex): JavaIndex {
             callTargets: collectUnique(method.calls ?? []),
             location: method.location,
             lineRange: normalizeLineRange(method.lineRange, method.location),
-            orderedSteps: normalizeOrderedSteps(method.orderedSteps)
+            orderedSteps: normalizeOrderedSteps(method.orderedSteps),
+            executionModel: method.executionModel?.version === 2 ? method.executionModel : undefined
           });
           methodIds.add(method.id);
         }
@@ -728,6 +740,10 @@ function buildCallIndexEntry(
       pending.record.argumentExpressions
     ),
     responseType: pending.record.responseType ?? inferredMethod?.returnType,
+    declaredReturnType: pending.record.declaredReturnType,
+    expressionType: pending.record.expressionType,
+    expressionTypeStatus: pending.record.expressionTypeStatus,
+    expressionTypeReason: pending.record.expressionTypeReason,
     location: pending.record.location,
     lineRange: normalizeLineRange(pending.record.lineRange, pending.record.location),
     snippet: pending.record.snippet
