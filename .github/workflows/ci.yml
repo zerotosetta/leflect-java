@@ -27,3 +27,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - name: Build standalone parser package
+        run: node scripts/build-npx-cli.mjs
+      - name: Verify isolated tgz consumers
+        run: pnpm npx:test

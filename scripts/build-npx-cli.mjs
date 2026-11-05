@@ -3,12 +3,14 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { build } from "esbuild";
 import { copyDir, findJavaWorkerJar, spawnExecutable } from "./release-common.mjs";
+import { bundleStandaloneDeclarations } from "./bundle-standalone-declarations.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
 const cliPackagePath = path.join(repoRoot, "packages", "cli", "package.json");
 const rootReadmePath = path.join(repoRoot, "README.md");
+const parserApiGuidePath = path.join(repoRoot, "docs", "parser-api.md");
 const rootLicensePath = path.join(repoRoot, "LICENSE");
 const cliDistEntry = path.join(repoRoot, "packages", "cli", "dist", "index.js");
 const cliTypesEntry = path.join(repoRoot, "packages", "cli", "dist", "index.d.ts");
@@ -16,7 +18,7 @@ const artifactsDir = path.join(repoRoot, ".artifacts");
 const packageDir = path.join(artifactsDir, "npx-cli");
 const packDir = path.join(artifactsDir, "packages");
 
-await ensureBuilt(cliDistEntry);
+await Promise.all([ensureBuilt(cliDistEntry), ensureBuilt(cliTypesEntry), fs.access(parserApiGuidePath)]);
 const workerJarPath = await findJavaWorkerJar();
 
 const cliPackage = JSON.parse(await fs.readFile(cliPackagePath, "utf8"));
@@ -34,10 +36,21 @@ const publishedPackage = {
     leflect: "index.js"
   },
   type: "commonjs",
+  main: "./index.js",
+  types: "./index.d.ts",
+  exports: {
+    ".": {
+      types: "./index.d.ts",
+      import: "./index.mjs",
+      require: "./index.js"
+    }
+  },
   files: [
     "index.js",
+    "index.mjs",
     "index.d.ts",
     "README.md",
+    "PARSER_API.md",
     "LICENSE",
     "java",
     "api-packs"
@@ -59,8 +72,16 @@ await build({
   legalComments: "none"
 });
 
-await fs.copyFile(cliTypesEntry, path.join(packageDir, "index.d.ts"));
+const declarations = await bundleStandaloneDeclarations(cliTypesEntry, path.join(packageDir, "index.d.ts"));
+await fs.writeFile(path.join(packageDir, "index.mjs"), [
+  'import api from "./index.js";',
+  `const { ${declarations.valueExports.join(", ")} } = api;`,
+  `export { ${declarations.valueExports.join(", ")} };`,
+  ""
+].join("\n"));
 await fs.copyFile(rootReadmePath, path.join(packageDir, "README.md"));
+await fs.appendFile(path.join(packageDir, "README.md"), "\nStandalone parser API: [PARSER_API.md](./PARSER_API.md)\n");
+await fs.copyFile(parserApiGuidePath, path.join(packageDir, "PARSER_API.md"));
 await fs.copyFile(rootLicensePath, path.join(packageDir, "LICENSE"));
 await copyOptionalWorkerJar();
 await copyDir(path.join(repoRoot, "resources", "api-packs"), path.join(packageDir, "api-packs"));
