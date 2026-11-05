@@ -1,6 +1,6 @@
 {
   "name": "@leflect-java/workspace",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -35,6 +35,7 @@
     "java-worker:test": "node scripts/java-worker.mjs test",
     "java-worker:clean": "node scripts/java-worker.mjs clean",
     "npx:build": "pnpm build && node scripts/build-npx-cli.mjs",
+    "npx:test": "node scripts/test-npx-package.mjs",
     "typecheck": "tsc -b --pretty false && pnpm projection:typecheck",
     "lint": "eslint .",
     "test": "vitest run",
@@ -55,8 +56,10 @@
     "@typescript-eslint/parser": "^7.8.0",
     "esbuild": "^0.25.1",
     "eslint": "^8.57.0",
+    "pkg": "^5.8.1",
+    "rollup": "4.59.0",
+    "rollup-plugin-dts": "6.3.0",
     "typescript": "^5.4.5",
-    "vitest": "^1.5.0",
-    "pkg": "^5.8.1"
+    "vitest": "^1.5.0"
   }
 }

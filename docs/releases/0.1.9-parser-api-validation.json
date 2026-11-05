@@ -1,0 +1,598 @@
+{
+  "version": "0.1.9",
+  "generatedAt": "2026-11-05T10:34:04.588Z",
+  "packageSha256": "d830f377e3a985bd88c3dec3083a735f35fda80aa94164cf5fde2a22d0bb87b6",
+  "acceptance": {
+    "generatedAt": "2026-11-05T10:36:22.705Z",
+    "tarball": "<WORKSPACE>\\.artifacts\\packages\\leflect-java-0.1.9.tgz",
+    "temporaryRoot": "<ISOLATED_TEMP>",
+    "consumer": "<ISOLATED_TEMP>\\consumer",
+    "methodology": "Offline installation of one standalone tarball outside the repository. Only a copied TypeScript compiler is supplied as a development tool; runtime workspace imports are forbidden and every compiler program file must remain under the isolated temporary root.",
+    "checks": [
+      {
+        "name": "temporary consumer is outside the repository",
+        "passed": true
+      },
+      {
+        "name": "one tarball installs exactly one runtime package",
+        "passed": true,
+        "installed": [
+          "leflect-java"
+        ]
+      },
+      {
+        "name": "standalone package declares no missing external runtime dependencies",
+        "passed": true
+      },
+      {
+        "name": "public main/types and conditional import/require entries are explicit",
+        "passed": true,
+        "main": "./index.js",
+        "types": "./index.d.ts",
+        "exports": {
+          ".": {
+            "types": "./index.d.ts",
+            "import": "./index.mjs",
+            "require": "./index.js"
+          }
+        }
+      },
+      {
+        "name": "public entry exists within installed package",
+        "passed": true,
+        "entry": "./index.js"
+      },
+      {
+        "name": "public entry exists within installed package",
+        "passed": true,
+        "entry": "./index.d.ts"
+      },
+      {
+        "name": "public entry exists within installed package",
+        "passed": true,
+        "entry": "./index.d.ts"
+      },
+      {
+        "name": "public entry exists within installed package",
+        "passed": true,
+        "entry": "./index.mjs"
+      },
+      {
+        "name": "public entry exists within installed package",
+        "passed": true,
+        "entry": "./index.js"
+      },
+      {
+        "name": "offline parser guide matches the documented contract",
+        "passed": true
+      },
+      {
+        "name": "installed README points to the bundled parser guide",
+        "passed": true
+      },
+      {
+        "name": "explicit CLI help remains available",
+        "passed": true
+      },
+      {
+        "name": "isolated runtime has no unaccounted stderr output",
+        "passed": true,
+        "mode": "CommonJS"
+      },
+      {
+        "name": "isolated runtime has no unaccounted stderr output",
+        "passed": true,
+        "mode": "ESM"
+      },
+      {
+        "name": "ESM and CommonJS expose identical function APIs",
+        "passed": true
+      },
+      {
+        "name": "strict compiler has no parent/workspace declaration leakage",
+        "passed": true,
+        "mode": "Node16",
+        "files": 60
+      },
+      {
+        "name": "strict compiler includes the standalone public declaration",
+        "passed": true,
+        "mode": "Node16"
+      },
+      {
+        "name": "strict compiler has no parent/workspace declaration leakage",
+        "passed": true,
+        "mode": "NodeNext",
+        "files": 60
+      },
+      {
+        "name": "strict compiler includes the standalone public declaration",
+        "passed": true,
+        "mode": "NodeNext"
+      },
+      {
+        "name": "strict compiler has no parent/workspace declaration leakage",
+        "passed": true,
+        "mode": "CommonJS",
+        "files": 59
+      },
+      {
+        "name": "strict compiler includes the standalone public declaration",
+        "passed": true,
+        "mode": "CommonJS"
+      }
+    ],
+    "runtime": [
+      {
+        "mode": "CommonJS",
+        "checks": [
+          "CommonJS named analyzeWorkspace",
+          "CommonJS named run",
+          "CommonJS named parseJsp",
+          "CommonJS named parseTld",
+          "CommonJS named loadTldRegistry",
+          "parseJsp is synchronous",
+          "document root contract",
+          "JSP child/attribute/EL and UTF-16 inclusive ranges",
+          "parseTld is synchronous",
+          "TLD string URI/handler/attribute contract",
+          "loadTldRegistry is asynchronous",
+          "empty lists perform zero filesystem access",
+          "explicit repo TLD/JAR preserve URI/source/duplicates without traversal",
+          "configured file does not expand to siblings",
+          "explicit configured directory recurses within directory",
+          "classpath directory recurses through JARs without loose TLD discovery",
+          "explicit JAR entry does not expand to sibling entries",
+          "import and parser functions never invoke Java/child processes or forbidden file access",
+          "import and parser functions produce no CLI output"
+        ],
+        "exportedFunctions": [
+          "analyzeWorkspace",
+          "loadTldRegistry",
+          "parseJsp",
+          "parseTld",
+          "run"
+        ],
+        "importFilesystemReads": 7,
+        "discoveryOperations": [
+          {
+            "phase": "configured-directory",
+            "method": "fs/promises.readdir",
+            "path": "<ISOLATED_TEMP>/consumer/source/configured"
+          },
+          {
+            "phase": "configured-directory",
+            "method": "fs/promises.readdir",
+            "path": "<ISOLATED_TEMP>\\consumer\\source\\configured\\nested"
+          },
+          {
+            "phase": "classpath-directory",
+            "method": "fs/promises.readdir",
+            "path": "<ISOLATED_TEMP>/consumer/source/lib"
+          },
+          {
+            "phase": "classpath-directory",
+            "method": "fs/promises.readdir",
+            "path": "<ISOLATED_TEMP>\\consumer\\source\\lib\\nested"
+          }
+        ],
+        "blocked": [],
+        "output": []
+      },
+      {
+        "mode": "ESM",
+        "checks": [
+          "ESM named analyzeWorkspace",
+          "ESM named run",
+          "ESM named parseJsp",
+          "ESM named parseTld",
+          "ESM named loadTldRegistry",
+          "parseJsp is synchronous",
+          "document root contract",
+          "JSP child/attribute/EL and UTF-16 inclusive ranges",
+          "parseTld is synchronous",
+          "TLD string URI/handler/attribute contract",
+          "loadTldRegistry is asynchronous",
+          "empty lists perform zero filesystem access",
+          "explicit repo TLD/JAR preserve URI/source/duplicates without traversal",
+          "configured file does not expand to siblings",
+          "explicit configured directory recurses within directory",
+          "classpath directory recurses through JARs without loose TLD discovery",
+          "explicit JAR entry does not expand to sibling entries",
+          "import and parser functions never invoke Java/child processes or forbidden file access",
+          "import and parser functions produce no CLI output"
+        ],
+        "exportedFunctions": [
+          "analyzeWorkspace",
+          "loadTldRegistry",
+          "parseJsp",
+          "parseTld",
+          "run"
+        ],
+        "importFilesystemReads": 12,
+        "discoveryOperations": [
+          {
+            "phase": "configured-directory",
+            "method": "fs/promises.readdir",
+            "path": "<ISOLATED_TEMP>/consumer/source/configured"
+          },
+          {
+            "phase": "configured-directory",
+            "method": "fs/promises.readdir",
+            "path": "<ISOLATED_TEMP>\\consumer\\source\\configured\\nested"
+          },
+          {
+            "phase": "classpath-directory",
+            "method": "fs/promises.readdir",
+            "path": "<ISOLATED_TEMP>/consumer/source/lib"
+          },
+          {
+            "phase": "classpath-directory",
+            "method": "fs/promises.readdir",
+            "path": "<ISOLATED_TEMP>\\consumer\\source\\lib\\nested"
+          }
+        ],
+        "blocked": [],
+        "output": []
+      }
+    ],
+    "compilers": [
+      {
+        "mode": "Node16",
+        "strict": true,
+        "skipLibCheck": false,
+        "types": [],
+        "typeRoots": [],
+        "exitCode": 0,
+        "files": [
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es5.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2016.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2017.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2018.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2019.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2021.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.core.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.collection.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.generator.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.iterable.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.promise.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.proxy.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.reflect.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.symbol.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2016.array.include.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2016.intl.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2017.date.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2017.object.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2017.sharedmemory.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2017.string.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2017.intl.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2017.typedarrays.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2018.asyncgenerator.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2018.asynciterable.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2018.intl.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2018.promise.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2018.regexp.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2019.array.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2019.object.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2019.string.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2019.symbol.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2019.intl.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.bigint.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.date.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.promise.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.sharedmemory.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.string.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.symbol.wellknown.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.intl.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.number.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2021.promise.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2021.string.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2021.weakref.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2021.intl.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.array.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.error.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.intl.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.object.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.sharedmemory.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.string.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.regexp.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.decorators.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.decorators.legacy.d.ts",
+          "<ISOLATED_TEMP>/consumer/node_modules/leflect-java/index.d.ts",
+          "<ISOLATED_TEMP>/consumer/consumer.cts",
+          "<ISOLATED_TEMP>/consumer/consumer.mts"
+        ]
+      },
+      {
+        "mode": "NodeNext",
+        "strict": true,
+        "skipLibCheck": false,
+        "types": [],
+        "typeRoots": [],
+        "exitCode": 0,
+        "files": [
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es5.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2016.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2017.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2018.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2019.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2021.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.core.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.collection.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.generator.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.iterable.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.promise.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.proxy.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.reflect.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.symbol.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2016.array.include.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2016.intl.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2017.date.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2017.object.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2017.sharedmemory.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2017.string.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2017.intl.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2017.typedarrays.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2018.asyncgenerator.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2018.asynciterable.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2018.intl.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2018.promise.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2018.regexp.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2019.array.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2019.object.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2019.string.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2019.symbol.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2019.intl.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.bigint.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.date.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.promise.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.sharedmemory.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.string.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.symbol.wellknown.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.intl.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.number.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2021.promise.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2021.string.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2021.weakref.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2021.intl.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.array.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.error.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.intl.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.object.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.sharedmemory.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.string.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.regexp.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.decorators.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.decorators.legacy.d.ts",
+          "<ISOLATED_TEMP>/consumer/node_modules/leflect-java/index.d.ts",
+          "<ISOLATED_TEMP>/consumer/consumer.cts",
+          "<ISOLATED_TEMP>/consumer/consumer.mts"
+        ]
+      },
+      {
+        "mode": "CommonJS",
+        "strict": true,
+        "skipLibCheck": false,
+        "types": [],
+        "typeRoots": [],
+        "exitCode": 0,
+        "files": [
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es5.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2016.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2017.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2018.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2019.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2021.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.core.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.collection.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.generator.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.iterable.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.promise.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.proxy.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.reflect.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.symbol.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2016.array.include.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2016.intl.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2017.date.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2017.object.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2017.sharedmemory.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2017.string.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2017.intl.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2017.typedarrays.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2018.asyncgenerator.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2018.asynciterable.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2018.intl.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2018.promise.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2018.regexp.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2019.array.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2019.object.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2019.string.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2019.symbol.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2019.intl.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.bigint.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.date.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.promise.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.sharedmemory.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.string.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.symbol.wellknown.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.intl.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2020.number.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2021.promise.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2021.string.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2021.weakref.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2021.intl.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.array.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.error.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.intl.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.object.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.sharedmemory.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.string.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.es2022.regexp.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.decorators.d.ts",
+          "<ISOLATED_TEMP>/devtools/typescript/lib/lib.decorators.legacy.d.ts",
+          "<ISOLATED_TEMP>/consumer/node_modules/leflect-java/index.d.ts",
+          "<ISOLATED_TEMP>/consumer/consumer.ts"
+        ]
+      }
+    ],
+    "passed": true,
+    "tarballSha256": "d830f377e3a985bd88c3dec3083a735f35fda80aa94164cf5fde2a22d0bb87b6",
+    "package": {
+      "name": "leflect-java",
+      "version": "0.1.9"
+    }
+  },
+  "sourceTests": {
+    "files": 43,
+    "tests": 151,
+    "passed": true,
+    "releaseCheckLogSha256": "5a5f9b32f88c3e6edbb7a4ce16f49dcd0e3c317edf52ab9c22d652262006701c"
+  },
+  "negativeControl": {
+    "version": "0.1.8",
+    "passed": true,
+    "rejectedAt": "public main/types and conditional import/require entries are explicit"
+  },
+  "originalSourceAnalysis": {
+    "output": "analysis/legacy-bank-java8/public-api-0.1.9-20261105",
+    "worker": {
+      "requested": true,
+      "resolvedJar": "<ANALYZER_TEMP>\\consumer\\node_modules\\leflect-java\\java\\leflectjava-java-worker-0.1.0.jar",
+      "ran": true
+    },
+    "counts": {
+      "classes": 43,
+      "methods": 108,
+      "jsps": 21,
+      "taglibs": 14,
+      "javaCallEdges": 646,
+      "jspJavaEdges": 103,
+      "unresolvedEdges": 0
+    },
+    "regressions": [
+      {
+        "name": "baseline117",
+        "passed": true,
+        "summary": {
+          "total": 117,
+          "passed": 117,
+          "unresolvedAfter": 0
+        }
+      },
+      {
+        "name": "parser",
+        "passed": true,
+        "summary": {
+          "AUD-JSP-01": {
+            "expected": 38,
+            "passed": 38
+          },
+          "AUD-JSP-02": {
+            "source": 269,
+            "raw": 269,
+            "semantic": 269,
+            "matched": 269
+          },
+          "AUD-JSP-03": {
+            "expected": 2,
+            "passed": 2
+          },
+          "AUD-JSP-08": {
+            "expectedFiles": 27,
+            "files": 27,
+            "filesWithAllShards": 27,
+            "tagAttributes": 6,
+            "matchedTagAttributes": 6
+          },
+          "negativeFixtures": {
+            "total": 5,
+            "passed": 5
+          },
+          "failures": 0
+        }
+      },
+      {
+        "name": "semantic",
+        "passed": true,
+        "summary": {
+          "checks": 314,
+          "failures": 0
+        }
+      },
+      {
+        "name": "report-entry-task",
+        "passed": true,
+        "summary": {
+          "AUD-REPORT-01": {
+            "tagFileUses": 42,
+            "fixedIncludeUses": 4,
+            "matched": 46,
+            "files": 17
+          },
+          "AUD-ENTRY-01": {
+            "routes": 2,
+            "matched": 2
+          },
+          "AUD-ENTRY-02": {
+            "originalJavaFiles": 42,
+            "currentJavaFiles": 42,
+            "originalHandlers": 59,
+            "originalTags": 272,
+            "matchedTags": 272,
+            "controllers": 2
+          },
+          "AUD-TASK-01": {
+            "occurrences": 22,
+            "literalOccurrences": 22,
+            "distinctCodes": 17,
+            "dynamicOccurrences": 0,
+            "invalidOccurrences": 0,
+            "matched": 22,
+            "files": 12
+          },
+          "failures": 0
+        }
+      },
+      {
+        "name": "new-imports",
+        "passed": true
+      },
+      {
+        "name": "source-jsp",
+        "passed": true,
+        "summary": {
+          "files": 27,
+          "tags": 861,
+          "customTags": 290,
+          "attributes": 987,
+          "expressions": 286,
+          "comments": 4,
+          "directives": 45,
+          "scriptlets": 0,
+          "functions": 44,
+          "standardFunctions": 40,
+          "customFunctions": 4,
+          "structuralFailures": 0
+        }
+      }
+    ]
+  },
+  "distribution": {
+    "singleTgz": true,
+    "npmPublished": false,
+    "newTag": false,
+    "atkAndSkillChanged": false
+  }
+}

@@ -37,6 +37,7 @@ node bin/leflect --help
 - JSP semantic AST guide: `docs/jsp-tld-semantic-guide.md`
 - Design adaptation notes: `docs/design/README.md`
 - Programmatic CLI usage: `packages/cli/README.md`
+- Standalone JSP/TLD parser API and offline tgz usage: `docs/parser-api.md`
 
 ## NPX CLI
 
