@@ -290,21 +290,30 @@ export function buildJavaIndex(workerIndex: WorkerIndex): JavaIndex {
     const fileClassIds: string[] = [];
     const fileMethodIds: string[] = [];
     const fileCallTargets: string[] = [];
-    const importLocations = new Map<string, JavaSourceLocation | undefined>();
+    const importDeclarations = (summary.classReferences ?? [])
+      .filter((reference) => reference.kind?.startsWith("import"))
+      .map((reference) => ({
+        ...parseImportDeclaration(reference.qualifiedName ?? reference.symbol, reference.kind, reference.snippet),
+        location: reference.location
+      }));
+    const referenceDiagnostics = [...(summary.referenceDiagnostics ?? [])];
 
-    for (const reference of summary.classReferences ?? []) {
-      if (reference.kind?.startsWith("import")) {
-        importLocations.set(reference.qualifiedName ?? reference.symbol, reference.location);
-      }
-    }
-
-    const fileImportEntries = fileImports.map((entry) => ({
-      id: buildImportId(file, entry),
-      file,
-      import: entry,
-      simpleName: extractSimpleName(entry),
-      location: importLocations.get(entry)
-    }));
+    const fileImportEntries = fileImports.map((entry) => {
+      const declaration = parseImportDeclaration(entry);
+      const candidates = importDeclarations.filter((candidate) => candidate.name === declaration.name &&
+        candidate.wildcard === declaration.wildcard && (!declaration.staticSpecified || candidate.isStatic === declaration.isStatic));
+      // Older workers omit `static` in summary.imports. A unique raw declaration
+      // remains authoritative; ambiguous declarations must not borrow a range.
+      const location = candidates.length === 1 ? candidates[0].location : undefined;
+      if (!location) referenceDiagnostics.push({
+        snippet: entry,
+        message: candidates.length > 1 ? "Ambiguous import declaration source location" : "Import declaration source location is unavailable"
+      });
+      return {
+        id: buildImportId(file, entry), file, import: entry,
+        simpleName: extractSimpleName(entry), location
+      };
+    });
     const lookup = createImportLookup(fileImportEntries);
     imports.push(...fileImportEntries);
 
@@ -411,7 +420,7 @@ export function buildJavaIndex(workerIndex: WorkerIndex): JavaIndex {
       classIds: collectUnique(fileClassIds),
       methodIds: collectUnique(fileMethodIds),
       callTargets: collectUnique(fileCallTargets),
-      referenceDiagnostics: summary.referenceDiagnostics
+      referenceDiagnostics: referenceDiagnostics.length ? referenceDiagnostics : summary.referenceDiagnostics
     });
   }
 
@@ -821,6 +830,16 @@ function resolveClassPath(symbol: string | undefined, lookup: JavaImportLookup):
 
 function buildImportId(file: string, value: string): string {
   return `java-import:${file}:${value}`;
+}
+
+function parseImportDeclaration(value: string, kind?: string, snippet?: string): {
+  name: string; wildcard: boolean; isStatic: boolean; staticSpecified: boolean;
+} {
+  const text = snippet?.trim().startsWith("import ") ? snippet.trim() : value.trim();
+  const isStatic = /^(?:import\s+)?static\s+/.test(text) || Boolean(kind?.includes("static"));
+  const spelling = text.replace(/^import\s+/, "").replace(/^static\s+/, "").replace(/;\s*$/, "").replace(/\s+/g, "");
+  const wildcard = spelling.endsWith(".*") || kind === "import-wildcard";
+  return { name: spelling.replace(/\.\*$/, ""), wildcard, isStatic, staticSpecified: isStatic };
 }
 
 function extractMethodName(target: string): string | undefined {
