@@ -7,6 +7,7 @@
 - [원본 전수 대조 보고서](../audits/legacy-bank-java8-source-audit-20261105/README.md)
 - [모든 발견 위치의 원본·기대/실제 결과](../audits/legacy-bank-java8-source-audit-20261105/findings.json)
 - [파일·메서드별 검수 범위](../audits/legacy-bank-java8-source-audit-20261105/coverage.json)
+- [구현 작업 준비·API 팩 별도 연동 계획](2026-11-05-source-audit-work-preparation.md)
 
 ## 반영한 이전 제안과 이번 작성자안
 
