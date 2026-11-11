@@ -33,13 +33,22 @@ public class ParserFactory {
       List<Path> sourceFiles,
       List<String> classpathEntries
   ) {
+    return createJavaParser(root, sourceFiles, classpathEntries, false);
+  }
+
+  public static JavaParser createJavaParser(
+      Path root,
+      List<Path> sourceFiles,
+      List<String> classpathEntries,
+      boolean isolatedClasspath
+  ) {
     CombinedTypeSolver typeSolver = new CombinedTypeSolver();
 
     for (Path sourceRoot : discoverSourceRoots(root, sourceFiles)) {
       typeSolver.add(new JavaParserTypeSolver(sourceRoot));
     }
 
-    URLClassLoader classLoader = createClasspathClassLoader(classpathEntries);
+    URLClassLoader classLoader = createClasspathClassLoader(classpathEntries, isolatedClasspath);
     if (classpathEntries != null) {
       for (String entry : classpathEntries) {
         Path binary = Path.of(entry).normalize();
@@ -130,7 +139,7 @@ public class ParserFactory {
     }
   }
 
-  private static URLClassLoader createClasspathClassLoader(List<String> classpathEntries) {
+  private static URLClassLoader createClasspathClassLoader(List<String> classpathEntries, boolean isolatedClasspath) {
     if (classpathEntries == null || classpathEntries.isEmpty()) {
       return null;
     }
@@ -140,6 +149,9 @@ public class ParserFactory {
           .map(Path::of)
           .map(Path::normalize)
           .filter(Files::exists)
+          // JarTypeSolver reads JAR signatures directly. Exclude JARs from the
+          // snapshot class loader so manifest Class-Path cannot add live inputs.
+          .filter(entry -> !isolatedClasspath || Files.isDirectory(entry))
           .map(ParserFactory::toUrl)
           .toArray(URL[]::new);
 

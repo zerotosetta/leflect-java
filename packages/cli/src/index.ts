@@ -87,6 +87,9 @@ import { buildTaskCodeIndex, readTaskCodes, writeTaskCodes } from "./task-codes"
 import { createExternalSymbolResolver, withAnalysisClasspath } from "./external-symbols";
 import { runPluginScaffoldCommand } from "./plugin-scaffold";
 import { runProjectionServer } from "./projection-server";
+import type { SourceResolutionApi } from "./source-contract";
+import { runSourceMcp } from "./source-mcp";
+import { createSourceResolution as createSourceResolutionImpl } from "./source-resolution";
 import { resolveJavaWorkerJar } from "./worker-jar";
 
 // The integrated package exposes the same string parser contracts as the workspace packages.
@@ -96,6 +99,11 @@ export type { JspParseOptions, JspParseResult, JspDocumentNode } from "@leflect-
 export { parseTld, loadTldRegistry } from "@leflect-java/parser-tld";
 export type { TldIndex, LoadTldRegistryOptions, TldRegistryDiagnostic } from "@leflect-java/parser-tld";
 export type { LineRange, TldRegistryEntry, TldRegistryTag, TldAttributeSchema } from "@leflect-java/schema";
+export type { ResolveReferencesRequest, ResolveReferencesResult, SourceDescriptor, SourceResolutionApi, SourceTarget } from "./source-contract";
+
+export function createSourceResolution(config: LeflectConfig): SourceResolutionApi {
+  return createSourceResolutionImpl(config);
+}
 
 type OutputFormat = "json" | "text";
 type StageName = "java-parse" | "jsp-parse" | "tld-parse";
@@ -201,6 +209,14 @@ export async function run(argv: string[]): Promise<void> {
   }
 
   switch (command) {
+    case "mcp":
+      try {
+        await runSourceMcp(rest);
+      } catch (error) {
+        output.error(error instanceof Error ? error.message : String(error));
+        process.exitCode = 1;
+      }
+      return;
     case "init":
       await runInit(rest);
       return;
@@ -1441,6 +1457,7 @@ function printHelp(output: CommandOutput): void {
   output.text("LeflectJava CLI (scaffold)");
   output.text("\nUsage:\n  leflect <command> [options]\n");
   output.text("Commands:");
+  output.text("  mcp --config <path> Serve source resolution and frozen analysis via stdio MCP");
   output.text("  init                Create leflect.config.ts or leflect.config.json with an interactive wizard");
   output.text("  scaffold-plugin     Generate a TypeScript plugin scaffold for leflect.config.ts projects");
   output.text("  scan                Scan repository and build file inventory");

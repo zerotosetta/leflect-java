@@ -11,6 +11,7 @@ export type JavaWorkerCommand = {
   jarPath: string;
   args: string[];
   cwd?: string;
+  signal?: AbortSignal;
 };
 
 export type JavaWorkerResult = {
@@ -29,10 +30,11 @@ export function buildJavaCommand(command: JavaWorkerCommand): {
   return { command: javaPath, args };
 }
 
-export function runJavaWorker(command: JavaWorkerCommand): Promise<JavaWorkerResult> {
+export async function runJavaWorker(command: JavaWorkerCommand): Promise<JavaWorkerResult> {
+  command.signal?.throwIfAborted();
   const { command: exec, args } = buildJavaCommand(command);
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const child = spawn(exec, args, {
       cwd: command.cwd,
       stdio: ["ignore", "pipe", "pipe"]
@@ -40,6 +42,11 @@ export function runJavaWorker(command: JavaWorkerCommand): Promise<JavaWorkerRes
 
     let stdout = "";
     let stderr = "";
+    let spawnError: Error | undefined;
+    const cancel = () => child.kill();
+    command.signal?.addEventListener("abort", cancel, { once: true });
+    if (command.signal?.aborted) cancel();
+    child.on("error", (error) => { spawnError = error; });
 
     child.stdout.on("data", (chunk) => {
       stdout += chunk.toString();
@@ -50,7 +57,10 @@ export function runJavaWorker(command: JavaWorkerCommand): Promise<JavaWorkerRes
     });
 
     child.on("close", (code) => {
-      resolve({ code, stdout, stderr });
+      command.signal?.removeEventListener("abort", cancel);
+      if (command.signal?.aborted) reject(command.signal.reason);
+      else if (spawnError) reject(spawnError);
+      else resolve({ code, stdout, stderr });
     });
   });
 }

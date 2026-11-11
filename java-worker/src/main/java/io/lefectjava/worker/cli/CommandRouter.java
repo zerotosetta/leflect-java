@@ -8,6 +8,9 @@ public class CommandRouter {
     }
 
     String command = args[0];
+    if ("source-syntax".equals(command)) {
+      return new SourceSyntaxCommand().run();
+    }
     if ("parse-java".equals(command)) {
       String manifestPath = parseManifestPath(args);
       if (manifestPath == null || manifestPath.isEmpty()) {
@@ -43,6 +46,6 @@ public class CommandRouter {
 
   private void printUsage() {
     System.out.println("LeflectJava Java Worker");
-    System.out.println("Usage: parse-java|parse-jsp --manifest <path>");
+    System.out.println("Usage: parse-java|parse-jsp --manifest <path> | source-syntax");
   }
 }

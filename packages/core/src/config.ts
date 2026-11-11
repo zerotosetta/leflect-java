@@ -11,7 +11,8 @@ import {
   LeflectConfigInput,
   LeflectEntryDefinition,
   LeflectEntryVariant,
-  LeflectPlugin
+  LeflectPlugin,
+  SourceResolutionConfig
 } from "@leflect-java/schema";
 
 const DEFAULT_CONFIG_FILE_NAMES = [
@@ -58,6 +59,8 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Loade
     loaded = true;
   }
 
+  const configDirectory = loaded && configPath ? path.dirname(configPath) : root;
+
   const merged: LeflectConfig = {
     root,
     ...defaultConfig,
@@ -86,7 +89,11 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Loade
     plugins: options.overrides?.plugins ?? fileConfig.plugins
   };
 
-  const resolved = resolveConfigPaths(merged, root);
+  const configuredRoot = options.overrides?.root ?? fileConfig.root;
+  const sourceRoot = merged.sourceResolution === undefined || configuredRoot === undefined
+    ? root
+    : resolvePath(configDirectory, requireString(configuredRoot, "root"));
+  const resolved = resolveConfigPaths(merged, sourceRoot, configDirectory);
   validateConfig(resolved);
 
   return {
@@ -96,7 +103,7 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Loade
   };
 }
 
-function resolveConfigPaths(config: LeflectConfig, root: string): LeflectConfig {
+function resolveConfigPaths(config: LeflectConfig, root: string, configDirectory: string): LeflectConfig {
   const resolvedAnalysisOut = resolvePath(root, config.analysisOut);
   const classpathDiscovery = config.classpathDiscovery;
   const resolvedClasspathDiscovery =
@@ -128,7 +135,9 @@ function resolveConfigPaths(config: LeflectConfig, root: string): LeflectConfig 
           })) } : {}),
           jreHome: javaConfig.jreHome ? resolvePath(root, javaConfig.jreHome) : undefined,
           javaHome: javaConfig.javaHome ? resolvePath(root, javaConfig.javaHome) : undefined,
-          classpath: javaConfig.classpath?.map((entry) => resolvePath(root, entry)),
+          classpath: javaConfig.classpath?.map((entry) => resolvePath(
+            config.sourceResolution === undefined ? root : configDirectory, entry
+          )),
           mavenCommand: javaConfig.mavenCommand
             ? resolveCommand(root, javaConfig.mavenCommand)
             : undefined
@@ -192,9 +201,71 @@ function resolveConfigPaths(config: LeflectConfig, root: string): LeflectConfig 
     classpathDiscovery: resolvedClasspathDiscovery,
     entries: config.entries?.map((entry) => resolveEntry(entry, root)),
     plugins: config.plugins,
+    ...(config.sourceResolution === undefined ? {} : {
+      sourceResolution: resolveSourceResolution(config.sourceResolution, root, configDirectory)
+    }),
     java: resolvedJava,
     jsp: resolvedJsp
   };
+}
+
+function resolveSourceResolution(
+  config: SourceResolutionConfig, root: string, configDirectory: string
+): SourceResolutionConfig {
+  validateRecord(config, "sourceResolution");
+  const resolveMap = (map: Record<string, string> | undefined, field: string) => {
+    if (map === undefined) return undefined;
+    validateRecord(map, field);
+    return Object.fromEntries(Object.entries(map).map(([key, value]) => [
+      key, resolvePath(configDirectory, requireString(value, `${field}.${key}`))
+    ]));
+  };
+
+  const { webRoot, javaRoots, javaMap, sourceMap, encoding, encodingOverrides, limits } = config;
+  if (javaRoots !== undefined && !Array.isArray(javaRoots)) {
+    throw new Error("Config 'sourceResolution.javaRoots' must be an array of paths");
+  }
+  if (encoding !== undefined) requireString(encoding, "sourceResolution.encoding");
+  if (encodingOverrides !== undefined) {
+    validateRecord(encodingOverrides, "sourceResolution.encodingOverrides");
+    for (const [key, value] of Object.entries(encodingOverrides)) {
+      requireString(value, `sourceResolution.encodingOverrides.${key}`);
+    }
+  }
+  if (limits !== undefined) {
+    validateRecord(limits, "sourceResolution.limits");
+    const validKeys = new Set([
+      "maxDepth", "maxFiles", "maxProbes", "maxFileBytes", "maxTotalSourceBytes", "maxResponseBytes", "timeoutMs"
+    ]);
+    for (const [key, value] of Object.entries(limits)) {
+      const minimum = key === "maxDepth" ? 0 : 1;
+      if (!validKeys.has(key) || !Number.isSafeInteger(value) || value < minimum) {
+        throw new Error(`Config 'sourceResolution.limits.${key}' must be an integer of at least ${minimum}`);
+      }
+    }
+  }
+  return {
+    webRoot: webRoot === undefined ? undefined : resolvePath(root, requireString(webRoot, "sourceResolution.webRoot")),
+    javaRoots: javaRoots?.map((entry) => resolvePath(root, requireString(entry, "sourceResolution.javaRoots"))),
+    javaMap: resolveMap(javaMap, "sourceResolution.javaMap"),
+    sourceMap: resolveMap(sourceMap, "sourceResolution.sourceMap"),
+    encoding,
+    encodingOverrides,
+    limits
+  };
+}
+
+function validateRecord(value: unknown, field: string): void {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`Config '${field}' must be an object`);
+  }
+}
+
+function requireString(value: unknown, field: string): string {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(`Config '${field}' must be a non-empty string`);
+  }
+  return value;
 }
 
 function resolveEntry(entry: LeflectEntryDefinition, root: string): LeflectEntryDefinition {

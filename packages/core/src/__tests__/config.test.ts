@@ -119,6 +119,44 @@ describe("loadConfig", () => {
     expect(result.config.jsp?.webappRoot).toBe(path.join(root, "src", "main", "webapp"));
   });
 
+  it("resolves source lookup roots and mapped files against their respective bases", async () => {
+    const root = await tempDir("leflect source config-");
+    const settings = path.join(root, "설정");
+    const configPath = path.join(settings, "leflect.config.json");
+    try {
+      await mkdir(settings);
+      await writeFile(configPath, JSON.stringify({
+        root: "../workspace",
+        sourceResolution: {
+          webRoot: ".",
+          javaRoots: ["./class_src_service/src/", "./class_src_wbf/src"],
+          sourceMap: { "/views/alias.jsp": "../external/alias.jsp" },
+          javaMap: { "app.Helper": "../external/Helper.java" },
+          encoding: "utf-8",
+          encodingOverrides: { "java-2/app/Legacy.java": "euc-kr" },
+          limits: { maxDepth: 0 }
+        },
+        java: { classpath: ["lib/legacy-api.jar"] }
+      }));
+
+      const { config } = await loadConfig({ root, configPath });
+      const workspace = path.join(root, "workspace");
+      expect(config.root).toBe(workspace);
+      expect(config.sourceResolution).toEqual({
+        webRoot: workspace,
+        javaRoots: [path.join(workspace, "class_src_service", "src"), path.join(workspace, "class_src_wbf", "src")],
+        sourceMap: { "/views/alias.jsp": path.join(root, "external", "alias.jsp") },
+        javaMap: { "app.Helper": path.join(root, "external", "Helper.java") },
+        encoding: "utf-8",
+        encodingOverrides: { "java-2/app/Legacy.java": "euc-kr" },
+        limits: { maxDepth: 0 }
+      });
+      expect(config.java?.classpath).toEqual([path.join(settings, "lib", "legacy-api.jar")]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("discovers and loads a TypeScript config with local plugins", async () => {
     const workspaceRoot = path.resolve(__dirname, "../../../../");
     const root = await mkdtemp(path.join(workspaceRoot, ".tmp-leflect-config-"));

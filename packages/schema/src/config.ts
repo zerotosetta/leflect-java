@@ -31,9 +31,30 @@ export type LeflectEntryDefinition = {
   http?: ServletEntryMetadata;
 };
 
+export type SourceResolutionLimits = {
+  maxDepth: number;
+  maxFiles: number;
+  maxProbes: number;
+  maxFileBytes: number;
+  maxTotalSourceBytes: number;
+  maxResponseBytes: number;
+  timeoutMs: number;
+};
+
+export type SourceResolutionConfig = {
+  webRoot?: string;
+  javaRoots?: string[];
+  javaMap?: Record<string, string>;
+  sourceMap?: Record<string, string>;
+  encoding?: string;
+  encodingOverrides?: Record<string, string>;
+  limits?: Partial<SourceResolutionLimits>;
+};
+
 export type LeflectConfig = {
   root: string;
   analysisOut: string;
+  sourceResolution?: SourceResolutionConfig;
   ignoreFile?: string;
   labelsOut?: string;
   entries?: LeflectEntryDefinition[];

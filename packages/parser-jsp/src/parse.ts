@@ -421,6 +421,33 @@ function parseDocument(
   while (index < endOffset) {
     const current = currentContainer(root, stack);
 
+    if (xml && content.startsWith("<![CDATA[", index)) {
+      const end = Math.min(endOffset, findSequenceEnd(content, index + 9, "]]>"));
+      const raw = content.slice(index, end);
+      current.children.push({
+        kind: "Text",
+        raw,
+        text: raw.endsWith("]]>") ? raw.slice(9, -3) : raw.slice(9),
+        lineRange: toLineRange(content, index, end)
+      });
+      index = end;
+      continue;
+    }
+
+    if (xml && content.startsWith("<!--", index)) {
+      const end = Math.min(endOffset, findSequenceEnd(content, index + 4, "-->"));
+      const raw = content.slice(index, end);
+      commentRanges.push({ start: index, end });
+      current.children.push({
+        kind: "Comment",
+        raw,
+        text: raw.endsWith("-->") ? raw.slice(4, -3) : raw.slice(4),
+        lineRange: toLineRange(content, index, end)
+      });
+      index = end;
+      continue;
+    }
+
     if (content.startsWith("<%--", index)) {
       const end = Math.min(endOffset, findSequenceEnd(content, index + 4, "--%>"));
       const raw = content.slice(index, end);
@@ -652,7 +679,7 @@ function parseScriptletNode(
 function parseClosingTag(content: string, startOffset: number, limit: number, xml: boolean): { identifier: string; end: number } | undefined {
   const end = findTagBoundary(content, startOffset, limit);
   const raw = content.slice(startOffset, end);
-  const match = raw.match(/^<\/\s*([A-Za-z0-9:_-]+)[^>]*>$/);
+  const match = raw.match(/^<\/\s*([A-Za-z0-9:_.-]+)[^>]*>$/);
   if (!match?.[1]) {
     return undefined;
   }
@@ -676,7 +703,7 @@ function parseElementNode(
 
   const end = findTagBoundary(content, startOffset, limit);
   const raw = content.slice(startOffset, end);
-  const match = raw.match(/^<\s*([A-Za-z0-9:_-]+)/);
+  const match = raw.match(/^<\s*([A-Za-z0-9:_.-]+)/);
   if (!match?.[1]) {
     return undefined;
   }
