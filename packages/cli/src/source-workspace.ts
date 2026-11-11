@@ -118,7 +118,8 @@ export class SourceLookupSession {
   async resolveJava(
     className: string,
     verify?: DeclarationVerifier,
-    ownerClassName = className
+    ownerClassName = className,
+    { searchClasspath = true } = {}
   ): Promise<SourceLookupResult> {
     if (!isJavaClassName(className) || !isJavaClassName(ownerClassName) ||
       (ownerClassName !== className && !className.startsWith(`${ownerClassName}.`))) {
@@ -131,21 +132,29 @@ export class SourceLookupSession {
       ? roots.slice(1).map((root) => rootAttempt(root, javaPath, { className }))
       : [this.mapAttempt(mapped, { className }, roots, "java-map")];
     const sources = await this.inspect("java", attempts, verify && ((source) => verify(source, className)));
-    if (sources.status !== "missing" && (sources.status !== "blocked" || sources.candidates.length)) return sources;
+    if (!searchClasspath || (sources.status !== "missing" && (sources.status !== "blocked" || sources.candidates.length))) return sources;
 
-    const classpath = await this.pinClasspath();
-    const binaries = classpath.find(className, () => this.consumeProbe(), this.signal);
-    const diagnostics = [...sources.diagnostics, ...classpath.diagnostics, ...binaries.diagnostics];
-    if (binaries.limited) return { status: "limit", candidates: binaries.candidates, diagnostics, complete: false };
-    if (sources.status === "blocked") return { ...sources, candidates: binaries.candidates, diagnostics };
-    if (binaries.candidates.length) {
-      return {
-        status: "binary_only", candidates: binaries.candidates, diagnostics,
-        complete: classpath.diagnostics.length === 0 && !binaries.diagnostics.length
-      };
+    const binaries = await this.resolveBinary(className, ownerClassName === className ? undefined : ownerClassName);
+    return {
+      ...binaries,
+      status: binaries.status === "limit" || sources.status === "missing" ? binaries.status : sources.status,
+      complete: sources.complete && binaries.complete,
+      diagnostics: [...sources.diagnostics, ...binaries.diagnostics]
+    };
+  }
+
+  async resolveBinary(className: string, requiredOwner?: string): Promise<SourceLookupResult> {
+    if (!isJavaClassName(className) || (requiredOwner !== undefined &&
+      (!isJavaClassName(requiredOwner) || !className.startsWith(`${requiredOwner}.`)))) {
+      return failure("unsupported", "SOURCE_JAVA_NAME", "Invalid Java class name");
     }
-    if (classpath.diagnostics.length > 0) return { ...sources, diagnostics, complete: false };
-    return { ...sources, diagnostics };
+    const classpath = await this.pinClasspath();
+    const binaries = classpath.find(className, () => this.consumeProbe(), this.signal, requiredOwner);
+    const diagnostics = [...classpath.diagnostics, ...binaries.diagnostics];
+    return {
+      status: binaries.limited ? "limit" : binaries.candidates.length ? "binary_only" : "missing",
+      candidates: binaries.candidates, diagnostics, complete: !binaries.limited && !diagnostics.length
+    };
   }
 
   private getRoots(): Promise<Root[]> {

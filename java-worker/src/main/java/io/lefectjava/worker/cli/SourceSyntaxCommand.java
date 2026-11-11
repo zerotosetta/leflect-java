@@ -26,7 +26,13 @@ final class SourceSyntaxCommand {
         int id = request.path("id").asInt();
         Map<String, Object> response;
         try {
-          if (request.hasNonNull("platformType")) {
+          if (request.hasNonNull("platformMemberTypes")) {
+            JsonNode query = request.get("platformMemberTypes");
+            var members = extractor.platformMemberTypes(query.path("owner").asText(), query.path("member").asText());
+            response = members == null ? Map.of("id", id) : Map.of("id", id, "platformMemberTypes", members);
+          } else if (request.hasNonNull("platformTypeAccess")) {
+            response = Map.of("id", id, "platformTypeAccess", extractor.platformTypeAccess(request.get("platformTypeAccess").asText()));
+          } else if (request.hasNonNull("platformType")) {
             response = Map.of("id", id, "platformType", extractor.isPlatformType(request.get("platformType").asText()));
           } else {
             response = Map.of("id", id, "syntax", extractor.extract(request.path("source").asText()));

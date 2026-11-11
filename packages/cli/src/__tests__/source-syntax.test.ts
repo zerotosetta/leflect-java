@@ -46,6 +46,19 @@ describe("JSP source syntax", () => {
     });
   });
 
+  it.each([
+    ["/page.jsp", String.raw`<%@ page info="quoted \" text import='wrong.Fake'"`, '%>'],
+    ["/page.jspx", `<jsp:root xmlns:jsp="http://java.sun.com/JSP/Page">\n<jsp:directive.page info='text import="wrong.Fake"'`, '/></jsp:root>']
+  ])("extracts imports from actual attributes in %s", (logicalPath, opening, closing) => {
+    expect(parseJspSyntax(`${opening} ${closing}`, logicalPath).imports).toEqual([]);
+    const { imports } = parseJspSyntax(`${opening}\r\n  import = 'right.Real, right.extra.*' ${closing}`, logicalPath);
+    const line = logicalPath.endsWith(".jspx") ? 3 : 2;
+    expect(imports).toEqual([
+      { name: "right.Real", wildcard: false, static: false, location: { line, column: 13, endLine: line, endColumn: 22 } },
+      { name: "right.extra", wildcard: true, static: false, location: { line, column: 25, endLine: line, endColumn: 37 } }
+    ]);
+  });
+
   it("reports custom tag and EL call context at the original positions", () => {
     const syntax = parseJspSyntax('<c:if test="${not empty fn:trim(value)}">content</c:if>', "/view.jsp");
     expect(syntax.diagnostics).toEqual(expect.arrayContaining([
@@ -116,5 +129,41 @@ describe("Java worker source syntax", () => {
     const qualifiers = syntax.types.filter(({ role }) => role === "qualifier");
     expect(qualifiers).toContainEqual(expect.objectContaining({ expression: "acme.support.Tool", resolvedName: undefined }));
     expect(qualifiers.some(({ expression }) => expression === "com.Tool")).toBe(false);
+  });
+
+  it("reports named inheritance scopes, private enclosing types, and platform visibility", async ({ skip }) => {
+    if (!reader) return skip();
+    const syntax = await reader.java(`package app; import base.Root;
+      public class Outer extends Root {
+        static class Root {}
+        public class Member extends base.Generic<args.Header> implements base.Marker {
+          inherited.Token member;
+          Object anonymous = new external.Parent() { Token hidden; };
+          void work() { class Local extends external.Base { Token local; } }
+        }
+        private class Hidden { protected class Deep {} }
+      }`);
+    expect(syntax.diagnostics).toEqual([]);
+    expect(syntax.declarations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ className: "app.Outer", superTypes: ["Root"] }),
+      expect.objectContaining({ className: "app.Outer.Member", superTypes: ["base.Generic", "base.Marker"] }),
+      expect.objectContaining({ className: "app.Outer.Hidden.Deep", access: "private" })
+    ]));
+    expect(syntax.types.find(({ expression }) => expression === "Root")).toMatchObject({ enclosingTypes: [], shadowed: false });
+    expect(syntax.types.find(({ expression }) => expression === "args.Header")?.enclosingTypes).toEqual(["app.Outer"]);
+    expect(syntax.types.find(({ expression }) => expression === "inherited.Token")?.enclosingTypes).toEqual(["app.Outer.Member", "app.Outer"]);
+    expect(syntax.types.filter(({ expression }) => expression === "Token").map(({ inheritanceUncertain }) => inheritanceUncertain)).toEqual([true, true]);
+    expect(await reader.platformTypeAccess("java.util.Map.Entry")).toBe("public");
+    expect(await reader.platformTypeAccess("java.lang.AbstractStringBuilder")).toBe("nonpublic");
+    expect(await reader.platformTypeAccess("java.lang.Missing")).toBe("missing");
+  });
+
+  it("distinguishes known platform member absence from unavailable metadata", async ({ skip }) => {
+    if (!reader) return skip();
+    expect(await reader.platformMemberTypes("java.io.Serializable", "WorkspaceType")).toEqual([]);
+    expect(await reader.platformMemberTypes("java.lang.Exception", "WorkspaceType")).toEqual([]);
+    expect(await reader.platformMemberTypes("java.util.HashMap", "Entry")).toEqual(["java.util.Map.Entry"]);
+    expect(await reader.platformMemberTypes("javax.swing.JFrame", "AccessibleAWTFrame")).toEqual(["java.awt.Frame.AccessibleAWTFrame"]);
+    expect(await reader.platformMemberTypes("workspace.Unavailable", "Entry")).toBeUndefined();
   });
 });

@@ -201,4 +201,121 @@ describe("registered workspace source resolution", () => {
     expect(reference(result, "project.Tool", "java")).toBeUndefined();
     expect(result.sources.some(({ path: candidate }) => candidate === "project/Tool.java")).toBe(false);
   }, 15000);
+
+  it("resolves direct and transitive inherited types before imports without following the wrong source", async ({ skip }) => {
+    if (!workerJar) return skip();
+    await write(`${serviceRoot}/client/Child.java`,
+      "package client; import alternative.*; public class Child extends base.Parent { Token field; }");
+    await write(`${serviceRoot}/client/Grandchild.java`, [
+      "package client; import alternative.Token;",
+      "public class Grandchild extends Child { Token field; }"
+    ].join("\n"));
+    await write(`${wbfRoot}/base/Parent.java`, "package base; public class Parent { protected static class Token {} }");
+    await write(`${wbfRoot}/alternative/Token.java`, "package alternative; public class Token {}");
+    const result = await createResolver().resolveReferences({
+      targets: [
+        { targetId: "direct", kind: "java", className: "client.Child" },
+        { targetId: "transitive", kind: "java", className: "client.Grandchild" }
+      ],
+      scope: { followReferences: true }
+    });
+    expect(result.status).toBe("complete");
+    for (const targetId of ["direct", "transitive"]) {
+      expect(reference(result, "Token", targetId)).toMatchObject({
+        status: "resolved", candidates: [{ className: "base.Parent.Token", path: "base/Parent.java" }]
+      });
+    }
+    expect(result.references.some(({ targetId, candidates }) =>
+      targetId === "direct" && candidates.some(({ className }) => className === "alternative.Token"))).toBe(false);
+  }, 15000);
+
+  it("keeps a wildcard result provisional when a superclass cannot be inspected", async ({ skip }) => {
+    if (!workerJar) return skip();
+    await write(`${serviceRoot}/client/Child.java`,
+      "package client; import alternative.*; public class Child extends absent.Parent { Token field; }");
+    await write(`${wbfRoot}/alternative/Token.java`, "package alternative; public class Token { Leaf leaf; }");
+    await write(`${wbfRoot}/alternative/Leaf.java`, "package alternative; public class Leaf {}");
+    const result = await createResolver().resolveReferences({
+      targets: [{ targetId: "java", kind: "java", className: "client.Child" }], scope: { followReferences: true }
+    });
+    expect(result.status).toBe("partial");
+    expect(reference(result, "Token", "java")).toMatchObject({
+      status: "blocked", binding: "candidate", candidates: [{ className: "alternative.Token" }]
+    });
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({ code: "JAVA_INHERITANCE_UNRESOLVED" }));
+    expect(reference(result, "Leaf", "java")).toBeUndefined();
+  }, 15000);
+
+  it("does not let an unrelated single static import block a normal type and its dependencies", async ({ skip }) => {
+    if (!workerJar) return skip();
+    await write(`${serviceRoot}/demo/Entry.java`, [
+      "package demo; import static java.util.Collections.sort; import helper.*;",
+      "public class Entry { Support helper; }"
+    ].join("\n"));
+    await write(`${wbfRoot}/helper/Support.java`, "package helper; public class Support { Leaf leaf; }");
+    await write(`${wbfRoot}/helper/Leaf.java`, "package helper; public class Leaf {}");
+    const result = await createResolver().resolveReferences({
+      targets: [{ targetId: "java", kind: "java", className: "demo.Entry" }], scope: { followReferences: true }
+    });
+    expect(reference(result, "java.util.Collections.sort", "java")).toMatchObject({ status: "unsupported" });
+    expect(reference(result, "Support", "java")).toMatchObject({
+      status: "resolved", candidates: [{ className: "helper.Support" }]
+    });
+    expect(reference(result, "Leaf", "java")).toMatchObject({
+      status: "resolved", candidates: [{ className: "helper.Leaf" }]
+    });
+    await write(`${wbfRoot}/tools/Container.java`, "package tools; public class Container { public static class Support {} }");
+    await write(`${serviceRoot}/demo/OnDemand.java`, [
+      "package demo; import static tools.Container.*; import helper.*;",
+      "public class OnDemand { Support helper; }"
+    ].join("\n"));
+    const staticWildcard = await createResolver().resolveReferences({
+      targets: [{ targetId: "java", kind: "java", className: "demo.OnDemand" }], scope: { followReferences: true }
+    });
+    expect(reference(staticWildcard, "Support", "java")).toMatchObject({ status: "unsupported", binding: "candidate" });
+    expect(reference(staticWildcard, "Leaf", "java")).toBeUndefined();
+  }, 15000);
+
+  it("does not block project types when the JDK supertype metadata establishes absence", async ({ skip }) => {
+    if (!workerJar) return skip();
+    await write(`${serviceRoot}/client/Value.java`,
+      "package client; import helper.*; public class Value implements java.io.Serializable { Helper field; }");
+    await write(`${wbfRoot}/helper/Helper.java`, "package helper; public class Helper {}");
+    const result = await createResolver().resolveReferences({
+      targets: [{ targetId: "java", kind: "java", className: "client.Value" }]
+    });
+    expect(result.status).toBe("complete");
+    expect(reference(result, "Helper", "java")).toMatchObject({
+      status: "resolved", candidates: [{ className: "helper.Helper" }]
+    });
+  }, 15000);
+
+  it("does not verify private member types from another top-level declaration in the same file", async ({ skip }) => {
+    if (!workerJar) return skip();
+    await write(`${serviceRoot}/demo/Entry.java`, [
+      "package demo; public class Entry { A.Item field; }",
+      "class A { private static class Item {} Item allowed; }"
+    ].join("\n"));
+    const result = await createResolver().resolveReferences({
+      targets: [{ targetId: "java", kind: "java", className: "demo.Entry" }]
+    });
+    expect(result.status).toBe("partial");
+    expect(reference(result, "A.Item", "java")).toMatchObject({ status: "unsupported", binding: "unresolved" });
+    expect(reference(result, "Item", "java")).toMatchObject({ status: "resolved" });
+  }, 15000);
+
+  it("resolves the real JSP import when another directive attribute contains import-like text", async ({ skip }) => {
+    if (!workerJar) return skip();
+    await write(`${serviceRoot}/right/Real.java`, "package right; public class Real {}");
+    await write(`${wbfRoot}/wrong/Fake.java`, "package wrong; public class Fake {}");
+    await write(pagePath.slice(1), `<%@ page info="page import='wrong.Fake'" import="right.Real" %>\n<% new Real(); %>`);
+    const result = await createResolver().resolveReferences({
+      targets: [{ targetId: "page", kind: "jsp", path: pagePath }]
+    });
+    expect(result.status).toBe("complete");
+    expect(reference(result, "Real")).toMatchObject({
+      status: "resolved", candidates: [{ className: "right.Real" }]
+    });
+    expect(result.sources.some(({ path: file }) => file === "wrong/Fake.java")).toBe(false);
+  }, 15000);
 });
