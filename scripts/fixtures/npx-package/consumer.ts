@@ -1,8 +1,9 @@
 import {
-  analyzeWorkspace, parseJsp, parseTld, loadTldRegistry,
+  analyzeWorkspace, parseJsp, parseTld, loadTldRegistry, createSourceResolution,
   type JspParseOptions, type JspParseResult, type JspDocumentNode,
   type TldIndex, type LoadTldRegistryOptions, type TldRegistryDiagnostic,
-  type LineRange, type TldRegistryEntry, type TldRegistryTag, type TldAttributeSchema
+  type LineRange, type TldRegistryEntry, type TldRegistryTag, type TldAttributeSchema,
+  type ResolveReferencesResult, type SourceResolutionApi
 } from "leflect-java";
 
 const parse: (content: string, options?: JspParseOptions) => JspParseResult = parseJsp;
@@ -44,4 +45,10 @@ const tags: TldRegistryTag[] = parsedTld.tags;
 const attributes: TldAttributeSchema[] = tags.flatMap(tag => tag.attributes ?? []);
 registry.then(result => result.entries.map(entry => [entry.uri, entry.sourcePath, entry.tags.map(tag => tag.handlerClass)]));
 const analyze: typeof analyzeWorkspace = analyzeWorkspace;
-void [values, attributes, analyze];
+const resolver: SourceResolutionApi = createSourceResolution({
+  root: ".", analysisOut: "analysis", sourceResolution: { javaRoots: ["src"] }
+});
+const resolved: Promise<ResolveReferencesResult> = resolver.resolveReferences({
+  targets: [{ targetId: "fixture", kind: "java", className: "example.Fixture" }]
+});
+void [values, attributes, analyze, resolved];

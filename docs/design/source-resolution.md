@@ -25,3 +25,5 @@ leflect mcp --config ./atk-configs/leflect.config.json
 클라이언트는 `nextCursor`가 null이 될 때까지 같은 도구를 호출하고 각 배열을 이어 붙인다. 단일 레코드가 응답 한도를 넘으면 `fragments`에 JSON 문자열 조각이 온다. `section`과 `index`가 같은 조각을 UTF-16 `offset` 순으로 모아 `last`에서 파싱하고 해당 배열에 추가한다.
 
 Java 원문은 고정된 텍스트로 worker에 전달한다. JSP 스크립틀릿과 선언은 번역 단위별 Java 입력으로 묶고, worker가 반환한 위치를 JSP 원문에 대응시킨다. 태그 라이브러리와 컨테이너의 실행 결과가 필요한 경로는 진단에 남긴다.
+
+analysis3 0.1.5에서는 `leflectMcp.cli`에 이 변경을 포함한 LeflectJava 빌드의 CLI 경로를 지정한다. MCP 도구의 결과는 스키마 버전 1을 사용하며, 정적분석의 `parserVersion`에 실제 worker JAR의 SHA-256을 담는다. [analysis3 연동 PR](https://github.com/zerotosetta/won_skill_set/pull/74)
