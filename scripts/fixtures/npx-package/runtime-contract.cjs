@@ -14,7 +14,9 @@ module.exports = async function verify(api, mode) {
     const start = point(source, source.indexOf(raw)), end = point(source, source.indexOf(raw) + raw.length - 1);
     return { startLine: start.line, startColumn: start.column, endLine: end.line, endColumn: end.column };
   };
-  for (const key of ["analyzeWorkspace", "run", "parseJsp", "parseTld", "loadTldRegistry"]) check(`${mode} named ${key}`, typeof api[key] === "function");
+  for (const key of ["analyzeWorkspace", "run", "parseJsp", "parseTld", "loadTldRegistry", "createSourceResolution"]) {
+    check(`${mode} named ${key}`, typeof api[key] === "function");
+  }
   probe.phase("pure");
   const source = '<div data-id="${customer.id}">한😀<span>v</span>\r\n<bank:task code="BANK_01"/></div>';
   const jsp = api.parseJsp(source, { sourceKind: "jsp" });

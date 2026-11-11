@@ -40,7 +40,7 @@ public class ParseJavaCommand {
           .map(file -> resolveSource(root, file))
           .toList();
       JavaAstExporter exporter = new JavaAstExporter(
-          ParserFactory.createJavaParser(root, sourceFiles, manifest.classpathEntries),
+          ParserFactory.createJavaParser(root, sourceFiles, manifest.classpathEntries, manifest.isolatedClasspath),
           new JavaSummaryExtractor(),
           new ParseProblemCollector(),
           new JavaParserAstSerializer()

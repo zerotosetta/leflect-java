@@ -8,3 +8,4 @@ They are intentionally split by feature so each document maps to one implementat
 - `virtual-flow-graph.md`: how the current file graph maps to the larger legacy dependency model
 - `depth-grouping.md`: planned depth and grouping work, with the current graph outputs as the foundation
 - `sample-migration.md`: migration guidance and the runnable TypeScript-config sample project
+- [JSP·Java 원문 해석과 MCP](source-resolution.md)

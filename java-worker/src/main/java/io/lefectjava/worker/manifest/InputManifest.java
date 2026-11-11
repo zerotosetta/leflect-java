@@ -11,6 +11,7 @@ public class InputManifest {
   public List<String> files;
   public String outputDir;
   public List<String> classpathEntries;
+  public boolean isolatedClasspath;
   public String errorLog;
 
   public static InputManifest fromFile(Path path) throws IOException {

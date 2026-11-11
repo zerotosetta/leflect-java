@@ -3,6 +3,7 @@ export type JavaInputManifest = {
   files: string[];
   outputDir: string;
   classpathEntries: string[];
+  isolatedClasspath?: boolean;
   errorLog: string;
 };
 
