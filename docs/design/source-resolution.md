@@ -8,6 +8,8 @@
 
 JavaParser로 선언과 타입 사용 위치를 추출한다. 명시적 import, 같은 패키지, 기본·와일드카드 import 순으로 조사한다. 여러 경로의 후보, 판별할 수 없는 선언·접근 범위와 누락 루트는 근거와 함께 남긴다. 파서의 이름 결합과 실제 후보가 일치할 때 verified로 표시한다. 와일드카드에 대해서는 사용된 타입의 경로를 계산한다. [Java 이름과 import 규칙](https://docs.oracle.com/javase/specs/jls/se21/html/jls-6.html#jls-6.5.5.1)
 
+점으로 연결된 이름의 첫 요소가 현재 문맥의 타입이면 실제 소유자 선언에서 멤버를 찾고, 패키지 이름이면 소스에 적힌 경로를 조회한다. 상속으로 보이는 멤버 타입은 import보다 먼저 확인한다. 상속 계층의 근거가 부족하면 다른 후보를 남기고 자동 추적을 보류한다. 일반 파일과 소유자 파일이 같은 이름을 선언하면 두 후보를 기록하며, 해결되지 않은 조회에는 최초 경로를 포함한 시도 경로를 남긴다.
+
 JSP 정적 include는 한 번역 단위에서 코드와 import를 합치고 각 조각의 원본 위치를 연결한다. 요청 시 include는 별도 페이지 문맥을 사용한다. 각 include 경로와 순환을 원문 위치와 함께 기록한다. 같은 조각을 다른 페이지에서 읽으면 해당 페이지의 import 문맥으로 다시 해석한다. [Jakarta Server Pages 3.1](https://jakarta.ee/specifications/pages/3.1/jakarta-server-pages-spec-3.1.pdf)
 
 ## 스냅샷과 호출

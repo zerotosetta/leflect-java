@@ -22,11 +22,18 @@ export type SyntaxType = {
   shadowed?: boolean;
   resolvedName?: string;
   role?: "type" | "qualifier";
+  enclosingTypes: string[];
+  inheritanceUncertain?: boolean;
 };
 export type JavaSyntax = {
   packageName: string;
   imports: SyntaxImport[];
-  declarations: { className: string; location: SyntaxLocation; access: "public" | "protected" | "private" | "package" }[];
+  declarations: {
+    className: string;
+    location: SyntaxLocation;
+    access: "public" | "protected" | "private" | "package";
+    superTypes: string[];
+  }[];
   types: SyntaxType[];
   diagnostics: SyntaxDiagnostic[];
 };
@@ -73,9 +80,16 @@ export function parseJspSyntax(text: string, logicalPath: string): JspSyntax {
   }
 
   function imports(raw: string, offset: number, xmlDirective: boolean): void {
-    const attribute = /\simport\s*=\s*(?:"([^"]*)"|'([^']*)')/.exec(raw);
+    const opening = (xmlDirective ? /^<[^\s/>]+/ : /^<%@\s*\w+/).exec(raw);
+    if (!opening) return;
+    const attributes = xmlDirective
+      ? /\s+([^\s=/>]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/y
+      : /\s+([^\s=/>]+)\s*=\s*(?:"((?:\\[\s\S]|[^"\\])*)"|'((?:\\[\s\S]|[^'\\])*)')/y;
+    attributes.lastIndex = opening[0].length;
+    let attribute = attributes.exec(raw);
+    while (attribute && attribute[1] !== "import") attribute = attributes.exec(raw);
     if (!attribute) return;
-    const value = attribute[1] ?? attribute[2];
+    const value = attribute[2] ?? attribute[3];
     const valueOffset = offset + attribute.index + attribute[0].length - value.length - 1;
     for (const item of value.matchAll(/[^,]+/g)) {
       const spelling = item[0].trim();
@@ -270,11 +284,15 @@ export function buildJspJava(parts: readonly JspJavaPart[], imports: readonly Sy
   return { text, mapLocation };
 }
 
-type WorkerRequest = { source: string } | { platformType: string };
+type PlatformTypeAccess = "public" | "nonpublic" | "missing";
+type WorkerRequest = { source: string } | { platformType: string } | { platformTypeAccess: string } |
+  { platformMemberTypes: { owner: string; member: string } };
 type WorkerResponse = {
   id: number;
   syntax?: Omit<JavaSyntax, "imports"> & { imports: (Omit<SyntaxImport, "static"> & { isStatic: boolean })[] };
   platformType?: boolean;
+  platformTypeAccess?: PlatformTypeAccess;
+  platformMemberTypes?: string[];
   error?: string;
 };
 
@@ -282,6 +300,8 @@ export type SourceSyntaxReader = {
   java(text: string): Promise<JavaSyntax>;
   jsp(parts: readonly JspJavaPart[], imports: readonly SyntaxImport[]): Promise<JspJavaSyntax>;
   isPlatformType(className: string): Promise<boolean>;
+  platformTypeAccess(className: string): Promise<PlatformTypeAccess>;
+  platformMemberTypes(owner: string, member: string): Promise<string[] | undefined>;
   close(): Promise<void>;
 };
 
@@ -358,7 +378,8 @@ export function createSourceSyntaxReader(
     return {
       ...syntax,
       imports: syntax.imports.map(({ isStatic, ...item }) => ({ ...item, static: isStatic })),
-      types: syntax.types.map((type) => ({ ...type, resolvedName: type.resolvedName ?? undefined })),
+      declarations: syntax.declarations.map((declaration) => ({ ...declaration, superTypes: declaration.superTypes ?? [] })),
+      types: syntax.types.map((type) => ({ ...type, enclosingTypes: type.enclosingTypes ?? [], resolvedName: type.resolvedName ?? undefined })),
       diagnostics: syntax.diagnostics.map((item) => ({ ...item, location: item.location ?? undefined }))
     };
   }
@@ -369,10 +390,13 @@ export function createSourceSyntaxReader(
       if (!parts.length) return { types: [], diagnostics: [] };
       const input = buildJspJava(parts, imports);
       const syntax = await java(input.text);
+      const inheritedScopes = new Set(syntax.declarations.filter(({ superTypes }) => superTypes.length)
+        .map(({ className }) => className));
       return {
         types: syntax.types.flatMap((type) => {
           const origin = input.mapLocation(type.location);
-          return origin ? [{ ...type, ...origin }] : [];
+          const inheritanceUncertain = type.inheritanceUncertain || type.enclosingTypes.some((name) => inheritedScopes.has(name));
+          return origin ? [{ ...type, ...origin, inheritanceUncertain }] : [];
         }),
         diagnostics: syntax.diagnostics.map(({ location, ...item }) => ({
           ...item,
@@ -384,6 +408,15 @@ export function createSourceSyntaxReader(
       const { platformType } = await send({ platformType: className });
       if (typeof platformType !== "boolean") throw new Error("Java worker did not return platform type evidence");
       return platformType;
+    },
+    async platformTypeAccess(className) {
+      const { platformTypeAccess } = await send({ platformTypeAccess: className });
+      if (!platformTypeAccess) throw new Error("Java worker did not return platform type access evidence");
+      return platformTypeAccess;
+    },
+    async platformMemberTypes(owner, member) {
+      const { platformMemberTypes } = await send({ platformMemberTypes: { owner, member } });
+      return platformMemberTypes;
     },
     async close() {
       closed = true;

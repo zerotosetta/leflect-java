@@ -66,11 +66,11 @@ export class SourceClasspath {
     return new SourceClasspath(entries, diagnostics);
   }
 
-  find(className: string, consumeProbe: () => boolean, signal: AbortSignal): {
+  find(className: string, consumeProbe: () => boolean, signal: AbortSignal, requiredOwner?: string): {
     candidates: SourceCandidate[]; diagnostics: SourceDiagnostic[]; limited: boolean;
   } {
     const candidates: SourceCandidate[] = [];
-    const paths = binaryClassPaths(className);
+    const paths = binaryClassPaths(className, requiredOwner);
     if (signal.aborted) return { candidates, limited: true, diagnostics: [{
       code: "SOURCE_LIMIT", message: "Classpath lookup timed out or was canceled"
     }] };
@@ -150,9 +150,10 @@ async function captureClasses(directory: string, signal: AbortSignal): Promise<{
   return { files, skippedLinks };
 }
 
-function binaryClassPaths(className: string): string[] {
+function binaryClassPaths(className: string, requiredOwner?: string): string[] {
   const segments = className.split(".");
-  return segments.map((_, index) => {
+  const boundaries = requiredOwner ? segments.slice(0, requiredOwner.split(".").length) : segments;
+  return boundaries.map((_, index) => {
     const type = segments.slice(index).join("$");
     return `${[...segments.slice(0, index), type].join("/")}.class`;
   }).reverse();

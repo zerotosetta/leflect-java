@@ -25,6 +25,8 @@ import {
 
 type ImportEvidence = { entry: SyntaxImport; source: SourceFile };
 type JspPart = JspJavaPart & { source: SourceFile; context: IncludeContext };
+type TypeLookup = { lookup: SourceLookupResult; name?: string; entry?: ImportEvidence };
+type ParentType = { name: string; source?: SourceFile; platform?: boolean };
 export type JspTranslationUnit = { parts: JspPart[]; imports: ImportEvidence[]; sources: Set<string> };
 
 export type SourceSnapshot = {
@@ -144,9 +146,11 @@ class ReferenceCollector {
   private readonly javaSyntax = new Map<string, Promise<JavaSyntax>>();
   readonly javaLookups: Map<string, Promise<SourceLookupResult>>;
   readonly jspLookups: Map<string, Promise<SourceLookupResult>>;
-  private readonly platformTypes = new Map<string, Promise<boolean>>();
+  private readonly platformTypes = new Map<string, Promise<"public" | "nonpublic" | "missing">>();
   private readonly seenJava = new Map<string, number>();
   private readonly seenPages = new Map<string, number>();
+  private readonly inheritedTypes = new Map<string, Promise<TypeLookup | undefined>>();
+  private readonly platformMembers = new Map<string, Promise<string[] | undefined>>();
   private steps = 0;
 
   constructor(
@@ -254,25 +258,30 @@ class ReferenceCollector {
     return syntax;
   }
 
-  private lookupJava(className: string, owner?: string): Promise<SourceLookupResult> {
-    const key = owner ? className + "\0" + owner : className;
+  private lookupJava(className: string, fileOwner?: string, requiredOwner?: string): Promise<SourceLookupResult> {
+    const key = [className, fileOwner, requiredOwner].join("\0");
     let lookup = this.javaLookups.get(key);
     if (!lookup) {
       lookup = this.session.resolveJava(className, async (source, name) => {
         const syntax = await this.syntax(source);
-        return syntax.declarations.some((declaration) => declaration.className === name);
-      }, owner);
+        const declared = (candidate: string) => syntax.declarations.some(({ className }) => className === candidate);
+        if (!declared(name) || (requiredOwner && !declared(requiredOwner))) return false;
+        if (this.session.workspace.javaMap.has(name)) return true;
+        const expected = fileOwner ?? name;
+        const simple = expected.split(".").at(-1)!;
+        return expected === (syntax.packageName ? `${syntax.packageName}.${simple}` : simple) && declared(expected);
+      }, fileOwner, { searchClasspath: false });
       this.javaLookups.set(key, lookup);
     }
     return lookup;
   }
 
-  private platformType(name: string): Promise<boolean> {
+  private platformType(name: string): Promise<"public" | "nonpublic" | "missing"> {
     let result = this.platformTypes.get(name);
     if (!result) {
-      result = this.reader.isPlatformType(name).catch((error) => {
+      result = this.reader.platformTypeAccess(name).catch((error) => {
         if (this.signal?.aborted) throw error;
-        return false;
+        return "missing";
       });
       this.platformTypes.set(name, result);
     }
@@ -294,7 +303,9 @@ class ReferenceCollector {
 
   private recordDiagnostics(targetId: string, lookup: SourceLookupResult, location?: EvidenceLocation): void {
     if (!lookup.complete) this.partial = true;
-    if (lookup.status === "limit") this.unprocessed.add(targetId);
+    if (lookup.status === "limit" || lookup.diagnostics.some(({ code }) => code === "SOURCE_LIMIT")) {
+      this.unprocessed.add(targetId);
+    }
     this.diagnostics.push(...lookup.diagnostics.map((diagnostic) => ({ ...diagnostic, targetId, location })));
   }
 
@@ -437,33 +448,61 @@ class ReferenceCollector {
     }
   }
 
-  private async findType(name: string): Promise<SourceLookupResult> {
-    let lookup = await this.lookupJava(name);
-    if ((lookup.status === "missing" || lookup.status === "blocked") && !lookup.candidates.length && await this.platformType(name)) {
+  private async findType(name: string, requiredOwner?: string): Promise<SourceLookupResult> {
+    const lookups = [await this.lookupJava(name, requiredOwner, requiredOwner)];
+    if (lookups[0].status === "unsupported") return lookups[0];
+    if (!this.session.workspace.javaMap.has(name)) {
+      // A dotted name can refer to a top-level type or a type inside an owner
+      // file. Keep all verified declarations across registered roots.
+      const ownerPath = requiredOwner ?? name;
+      for (let dot = ownerPath.lastIndexOf("."); dot > 0; dot = ownerPath.lastIndexOf(".", dot - 1)) {
+        if (lookups.at(-1)?.status === "limit") break;
+        const fileOwner = ownerPath.slice(0, dot);
+        lookups.push(await this.lookupJava(name, fileOwner, requiredOwner));
+      }
+    }
+
+    const sources = mergeJavaSourceLookups(lookups);
+    if (sources.candidates.length || sources.status === "limit") return sources;
+
+    const binaryKey = ["binary", name, requiredOwner].join("\0");
+    let binaryLookup = this.javaLookups.get(binaryKey);
+    if (!binaryLookup) {
+      binaryLookup = this.session.resolveBinary(name, requiredOwner);
+      this.javaLookups.set(binaryKey, binaryLookup);
+    }
+    const binaries = await binaryLookup;
+    const complete = sources.complete && binaries.complete;
+    if (binaries.status !== "limit" && !binaries.candidates.length &&
+      await this.platformType(name) !== "missing" && (!requiredOwner || await this.platformType(requiredOwner) !== "missing")) {
       const platform = platformLookup(name);
-      return lookup.complete ? platform : { ...lookup, candidates: platform.candidates };
+      return complete ? platform : { ...sources, status: "blocked", candidates: platform.candidates, complete };
     }
-    // A nested type lives in its top-level owner's compilation unit.
-    // Validate the requested declaration before accepting the owner file.
-    for (let dot = name.lastIndexOf("."); lookup.status === "missing" && lookup.complete && dot > 0; dot = name.lastIndexOf(".", dot - 1)) {
-      lookup = await this.lookupJava(name, name.slice(0, dot));
-    }
-    return lookup;
+    return {
+      ...binaries, complete,
+      status: binaries.status === "limit" || sources.status === "missing" ? binaries.status : sources.status,
+      diagnostics: [...sources.diagnostics, ...binaries.diagnostics]
+    };
   }
 
-  private async exactType(name: string, pkg: string, origin: SourceFile): Promise<SourceLookupResult> {
-    const lookup = await this.findType(name);
+  private async exactType(
+    name: string, pkg: string, origin: SourceFile, requiredOwner?: string, { inherited = false } = {}
+  ): Promise<SourceLookupResult> {
+    const lookup = await this.findType(name, requiredOwner);
+    const inaccessible = {
+      ...lookup, status: "unsupported" as const, complete: false,
+      diagnostics: [...lookup.diagnostics, { code: "JAVA_TYPE_ACCESS", message: "The candidate type is not accessible from this use." }]
+    };
+    if (lookup.status === "binary_only" && lookup.candidates.some(({ rootId }) => rootId === "jdk") &&
+      await this.platformType(name) !== "public") return inaccessible;
     const source = this.resolvedSource(lookup);
     if (!source || source.sourceId === origin.sourceId) return lookup;
     const syntax = await this.syntax(source);
     const declaration = syntax.declarations.find(({ className }) => className === name);
-    if (declaration?.access === "private" || (syntax.packageName !== pkg && declaration?.access !== "public")) {
-      return {
-        ...lookup, status: "unsupported", complete: false,
-        diagnostics: [...lookup.diagnostics, { code: "JAVA_TYPE_ACCESS", message: "The candidate type is not public in a different package." }]
-      };
-    }
-    return lookup;
+    const accessible = declaration?.access === "public" ||
+      (declaration?.access === "protected" && inherited) ||
+      (syntax.packageName === pkg && (declaration?.access === "package" || declaration?.access === "protected"));
+    return accessible ? lookup : inaccessible;
   }
 
   private async collectType(
@@ -478,75 +517,247 @@ class ReferenceCollector {
     this.checkExpansionBudget();
     const location = locateSource(source, type.location);
     if (type.shadowed) {
+      if (source.kind === "java" && await this.isPrivateFromOtherTopLevel(type, source)) {
+        await this.recordType(targetId, type.expression, location, {
+          ...emptyLookup("unsupported"),
+          diagnostics: [{ code: "JAVA_TYPE_ACCESS", message: "The candidate type is private to a different top-level declaration." }]
+        }, depth, { context });
+        return;
+      }
       this.references.push({
         targetId, kind: "java-type", expression: type.expression, location, context,
         status: "resolved", binding: type.resolvedName ? "verified" : "unresolved", candidates: []
       });
       return;
     }
-    const [head, ...members] = type.expression.split(".");
-    const explicit = imports.filter(({ entry }) => !entry.wildcard && !entry.static && entry.name.split(".").at(-1) === head);
-    const suffix = members.length ? "." + members.join(".") : "";
-    const probe = async (name: string, entry?: ImportEvidence) => ({
-      name, entry, lookup: await this.exactType(name, pkg, source)
-    });
-    type Probe = Awaited<ReturnType<typeof probe>>;
-    const uniqueProbes = async (names: Map<string, ImportEvidence | undefined>): Promise<Probe[]> => {
-      const results = [];
-      for (const [name, entry] of names) results.push(await probe(name, entry));
-      return results;
-    };
-    let options: Probe[];
+    let result: TypeLookup;
     if (type.role === "qualifier" && !type.resolvedName) {
-      const exact = await probe(type.expression);
-      if (!exact.lookup.candidates.length) return;
-      options = [exact];
-    } else if (explicit.length) {
-      options = await uniqueProbes(new Map(explicit.map((item) => [item.entry.name + suffix, item])));
-    } else if (members.length && type.resolvedName === type.expression) {
-      options = [await probe(type.expression)];
+      // An unbound expression qualifier could be a value. Only report positive
+      // declaration evidence for its written qualified spelling.
+      result = await this.probeType(type.expression, source, pkg);
+      if (!result.lookup.candidates.length) return;
     } else {
-      const same = await probe(pkg ? pkg + "." + type.expression : type.expression);
-      if (same.lookup.status === "resolved" || same.lookup.status === "binary_only" || same.lookup.status === "ambiguous") {
-        options = [same];
-      } else {
-        const wildcard = new Map<string, ImportEvidence | undefined>([["java.lang." + type.expression, undefined]]);
-        if (members.length && pkg) wildcard.set(type.expression, undefined);
-        if (source.kind === "jsp") {
-          for (const prefix of ["javax.servlet", "javax.servlet.http", "javax.servlet.jsp"]) {
-            wildcard.set(prefix + "." + type.expression, undefined);
-          }
-        }
-        for (const item of imports) {
-          if (item.entry.wildcard && !item.entry.static) wildcard.set(item.entry.name + "." + type.expression, item);
-        }
-        options = [same, ...await uniqueProbes(wildcard)];
-      }
+      const head = type.expression.split(".", 1)[0];
+      const inherited = await this.inheritedType(type, source, head, pkg);
+      result = await this.lookupTypeName(type.expression, source, imports, pkg, inherited);
     }
-    const viable = options.filter(({ lookup }) => lookup.status !== "missing");
-    const candidates = options.flatMap(({ lookup }) => lookup.candidates);
-    const complete = options.every(({ lookup }) => lookup.complete);
-    const found = viable.filter(({ lookup }) => lookup.status === "resolved" || lookup.status === "binary_only");
-    const best = found.length === 1 ? found[0] : viable.length === 1 ? viable[0] : undefined;
-    const ambiguity = found.length > 1 || viable.some(({ lookup }) => lookup.status === "ambiguous") || explicit.length > 1 && options.length > 1;
-    const status = ambiguity ? "ambiguous" : best ? best.lookup.status : viable[0]?.lookup.status ?? "missing";
-    if (type.role === "qualifier" && status === "missing" && !type.resolvedName && !explicit.length) return;
-    const lookup: SourceLookupResult = {
-      status: (status === "resolved" || status === "binary_only") && !complete ? "blocked" : status,
-      candidates, complete,
-      diagnostics: options.flatMap(({ lookup }) => (status !== "missing" && lookup.status === "missing" && lookup.complete) ? [] : lookup.diagnostics)
-    };
-    if (ambiguity) lookup.diagnostics.push({ code: "SOURCE_AMBIGUOUS", message: "Multiple types are visible for this name." });
-    if (imports.some(({ entry }) => entry.static) && !explicit.length && !type.resolvedName) {
-      lookup.status = "unsupported";
-      lookup.complete = false;
-      lookup.diagnostics.push({ code: "JAVA_STATIC_IMPORT", message: "A static import may affect the type binding." });
-    }
+    const { lookup, name, entry } = result;
     await this.recordType(targetId, type.expression, location, lookup, depth, {
       context,
-      importLocation: best?.entry ? locateSource(best.entry.source, best.entry.entry.location) : undefined,
-      verified: type.resolvedName !== undefined && best?.name === type.resolvedName && complete
+      importLocation: entry ? locateSource(entry.source, entry.entry.location) : undefined,
+      verified: type.resolvedName !== undefined && name === type.resolvedName && lookup.complete
     });
+  }
+
+  private async isPrivateFromOtherTopLevel(type: JavaSyntax["types"][number], source: SourceFile): Promise<boolean> {
+    if (!type.resolvedName) return false;
+    const syntax = await this.syntax(source);
+    const declaration = syntax.declarations.find(({ className }) => className === type.resolvedName);
+    if (declaration?.access !== "private") return false;
+    const packageLength = syntax.packageName ? syntax.packageName.length + 1 : 0;
+    const firstMember = declaration.className.indexOf(".", packageLength);
+    if (firstMember < 0) return false;
+    const topLevel = declaration.className.slice(0, firstMember);
+    return !type.enclosingTypes.some((owner) => owner === topLevel || owner.startsWith(topLevel + "."));
+  }
+
+  private async probeType(
+    name: string, source: SourceFile, pkg: string, entry?: ImportEvidence, owner?: string
+  ): Promise<TypeLookup> {
+    return { name, entry, lookup: await this.exactType(name, pkg, source, owner) };
+  }
+
+  private async lookupTypeName(
+    expression: string, source: SourceFile, imports: ImportEvidence[], pkg: string,
+    inherited?: TypeLookup
+  ): Promise<TypeLookup> {
+    const separator = expression.indexOf(".");
+    const head = separator < 0 ? expression : expression.slice(0, separator);
+    const first = await this.lookupSimpleType(head, source, imports, pkg, inherited);
+    const possiblyStatic = (!first.entry || first.entry.entry.wildcard) && !inherited && imports.some(({ entry }) =>
+      entry.static && (entry.wildcard || entry.name.split(".").at(-1) === head));
+    if (separator < 0) return possiblyStatic ? staticImportUncertain(first) : first;
+
+    // A qualified type name starts with either a visible type or a package.
+    // A package spelling is resolved as written, never relative to pkg.
+    const owners = [...new Set(first.lookup.candidates.map(({ className }) => className).filter((name): name is string => !!name))];
+    const foundOwner = first.lookup.status === "resolved" || first.lookup.status === "binary_only";
+    const suffix = expression.slice(separator);
+    const memberProbes: TypeLookup[] = [];
+    if (foundOwner || first.lookup.status === "ambiguous") {
+      for (const owner of owners) {
+        memberProbes.push(await this.probeType(owner + suffix, source, pkg, first.entry, owner));
+      }
+    }
+    if (foundOwner) {
+      const member = selectType(memberProbes);
+      return possiblyStatic ? staticImportUncertain(member) : member;
+    }
+    if (first.lookup.status === "ambiguous") {
+      const members = selectType(memberProbes);
+      return { lookup: {
+        ...members.lookup, status: "ambiguous", complete: false,
+        diagnostics: [...first.lookup.diagnostics, ...members.lookup.diagnostics]
+      } };
+    }
+    if (first.entry && !first.entry.entry.wildcard) return first;
+
+    const qualified = await this.probeType(expression, source, pkg);
+    if (isAbsentType(first.lookup)) return possiblyStatic ? staticImportUncertain(qualified) : qualified;
+    return {
+      ...qualified,
+      lookup: {
+        ...qualified.lookup,
+        status: first.lookup.status === "limit" ? "limit" : "blocked",
+        complete: false,
+        diagnostics: [...first.lookup.diagnostics, ...qualified.lookup.diagnostics]
+      }
+    };
+  }
+
+  private async lookupSimpleType(
+    name: string, source: SourceFile, imports: ImportEvidence[], pkg: string, inherited?: TypeLookup
+  ): Promise<TypeLookup> {
+    if (inherited && (inherited.lookup.status === "resolved" || inherited.lookup.status === "binary_only" ||
+      inherited.lookup.status === "ambiguous")) return inherited;
+    const options: TypeLookup[] = inherited ? [inherited] : [];
+    const explicit = new Map(imports.filter(({ entry }) => !entry.wildcard && !entry.static &&
+      entry.name.split(".").at(-1) === name).map((item) => [item.entry.name, item]));
+    if (explicit.size) {
+      for (const [qualified, entry] of explicit) options.push(await this.probeType(qualified, source, pkg, entry));
+      return selectType(options, explicit.size > 1);
+    }
+
+    const same = await this.probeType(pkg ? pkg + "." + name : name, source, pkg);
+    options.push(same);
+    if (same.lookup.status === "resolved" || same.lookup.status === "binary_only" || same.lookup.status === "ambiguous") {
+      return selectType(options);
+    }
+    const wildcard = new Map<string, ImportEvidence | undefined>([["java.lang", undefined]]);
+    if (source.kind === "jsp") {
+      for (const prefix of ["javax.servlet", "javax.servlet.http", "javax.servlet.jsp"]) wildcard.set(prefix, undefined);
+    }
+    for (const item of imports) {
+      if (item.entry.wildcard && !item.entry.static) wildcard.set(item.entry.name, item);
+    }
+    for (const [prefix, entry] of wildcard) options.push(await this.probeType(prefix + "." + name, source, pkg, entry));
+    return selectType(options);
+  }
+
+  private async inheritedType(
+    type: JavaSyntax["types"][number], source: SourceFile, name: string, pkg: string
+  ): Promise<TypeLookup | undefined> {
+    if (type.inheritanceUncertain) return { lookup: inheritanceUncertain() };
+    if (!type.enclosingTypes.length || source.kind !== "java") return undefined;
+    const syntax = await this.syntax(source);
+    for (const enclosing of type.enclosingTypes) {
+      const declaration = syntax.declarations.find(({ className }) => className === enclosing);
+      if (!declaration?.superTypes.length) continue;
+      const key = source.sourceId + "\0" + enclosing + "\0" + name;
+      let lookup = this.inheritedTypes.get(key);
+      if (!lookup) {
+        lookup = this.lookupInheritedMembers(declaration, source, name, pkg, new Set(), 0);
+        this.inheritedTypes.set(key, lookup);
+      }
+      const result = await lookup;
+      if (result) return result;
+    }
+    return undefined;
+  }
+
+  private async lookupInheritedMembers(
+    declaration: JavaSyntax["declarations"][number], source: SourceFile, member: string, pkg: string,
+    ancestors: ReadonlySet<string>, level: number, samePackagePath = true
+  ): Promise<TypeLookup | undefined> {
+    this.checkExpansionBudget();
+    if (!declaration.superTypes.length) return undefined;
+    if (level >= this.maxDepth) {
+      return { lookup: {
+        ...emptyLookup("limit"), diagnostics: [{ code: "SOURCE_LIMIT", message: "The inherited type lookup exceeds the requested depth." }]
+      } };
+    }
+    const key = source.sourceId + "\0" + declaration.className;
+    if (ancestors.has(key)) return { lookup: inheritanceUncertain() };
+    const branch = new Set(ancestors).add(key);
+    const syntax = await this.syntax(source);
+    const imports = syntax.imports.map((entry) => ({ entry, source }));
+    const options: TypeLookup[] = [];
+    for (const expression of declaration.superTypes) {
+      const local = localSupertype(syntax, declaration.className, expression);
+      const parent: ParentType | TypeLookup = local
+        ? { name: local, source }
+        : await this.lookupParent(expression, source, imports, syntax.packageName);
+      if ("lookup" in parent) {
+        options.push(parent);
+        continue;
+      }
+      const name = parent.name + "." + member;
+      if (!parent.source) {
+        if (parent.platform) {
+          const members = await this.lookupPlatformMembers(parent.name, member);
+          if (members !== undefined) {
+            for (const memberName of members) options.push({ name: memberName, lookup: platformLookup(memberName) });
+            continue;
+          }
+        }
+        const lookup = await this.exactType(name, pkg, source, parent.name, { inherited: true });
+        if (!isInaccessibleType(lookup)) {
+          options.push({ name, lookup: isAbsentType(lookup) ? inheritanceUncertain() : lookup });
+        }
+        continue;
+      }
+      const parentSyntax = await this.syntax(parent.source);
+      const memberDeclaration = parentSyntax.declarations.find(({ className }) => className === name);
+      const accessiblePackage = samePackagePath && parentSyntax.packageName === pkg;
+      if (memberDeclaration) {
+        // A private declaration hides ancestors' declarations without being inherited.
+        const { access } = memberDeclaration;
+        if (access === "public" || access === "protected" || (access === "package" && accessiblePackage)) {
+          options.push({ name, lookup: declaredType(parent.source, name) });
+        }
+        continue;
+      }
+      const parentDeclaration = parentSyntax.declarations.find(({ className }) => className === parent.name);
+      if (!parentDeclaration) {
+        options.push({ lookup: inheritanceUncertain() });
+        continue;
+      }
+      const inherited = await this.lookupInheritedMembers(
+        parentDeclaration, parent.source, member, pkg, branch, level + 1, accessiblePackage
+      );
+      if (inherited) options.push(inherited);
+    }
+    return options.length ? selectType(options) : undefined;
+  }
+
+  private async lookupParent(
+    expression: string, source: SourceFile, imports: ImportEvidence[], pkg: string
+  ): Promise<ParentType | TypeLookup> {
+    const { lookup, name } = await this.lookupTypeName(expression, source, imports, pkg);
+    if (name && lookup.complete) {
+      if (lookup.status === "binary_only") return { name, platform: lookup.candidates.every(({ rootId }) => rootId === "jdk") };
+      const parent = this.resolvedSource(lookup);
+      if (parent) return { name, source: parent };
+    }
+    const uncertain = inheritanceUncertain();
+    return { lookup: {
+      ...uncertain,
+      status: lookup.status === "limit" ? "limit" : "unsupported",
+      diagnostics: [...uncertain.diagnostics, ...lookup.diagnostics]
+    } };
+  }
+
+  private lookupPlatformMembers(owner: string, member: string): Promise<string[] | undefined> {
+    const key = owner + "\0" + member;
+    let lookup = this.platformMembers.get(key);
+    if (!lookup) {
+      lookup = this.reader.platformMemberTypes(owner, member).catch((error) => {
+        if (this.signal?.aborted) throw error;
+        return undefined;
+      });
+      this.platformMembers.set(key, lookup);
+    }
+    return lookup;
   }
 
   private async recordType(
@@ -573,6 +784,91 @@ class ReferenceCollector {
     if (depth >= this.maxDepth) this.reportLimit(targetId, "The Java reference exceeds the requested depth.", location);
     else await this.collectJava(targetId, dependency, depth + 1);
   }
+}
+
+function isAbsentType(lookup: SourceLookupResult): boolean {
+  return lookup.status === "missing" && lookup.complete;
+}
+
+function localSupertype(syntax: JavaSyntax, declaringClass: string, expression: string): string | undefined {
+  for (let dot = declaringClass.lastIndexOf("."); dot > syntax.packageName.length; dot = declaringClass.lastIndexOf(".", dot - 1)) {
+    const scoped = declaringClass.slice(0, dot) + "." + expression;
+    if (syntax.declarations.some(({ className }) => className === scoped)) return scoped;
+  }
+  const qualified = syntax.packageName ? syntax.packageName + "." + expression : expression;
+  const explicit = syntax.imports.some(({ name, wildcard, static: isStatic }) =>
+    !wildcard && !isStatic && name.split(".").at(-1) === expression);
+  return !explicit && syntax.declarations.some(({ className }) => className === qualified) ? qualified : undefined;
+}
+
+function declaredType(source: SourceFile, className: string): SourceLookupResult {
+  const { rootId, path, sourceId, sourceHash } = source;
+  return {
+    ...emptyLookup("resolved", true),
+    candidates: [{ className, rootId, path, sourceId, sourceHash }]
+  };
+}
+
+function isInaccessibleType(lookup: SourceLookupResult): boolean {
+  return lookup.status === "unsupported" && lookup.diagnostics.some(({ code }) => code === "JAVA_TYPE_ACCESS");
+}
+
+function selectType(probes: TypeLookup[], forceAmbiguous = false): TypeLookup {
+  const found = probes.filter(({ lookup }) => lookup.status === "resolved" || lookup.status === "binary_only");
+  const active = found.length ? probes.filter(({ lookup }) => !isInaccessibleType(lookup)) : probes;
+  const viable = active.filter(({ lookup }) => !isAbsentType(lookup));
+  const candidates = new Map(active.flatMap(({ lookup }) => lookup.candidates.map((candidate) =>
+    [(candidate.sourceId ?? candidate.rootId + "\0" + candidate.path) + "\0" + candidate.className, candidate] as const)));
+  const complete = active.every(({ lookup }) => lookup.complete);
+  const best = found.length === 1 ? found[0] : viable.length === 1 ? viable[0] : undefined;
+  const competingNames = new Set(found.map(({ name }) => name));
+  const ambiguous = forceAmbiguous || competingNames.size > 1 || active.some(({ lookup }) => lookup.status === "ambiguous");
+  const limited = active.some(({ lookup }) => lookup.status === "limit");
+  const fallback = best?.lookup.status ?? viable.find(({ lookup }) => lookup.status === "blocked")?.lookup.status ??
+    viable.find(({ lookup }) => lookup.status === "unsupported")?.lookup.status ?? "missing";
+  const status = ambiguous ? "ambiguous" : limited ? "limit" :
+    !complete && found.length ? "blocked" : fallback;
+  const diagnostics = (status === "missing" ? active : viable).flatMap(({ lookup }) => lookup.diagnostics);
+  if (ambiguous) diagnostics.push({ code: "SOURCE_AMBIGUOUS", message: "Multiple types are visible for this name." });
+  const origin = best ?? (active.length === 1 ? active[0] : found[0]);
+  return { ...origin, lookup: { status, candidates: [...candidates.values()], complete, diagnostics } };
+}
+
+function inheritanceUncertain(): SourceLookupResult {
+  return {
+    ...emptyLookup("unsupported"),
+    diagnostics: [{ code: "JAVA_INHERITANCE_UNRESOLVED", message: "The inherited member types could not be determined." }]
+  };
+}
+
+function staticImportUncertain(result: TypeLookup): TypeLookup {
+  if (result.lookup.status === "limit" || result.lookup.status === "ambiguous") return result;
+  return {
+    ...result,
+    lookup: {
+      ...result.lookup, status: "unsupported", complete: false,
+      diagnostics: [...result.lookup.diagnostics, { code: "JAVA_STATIC_IMPORT", message: "A static import may affect the type binding." }]
+    }
+  };
+}
+
+function mergeJavaSourceLookups(lookups: SourceLookupResult[]): SourceLookupResult {
+  const candidates = [...new Map(lookups.flatMap((lookup) => lookup.candidates.map((candidate) => [
+    candidate.sourceId, candidate
+  ]))).values()];
+  const complete = lookups.every((lookup) => lookup.complete);
+  const diagnostics = lookups.flatMap((lookup) =>
+    candidates.length && lookup.status === "missing" && lookup.complete ? [] : lookup.diagnostics
+  );
+  if (candidates.length > 1) {
+    if (!diagnostics.some(({ code }) => code === "SOURCE_AMBIGUOUS")) {
+      diagnostics.push({ code: "SOURCE_AMBIGUOUS", message: "Distinct files declare the requested Java type", needed: "An explicit javaMap entry" });
+    }
+    return { status: "ambiguous", complete, candidates, diagnostics };
+  }
+  if (lookups.some(({ status }) => status === "limit")) return { status: "limit", complete, candidates, diagnostics };
+  if (!complete) return { status: "blocked", complete, candidates, diagnostics };
+  return { status: candidates.length ? "resolved" : "missing", complete, candidates, diagnostics };
 }
 
 function platformLookup(name: string): SourceLookupResult {
