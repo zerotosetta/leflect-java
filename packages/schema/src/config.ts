@@ -41,6 +41,11 @@ export type SourceResolutionLimits = {
   timeoutMs: number;
 };
 
+export type SourceResolutionLoggingConfig = {
+  path: string;
+  includePayloads?: boolean;
+};
+
 export type SourceResolutionConfig = {
   webRoot?: string;
   javaRoots?: string[];
@@ -49,6 +54,7 @@ export type SourceResolutionConfig = {
   encoding?: string;
   encodingOverrides?: Record<string, string>;
   limits?: Partial<SourceResolutionLimits>;
+  logging?: SourceResolutionLoggingConfig;
 };
 
 export type LeflectConfig = {

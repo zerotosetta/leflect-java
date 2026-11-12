@@ -25,6 +25,23 @@ leflect query tag-usages --analysis ./analysis --class com.example.FormTag --for
 - `analyze --format json` prints a single machine-readable payload based on `AnalyzeWorkspaceResult`
 - text-mode `analyze` continues to print the final summary report JSON
 
+## MCP debug logging
+
+To append a UTF-8 JSONL log for `leflect mcp --config <file>`, add `logging` to `sourceResolution` in the config. Relative log paths are resolved from that file.
+
+```json
+{
+  "sourceResolution": {
+    "logging": {
+      "path": "logs/leflect-mcp.jsonl",
+      "includePayloads": true
+    }
+  }
+}
+```
+
+The log correlates request and response metadata with server and Java worker events. Set `includePayloads` to `true` to capture the JSON-RPC messages and diagnostic excerpts, which may include source text. The default is `false`.
+
 ## Programmatic Usage
 
 ```ts

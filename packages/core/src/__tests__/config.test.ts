@@ -1,6 +1,6 @@
 import os from "os";
 import path from "path";
-import { mkdir, mkdtemp, rm, writeFile } from "fs/promises";
+import { access, mkdir, mkdtemp, rm, writeFile } from "fs/promises";
 
 import { describe, expect, it } from "vitest";
 
@@ -152,6 +152,52 @@ describe("loadConfig", () => {
         limits: { maxDepth: 0 }
       });
       expect(config.java?.classpath).toEqual([path.join(settings, "lib", "legacy-api.jar")]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("resolves MCP log paths relative to the config file and leaves log creation to the server", async () => {
+    const root = await tempDir("leflect logging config-");
+    const settings = path.join(root, "설정 파일");
+    const configPath = path.join(settings, "leflect.config.json");
+    const relativeLog = path.join("logs", "mcp.jsonl");
+    const absoluteLog = path.join(root, "absolute", "mcp.jsonl");
+    try {
+      await mkdir(settings);
+      await writeFile(configPath, JSON.stringify({
+        root: "../workspace",
+        sourceResolution: { logging: { path: relativeLog, includePayloads: false } }
+      }));
+      const relative = await loadConfig({ root, configPath });
+      expect(relative.config.sourceResolution?.logging).toEqual({ path: path.join(settings, relativeLog), includePayloads: false });
+      await expect(access(path.join(settings, "logs"))).rejects.toMatchObject({ code: "ENOENT" });
+
+      await writeFile(configPath, JSON.stringify({ sourceResolution: { logging: { path: absoluteLog } } }));
+      const absolute = await loadConfig({ root, configPath });
+      expect(absolute.config.sourceResolution?.logging).toEqual({ path: absoluteLog });
+      await expect(access(path.dirname(absoluteLog))).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects malformed MCP log configuration", async () => {
+    const root = await tempDir("leflect logging config-");
+    const configPath = path.join(root, "leflect.config.json");
+    try {
+      const invalid = [
+        { value: null, field: "sourceResolution.logging" },
+        { value: [], field: "sourceResolution.logging" },
+        { value: { path: "  " }, field: "sourceResolution.logging.path" },
+        { value: { path: 7 }, field: "sourceResolution.logging.path" },
+        { value: { path: "mcp.jsonl", includePayloads: "true" }, field: "sourceResolution.logging.includePayloads" },
+        { value: { path: "mcp.jsonl", includePayloads: null }, field: "sourceResolution.logging.includePayloads" }
+      ];
+      for (const { value, field } of invalid) {
+        await writeFile(configPath, JSON.stringify({ sourceResolution: { logging: value } }));
+        await expect(loadConfig({ root, configPath })).rejects.toThrow(`Config '${field}'`);
+      }
     } finally {
       await rm(root, { recursive: true, force: true });
     }
