@@ -5,6 +5,7 @@ import { buildJavaCommand } from "@leflect-java/java-bridge";
 import { parseJsp, type JspDocumentNode } from "@leflect-java/parser-jsp";
 import type { ElAstNode, LeflectConfig, LineRange } from "@leflect-java/schema";
 
+import type { McpSystemLogger } from "./source-mcp-log";
 import { resolveJavaWorkerJar } from "./worker-jar";
 
 export type SyntaxLocation = { line: number; column: number; endLine: number; endColumn: number };
@@ -307,7 +308,7 @@ export type SourceSyntaxReader = {
 
 export function createSourceSyntaxReader(
   config: Pick<LeflectConfig, "java">,
-  { signal }: { signal?: AbortSignal } = {}
+  { signal, log }: { signal?: AbortSignal; log?: McpSystemLogger } = {}
 ): SourceSyntaxReader {
   const pending = new Map<number, { resolve: (value: WorkerResponse) => void; reject: (error: Error) => void }>();
   let process: Promise<ChildProcessWithoutNullStreams> | undefined;
@@ -322,33 +323,76 @@ export function createSourceSyntaxReader(
 
   async function start(): Promise<ChildProcessWithoutNullStreams> {
     const jarPath = await resolveJavaWorkerJar(config.java?.workerJar);
-    if (!jarPath) throw new Error("Java worker JAR could not be resolved for source lookup");
+    const worker = "source-syntax";
+    if (!jarPath) {
+      log?.("worker.unavailable", { worker, reason: "jar_not_found" }, "warn");
+      throw new Error("Java worker JAR could not be resolved for source lookup");
+    }
     signal?.throwIfAborted();
     if (closed) throw new Error("Source syntax reader is closed");
     const { command, args } = buildJavaCommand({ jarPath, args: ["source-syntax"], ...config.java });
-    const child = spawn(command, args, { stdio: "pipe", signal, windowsHide: true });
+    const startedAt = performance.now();
+    let loggedError = false;
+    const reportError = (reason: string, error?: NodeJS.ErrnoException) => {
+      if (loggedError || signal?.aborted) return;
+      loggedError = true;
+      log?.("worker.error", { worker, reason, code: error?.code, detail: error?.message?.slice(0, 1024) }, "error");
+    };
+    let child: ChildProcessWithoutNullStreams;
+    try {
+      child = spawn(command, args, { stdio: "pipe", signal, windowsHide: true });
+    } catch (error) {
+      reportError("spawn", error as NodeJS.ErrnoException);
+      throw error;
+    }
+    child.once("spawn", () => log?.("worker.start", { worker, pid: child.pid }));
+    let stderrBytes = 0;
+    let stderrDetail = Buffer.alloc(0);
+    let responses = 0;
+    let responseErrors = 0;
     const input = createInterface({ input: child.stdout });
     input.on("line", (line) => {
       let response: WorkerResponse;
       try {
         response = JSON.parse(line) as WorkerResponse;
       } catch {
+        reportError("invalid_output");
         fail(new Error("Java worker returned invalid source syntax data"));
         child.kill();
         return;
       }
       const request = pending.get(response.id);
       pending.delete(response.id);
-      if (response.error) request?.reject(new Error(response.error));
-      else request?.resolve(response);
+      responses += 1;
+      if (response.error) {
+        responseErrors += 1;
+        reportError("response_error", new Error(response.error));
+        request?.reject(new Error(response.error));
+      } else request?.resolve(response);
     });
-    child.stderr.resume();
-    child.stdin.on("error", fail);
-    child.on("error", fail);
-    completed = new Promise((resolve) => child.once("close", (code) => {
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderrBytes += chunk.length;
+      if (log && stderrDetail.length < 1024) {
+        stderrDetail = Buffer.concat([stderrDetail, chunk.subarray(0, 1024 - stderrDetail.length)]);
+      }
+    });
+    child.stdin.on("error", (error) => { reportError("stdin", error); fail(error); });
+    child.on("error", (error) => { reportError("process", error); fail(error); });
+    completed = new Promise((resolve) => child.once("close", (code, exitSignal) => {
       closed = true;
       fail(new Error(`Source syntax worker stopped (${code ?? "terminated"})`));
       input.close();
+      const cancelled = signal?.aborted ?? false;
+      if (stderrBytes) {
+        log?.("worker.output", {
+          worker, stream: "stderr", bytes: stderrBytes,
+          detail: stderrDetail.toString("utf8"), detailTruncated: stderrBytes > stderrDetail.length
+        }, "warn");
+      }
+      log?.("worker.exit", {
+        worker, pid: child.pid, exitCode: code, exitSignal, cancelled, responses, responseErrors,
+        durationMs: Math.round(performance.now() - startedAt)
+      }, code === 0 || cancelled ? "info" : "warn");
       resolve();
     }));
     return child;

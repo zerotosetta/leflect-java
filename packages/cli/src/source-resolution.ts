@@ -6,6 +6,7 @@ import type {
   EvidenceLocation, IncludeContext, ReferenceResult, ResolutionDiagnostic, ResolveReferencesRequest, ResolveReferencesResult,
   SourceDescriptor, SourceResolutionApi, SourceTarget, TargetResult
 } from "./source-contract";
+import type { McpSystemLogger } from "./source-mcp-log";
 import {
   createSourceSyntaxReader,
   parseJspSyntax,
@@ -62,7 +63,7 @@ export class SourceResolution {
     return snapshot;
   }
 
-  async resolveReferences(request: ResolveReferencesRequest, signal?: AbortSignal): Promise<ResolveReferencesResult> {
+  async resolveReferences(request: ResolveReferencesRequest, signal?: AbortSignal, log?: McpSystemLogger): Promise<ResolveReferencesResult> {
     if (new Set(request.targets.map(({ targetId }) => targetId)).size !== request.targets.length) {
       throw new SourceRequestError("INVALID_TARGETS", "targetId must be unique.");
     }
@@ -76,7 +77,7 @@ export class SourceResolution {
     const base = request.baseSnapshotId ? this.getSnapshot(request.baseSnapshotId) : undefined;
     const session = this.workspace.start({ signal, baseSources: base?.sources.values(), baseClasspath: base?.classpath });
     const classpath = await session.pinClasspath();
-    const resolution = new ReferenceCollector(this.config, session, maxDepth, request.scope?.followReferences ?? false, session.signal, base);
+    const resolution = new ReferenceCollector(this.config, session, maxDepth, request.scope?.followReferences ?? false, session.signal, base, log);
     resolution.diagnostics.push(...classpath.diagnostics);
     resolution.partial = classpath.diagnostics.length > 0;
     try {
@@ -159,9 +160,10 @@ class ReferenceCollector {
     private readonly maxDepth: number,
     private readonly follow: boolean,
     private readonly signal?: AbortSignal,
-    private readonly base?: SourceSnapshot
+    private readonly base?: SourceSnapshot,
+    log?: McpSystemLogger
   ) {
-    this.reader = createSourceSyntaxReader(config, { signal });
+    this.reader = createSourceSyntaxReader(config, { signal, log });
     this.jspPaths = new Map(base?.jspPaths);
     this.jspUnits = new Map(base?.jspUnits);
     this.javaDeclarations = new Map(base?.javaDeclarations);

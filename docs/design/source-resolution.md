@@ -29,3 +29,24 @@ leflect mcp --config ./atk-configs/leflect.config.json
 Java 원문은 고정된 텍스트로 worker에 전달한다. JSP 스크립틀릿과 선언은 번역 단위별 Java 입력으로 묶고, worker가 반환한 위치를 JSP 원문에 대응시킨다. 태그 라이브러리와 컨테이너의 실행 결과가 필요한 경로는 진단에 남긴다.
 
 analysis3 0.1.5에서는 `leflectMcp.cli`에 이 변경을 포함한 LeflectJava 빌드의 CLI 경로를 지정한다. MCP 도구의 결과는 스키마 버전 1을 사용하며, 정적분석의 `parserVersion`에 실제 worker JAR의 SHA-256을 담는다. [analysis3 연동 PR](https://github.com/zerotosetta/won_skill_set/pull/74)
+
+## MCP 디버그 로그
+
+`leflect mcp --config <파일>`에 사용하는 기존 설정의 `sourceResolution`에 `logging`을 추가한다. 로그 경로는 설정 파일의 디렉터리를 기준으로 해석한다.
+
+```json
+{
+  "sourceResolution": {
+    "logging": {
+      "path": "logs/leflect-mcp.jsonl",
+      "includePayloads": true
+    }
+  }
+}
+```
+
+UTF-8 JSONL 파일에 실행 시각, 세션·요청 ID, 호출 방향, 도구와 전송 바이트 수를 기록한다. 서버와 Java worker의 시작·종료, 실패 코드, 시간 초과, 취소와 결과 요약도 같은 파일에 기록한다. 기존 파일에는 새 세션의 기록을 이어 쓴다.
+
+`includePayloads`의 기본값은 `false`다. `true`이면 줄 구분자를 제외한 요청·응답을 `payload`에 저장하고 오류 상세와 worker 출력 일부도 기록한다. 이 모드의 로그에는 Java·JSP 원문이 포함될 수 있다. 1 MiB를 넘는 메시지는 크기와 `payloadOmitted`를 기록한다. 대기 중인 로그가 4 MiB를 넘으면 일부 항목을 생략하고 정상 종료 시 `logging.dropped`에 건수를 기록한다.
+
+파일을 열거나 쓸 수 없으면 stderr에 `[leflect-mcp-log]` 경고를 출력하고 MCP 요청 처리를 계속한다. analysis3에서는 `analysis3.json`의 `leflectMcp.logging`에 같은 옵션을 지정할 수 있다.

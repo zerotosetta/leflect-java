@@ -7,6 +7,7 @@ import { runJavaWorker, writeJavaManifest } from "@leflect-java/java-bridge";
 import type { LeflectConfig } from "@leflect-java/schema";
 
 import type { EvidenceLocation } from "./source-contract";
+import type { McpSystemLogger } from "./source-mcp-log";
 import { describeSource, locateSource, type SourceSnapshot } from "./source-resolution";
 import { buildJspJava, type SyntaxLocation } from "./source-syntax";
 import type { SourceFile } from "./source-workspace";
@@ -14,6 +15,8 @@ import { resolveJavaWorkerJar } from "./worker-jar";
 
 export type AnalysisKind = "class" | "method" | "call" | "diagnostic";
 export const analysisKinds: readonly AnalysisKind[] = ["class", "method", "call", "diagnostic"];
+const ANALYSIS_WORKER = "parse-java";
+const WORKER_DETAIL_BYTES = 1024;
 
 type AnalysisRecord = {
   kind: AnalysisKind;
@@ -44,24 +47,39 @@ export class SnapshotAnalyzer {
   constructor(private readonly java?: LeflectConfig["java"]) {}
 
   async analyze(
-    snapshot: SourceSnapshot, sourceIds: string[], kinds: AnalysisKind[], signal: AbortSignal
+    snapshot: SourceSnapshot, sourceIds: string[], kinds: AnalysisKind[], signal: AbortSignal, log?: McpSystemLogger
   ) {
     const jar = await resolveJavaWorkerJar(this.java?.workerJar);
-    const workerBytes = jar ? await fs.readFile(jar, { signal }) : undefined;
+    let workerBytes: Buffer | undefined;
+    if (jar) {
+      try {
+        workerBytes = await fs.readFile(jar, { signal });
+      } catch (error) {
+        const failure = error as NodeJS.ErrnoException;
+        log?.("worker.unavailable", {
+          worker: ANALYSIS_WORKER, snapshotId: snapshot.id, reason: signal.aborted ? "cancelled" : "jar_unreadable",
+          code: failure?.code, detail: failure?.message?.slice(0, WORKER_DETAIL_BYTES)
+        }, "warn");
+        throw error;
+      }
+    }
     const parserVersion = workerBytes ? "sha256:" + createHash("sha256").update(workerBytes).digest("hex") : null;
     const key = JSON.stringify([parserVersion, sourceIds, kinds]);
     let entries = this.cache.get(snapshot);
     if (!entries) this.cache.set(snapshot, entries = new Map());
     const cached = entries.get(key);
-    if (cached) return cached;
-    const result = await this.run(snapshot, sourceIds, kinds, signal, workerBytes, parserVersion);
+    if (cached) {
+      log?.("worker.cache_hit", { worker: ANALYSIS_WORKER, snapshotId: snapshot.id, parserVersion, sourceCount: sourceIds.length });
+      return cached;
+    }
+    const result = await this.run(snapshot, sourceIds, kinds, signal, workerBytes, parserVersion, log);
     if (result.status === "complete") entries.set(key, result);
     return result;
   }
 
   private async run(
     snapshot: SourceSnapshot, sourceIds: string[], kinds: AnalysisKind[], signal: AbortSignal,
-    workerBytes: Buffer | undefined, parserVersion: string | null
+    workerBytes: Buffer | undefined, parserVersion: string | null, log?: McpSystemLogger
   ) {
     const result = {
       schemaVersion: 1 as const,
@@ -130,11 +148,15 @@ export class SnapshotAnalyzer {
     }
     if (!inputs.some((input) => [...input.sourceIds].some((id) => selected.has(id)))) return result;
     if (!workerBytes) {
+      log?.("worker.unavailable", { worker: ANALYSIS_WORKER, snapshotId: snapshot.id, reason: "jar_not_found" }, "warn");
       report("WORKER_UNAVAILABLE", "The LeflectJava worker JAR is unavailable.");
       return result;
     }
 
     const directory = await fs.mkdtemp(path.join(os.tmpdir(), "leflect-snapshot-"));
+    const workerContext = { worker: ANALYSIS_WORKER, snapshotId: snapshot.id };
+    let workerStartedAt: number | undefined;
+    let stage = "prepare";
     try {
       const root = path.join(directory, "source");
       const outputDir = path.join(directory, "java-ast");
@@ -152,14 +174,32 @@ export class SnapshotAnalyzer {
       await writeJavaManifest(manifest, {
         root, outputDir, errorLog, classpathEntries, isolatedClasspath: true, files: inputs.map(({ relativePath }) => relativePath)
       });
+      stage = "execute";
+      workerStartedAt = performance.now();
+      log?.("worker.start", { ...workerContext, parserVersion, inputCount: inputs.length, classpathEntryCount: classpathEntries.length });
       const worker = await runJavaWorker({
-        jarPath: workerJar, args: ["parse-java", "--manifest", manifest], cwd: directory,
+        jarPath: workerJar, args: [ANALYSIS_WORKER, "--manifest", manifest], cwd: directory,
         javaHome: this.java?.javaHome, jreHome: this.java?.jreHome, signal
       });
+      if (log) {
+        for (const stream of ["stdout", "stderr"] as const) {
+          const output = worker[stream];
+          if (!output) continue;
+          const bytes = Buffer.byteLength(output, "utf8");
+          log("worker.output", {
+            ...workerContext, stream, bytes,
+            detail: Buffer.from(output.slice(0, WORKER_DETAIL_BYTES)).subarray(0, WORKER_DETAIL_BYTES).toString("utf8"),
+            detailTruncated: bytes > WORKER_DETAIL_BYTES
+          }, stream === "stderr" ? "warn" : "info");
+        }
+        log("worker.exit", { ...workerContext, exitCode: worker.code, durationMs: Math.round(performance.now() - workerStartedAt) },
+          worker.code === 0 ? "info" : "warn");
+      }
       if (worker.code !== 0) {
         report("WORKER_FAILED", "The LeflectJava worker failed to analyze the frozen input.");
         return result;
       }
+      stage = "read_results";
       const byPath = new Map(inputs.map((input) => [input.relativePath, input]));
       const summary = await readJsonLines<WorkerRow>(path.join(directory, "index", "java-summary.jsonl"));
       const found = new Set(summary.map(({ path }) => path));
@@ -188,7 +228,8 @@ export class SnapshotAnalyzer {
         for (const call of row.methodCalls ?? []) emit(input, "call", call);
         for (const diagnostic of row.referenceDiagnostics ?? []) emit(input, "diagnostic", diagnostic);
       }
-      for (const row of await readJsonLines<Record<string, unknown>>(errorLog)) {
+      const problems = await readJsonLines<Record<string, unknown>>(errorLog);
+      for (const row of problems) {
         const input = byPath.get(String(row.path));
         if (!input) continue;
         emit(input, "diagnostic", row);
@@ -196,8 +237,22 @@ export class SnapshotAnalyzer {
           report("JSP_SCRIPTLET_PARSE", "The parser reported a problem in the JSP translation unit.", input.entrySourceId);
         }
       }
+      log?.("worker.summary", {
+        ...workerContext, status: result.status, inputCount: inputs.length, analyzedCount: found.size,
+        resultCount: result.results.length, diagnosticCount: result.diagnostics.length, parserProblemCount: problems.length
+      });
     } catch (error) {
-      const changed = (error as { code?: string }).code === "SOURCE_CHANGED";
+      const failure = error as NodeJS.ErrnoException;
+      const changed = failure?.code === "SOURCE_CHANGED";
+      if (signal.aborted && stage === "execute" && workerStartedAt !== undefined) {
+        log?.("worker.exit", { ...workerContext, exitCode: null, cancelled: true, durationMs: Math.round(performance.now() - workerStartedAt) });
+      } else {
+        log?.("worker.error", {
+          ...workerContext, stage, code: failure?.code,
+          reason: signal.aborted ? "cancelled" : changed ? "classpath_changed" : "worker_failure",
+          detail: failure?.message?.slice(0, WORKER_DETAIL_BYTES)
+        }, changed || signal.aborted ? "warn" : "error");
+      }
       report(signal.aborted ? "SOURCE_LIMIT" : changed ? "SOURCE_CHANGED" : "WORKER_FAILED",
         signal.aborted ? "The analysis exceeded its time limit." : changed
           ? "The configured classpath has changed since the snapshot was captured."

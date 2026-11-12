@@ -221,7 +221,7 @@ function resolveSourceResolution(
     ]));
   };
 
-  const { webRoot, javaRoots, javaMap, sourceMap, encoding, encodingOverrides, limits } = config;
+  const { webRoot, javaRoots, javaMap, sourceMap, encoding, encodingOverrides, limits, logging } = config;
   if (javaRoots !== undefined && !Array.isArray(javaRoots)) {
     throw new Error("Config 'sourceResolution.javaRoots' must be an array of paths");
   }
@@ -244,6 +244,18 @@ function resolveSourceResolution(
       }
     }
   }
+  let resolvedLogging: SourceResolutionConfig["logging"];
+  if (logging !== undefined) {
+    validateRecord(logging, "sourceResolution.logging");
+    const logPath = requireString(logging.path, "sourceResolution.logging.path");
+    if (logging.includePayloads !== undefined && typeof logging.includePayloads !== "boolean") {
+      throw new Error("Config 'sourceResolution.logging.includePayloads' must be a boolean");
+    }
+    resolvedLogging = {
+      path: resolvePath(configDirectory, logPath),
+      ...(logging.includePayloads === undefined ? {} : { includePayloads: logging.includePayloads })
+    };
+  }
   return {
     webRoot: webRoot === undefined ? undefined : resolvePath(root, requireString(webRoot, "sourceResolution.webRoot")),
     javaRoots: javaRoots?.map((entry) => resolvePath(root, requireString(entry, "sourceResolution.javaRoots"))),
@@ -251,7 +263,8 @@ function resolveSourceResolution(
     sourceMap: resolveMap(sourceMap, "sourceResolution.sourceMap"),
     encoding,
     encodingOverrides,
-    limits
+    limits,
+    ...(resolvedLogging ? { logging: resolvedLogging } : {})
   };
 }
 

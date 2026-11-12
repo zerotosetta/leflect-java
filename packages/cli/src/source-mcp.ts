@@ -7,6 +7,7 @@ import type { LeflectConfig } from "@leflect-java/schema";
 
 import { analysisKinds, SnapshotAnalyzer, type AnalysisKind } from "./source-analysis";
 import type { SourceTarget } from "./source-contract";
+import { SourceMcpLog, type LogLevel, type McpSystemLogger } from "./source-mcp-log";
 import { describeSource, SourceRequestError, SourceResolution } from "./source-resolution";
 import type { SourceFile } from "./source-workspace";
 
@@ -117,11 +118,21 @@ export async function runSourceMcp(argv: string[]): Promise<void> {
   const info = console.info;
   const debug = console.debug;
   console.log = console.info = console.debug = console.error;
+  let logger: SourceMcpLog | undefined;
+  let system: McpSystemLogger | undefined;
   try {
     const { config, loaded } = await loadConfig({ configPath, root: path.dirname(configPath) });
     if (!loaded || !config.sourceResolution) throw new Error("MCP requires a config file with sourceResolution.");
-    await new SourceMcpServer(config).serve();
+    if (config.sourceResolution.logging) logger = await SourceMcpLog.open(config.sourceResolution.logging, configPath);
+    system = logger?.system();
+    system?.("server.start", { transport: "stdio", pid: process.pid, configPath });
+    await new SourceMcpServer(config, logger).serve();
+  } catch (cause) {
+    system?.("server.error", { detail: errorDetail(cause) }, "error");
+    throw cause;
   } finally {
+    system?.("server.stop");
+    await logger?.close();
     console.log = log;
     console.info = info;
     console.debug = debug;
@@ -132,11 +143,11 @@ class SourceMcpServer {
   private readonly resolution: SourceResolution;
   private readonly analyzer: SnapshotAnalyzer;
   private readonly cursors = new Map<string, { name: ToolName; snapshotId: string; next: PageBuilder }>();
-  private readonly active = new Map<RequestId, AbortController>();
+  private readonly active = new Map<RequestId, { controller: AbortController; log?: McpSystemLogger }>();
   private initialized = false;
   private negotiated = false;
 
-  constructor(config: LeflectConfig) {
+  constructor(config: LeflectConfig, private readonly logger?: SourceMcpLog) {
     this.resolution = new SourceResolution(config);
     this.analyzer = new SnapshotAnalyzer(config.java);
   }
@@ -150,7 +161,8 @@ class SourceMcpServer {
       void request.finally(() => requests.delete(request));
     });
     await new Promise<void>((resolve) => lines.once("close", resolve));
-    for (const controller of this.active.values()) controller.abort();
+    this.logger?.system()("server.input_closed", { activeRequests: this.active.size });
+    for (const { controller } of this.active.values()) controller.abort();
     await Promise.allSettled(requests);
   }
 
@@ -159,24 +171,38 @@ class SourceMcpServer {
     try {
       raw = JSON.parse(line);
     } catch {
-      this.write({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Invalid JSON." } });
+      const context = { requestId: null, errorCode: -32700 };
+      this.logger?.rpc("in", line, context, "warn");
+      this.write({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Invalid JSON." } }, context, "warn");
       return;
     }
     if (!isObject(raw) || raw.jsonrpc !== "2.0" || typeof raw.method !== "string"
       || (raw.id !== undefined && typeof raw.id !== "string" && typeof raw.id !== "number" && raw.id !== null)) {
-      this.write({ jsonrpc: "2.0", id: null, error: { code: -32600, message: "Invalid JSON-RPC request." } });
+      const context = { requestId: null, errorCode: -32600 };
+      this.logger?.rpc("in", line, context, "warn");
+      this.write({ jsonrpc: "2.0", id: null, error: { code: -32600, message: "Invalid JSON-RPC request." } }, context, "warn");
       return;
     }
     const { id, method, params } = raw as { id?: RequestId; method: string; params?: unknown };
+    const tool = method === "tools/call" && isObject(params) && typeof params.name === "string" ? params.name.slice(0, 128) : undefined;
+    const context = { requestId: logRequestId(id), method: method.slice(0, 128), tool };
+    this.logger?.rpc("in", line, context);
+    const log = this.logger?.system(context);
     if (id === undefined) {
       if (method === "notifications/initialized" && this.negotiated) this.initialized = true;
       if (method === "notifications/cancelled" && isObject(params)) {
-        this.active.get(params.requestId as RequestId)?.abort(new Error("MCP request cancelled."));
+        const requestId = params.requestId as RequestId;
+        const active = this.active.get(requestId);
+        if (active) {
+          active.log?.("tool.cancelled", {}, "warn");
+          active.controller.abort(new Error("MCP request cancelled."));
+        }
       }
       return;
     }
-    const reply = (result: JsonObject) => this.write({ jsonrpc: "2.0", id, result });
-    const error = (code: number, message: string) => this.write({ jsonrpc: "2.0", id, error: { code, message } });
+    const reply = (result: JsonObject, level?: LogLevel) => this.write({ jsonrpc: "2.0", id, result }, context, level);
+    const error = (code: number, message: string) =>
+      this.write({ jsonrpc: "2.0", id, error: { code, message } }, { ...context, errorCode: code }, "warn");
     if (method === "initialize") {
       if (this.negotiated || !isObject(params) || typeof params.protocolVersion !== "string") {
         error(-32602, "Invalid initialize request.");
@@ -202,26 +228,37 @@ class SourceMcpServer {
         return;
       }
       const controller = new AbortController();
-      this.active.set(id, controller);
+      this.active.set(id, { controller, log });
       const execution = new AbortController();
       const cancel = () => execution.abort(controller.signal.reason);
       controller.signal.addEventListener("abort", cancel, { once: true });
-      const timer = setTimeout(() => execution.abort(new Error("MCP request timed out.")),
-        Math.min(this.resolution.workspace.limits.timeoutMs, 2_147_483_647));
+      const started = performance.now();
+      const timeoutMs = Math.min(this.resolution.workspace.limits.timeoutMs, 2_147_483_647);
+      const timer = setTimeout(() => {
+        log?.("tool.timeout", { timeoutMs }, "warn");
+        execution.abort(new Error("MCP request timed out."));
+      }, timeoutMs);
       const { signal } = execution;
       try {
-        const page = await this.callTool(params, id, signal);
-        if (!controller.signal.aborted) reply(toolResult(page));
+        const page = await this.callTool(params, id, signal, log);
+        if (!controller.signal.aborted) {
+          const level = page.status === "complete" ? "info" : "warn";
+          log?.("tool.complete", { status: page.status, snapshotId: page.snapshotId, hasMore: page.nextCursor !== null,
+            durationMs: Math.round(performance.now() - started) }, level);
+          reply(toolResult(page), level);
+        }
       } catch (cause) {
         if (controller.signal.aborted) return;
         const failure = cause instanceof SourceRequestError ? cause : new SourceRequestError(
           signal.aborted ? "SOURCE_LIMIT" : "TOOL_FAILED",
           signal.aborted ? "The request exceeded its time limit." : "The tool could not complete the operation."
         );
+        log?.("tool.error", { code: failure.code, durationMs: Math.round(performance.now() - started),
+          detail: errorDetail(cause) }, "error");
         reply(toolResult({
           schemaVersion: 1, status: "failed", nextCursor: null,
           diagnostics: [{ code: failure.code, message: failure.message }]
-        }, true));
+        }, true), "error");
       } finally {
         clearTimeout(timer);
         this.active.delete(id);
@@ -229,7 +266,7 @@ class SourceMcpServer {
     }
   }
 
-  private async callTool(params: unknown, id: RequestId, signal: AbortSignal): Promise<Page> {
+  private async callTool(params: unknown, id: RequestId, signal: AbortSignal, log?: McpSystemLogger): Promise<Page> {
     if (!isObject(params) || !toolNames.has(params.name as ToolName)) invalid("Unknown source tool.");
     const name = params.name as ToolName;
     const args = fields(params.arguments, name === "resolve_references" ? ["targets", "scope", "baseSnapshotId", "cursor"] :
@@ -254,8 +291,10 @@ class SourceMcpServer {
           followReferences: scope?.followReferences as boolean | undefined,
           maxDepth: scope?.maxDepth === undefined ? undefined : integer(scope.maxDepth)
         }
-      }, signal);
+      }, signal, log);
       const { targets: rows, references, sources, diagnostics, unprocessedTargetIds, ...base } = result;
+      log?.("lookup.summary", { snapshotId: base.snapshotId, status: base.status, targets: rows.length, references: references.length,
+        sources: sources.length, ...diagnosticSummary(diagnostics) }, base.status === "complete" ? "info" : "warn");
       builder = paginateRows(base, { targets: rows, sources, references, diagnostics, unprocessedTargetIds });
     } else {
       const snapshot = this.resolution.getSnapshot(string(args.snapshotId));
@@ -270,7 +309,9 @@ class SourceMcpServer {
           if (!analysisKinds.includes(value as AnalysisKind)) invalid("Unknown analysis result kind.");
           return value as AnalysisKind;
         });
-        const { sources, results, coverage, diagnostics, ...base } = await this.analyzer.analyze(snapshot, sourceIds, kinds, signal);
+        const { sources, results, coverage, diagnostics, ...base } = await this.analyzer.analyze(snapshot, sourceIds, kinds, signal, log);
+        log?.("analysis.summary", { snapshotId: base.snapshotId, status: base.status, sources: sources.length,
+          results: results.length, ...diagnosticSummary(diagnostics) }, base.status === "complete" ? "info" : "warn");
         builder = paginateRows(base, { sources, coverage, results, diagnostics });
       }
     }
@@ -285,9 +326,23 @@ class SourceMcpServer {
     return page;
   }
 
-  private write(message: JsonObject): void {
-    process.stdout.write(JSON.stringify(message) + "\n", "utf8");
+  private write(message: JsonObject, context: JsonObject, level?: LogLevel): void {
+    const line = JSON.stringify(message);
+    this.logger?.rpc("out", line, context, level);
+    process.stdout.write(line + "\n", "utf8");
   }
+}
+
+function diagnosticSummary(diagnostics: { code: string }[]) {
+  return { diagnosticCount: diagnostics.length, diagnosticCodes: [...new Set(diagnostics.map(({ code }) => code))].slice(0, 32) };
+}
+
+function errorDetail(cause: unknown): string {
+  return (cause instanceof Error ? cause.stack ?? cause.message : String(cause)).slice(0, 8192);
+}
+
+function logRequestId(id: RequestId | undefined): RequestId | undefined {
+  return typeof id === "string" ? id.slice(0, 256) : id;
 }
 
 function toolResult(structuredContent: JsonObject, isError = false) {
