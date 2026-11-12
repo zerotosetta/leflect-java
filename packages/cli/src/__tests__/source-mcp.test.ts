@@ -21,6 +21,13 @@ type TestLogRecord = {
   worker?: string;
   stream?: string;
   bytes?: number;
+  sequence?: number;
+  lookupId?: number;
+  lookupKind?: string;
+  className?: string;
+  expression?: string;
+  path?: string;
+  rootId?: string;
   detail?: string;
   payload?: string;
 };
@@ -68,13 +75,14 @@ describe("source MCP over stdio", () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
-  async function start(timeoutMs = 12000, logging?: { path: string; includePayloads?: boolean }, javaToolOptions?: string) {
+  async function start(timeoutMs = 12000, logging?: { path: string; includePayloads?: boolean }, javaToolOptions?: string,
+    javaRoots = ["java 소스"]) {
     const worker = installedCli ? undefined : await jar;
     if (!installedCli && !worker) throw new Error("Build the Java worker before running source MCP tests.");
     const config = path.join(root, "설정 파일.json");
     await fs.writeFile(config, JSON.stringify({
       root: ".", java: { workerJar: worker },
-      sourceResolution: { webRoot: ".", javaRoots: ["java 소스"], limits: { maxResponseBytes, timeoutMs }, logging }
+      sourceResolution: { webRoot: ".", javaRoots, limits: { maxResponseBytes, timeoutMs }, logging }
     }));
     const child = spawn(process.execPath, [cli, "mcp", "--config", config], {
       cwd: root, stdio: "pipe", windowsHide: true,
@@ -222,6 +230,62 @@ describe("source MCP over stdio", () => {
     await stop?.();
     expect(client.stderr().match(/\[leflect-mcp-log\]/g)).toHaveLength(1);
   }, 10000);
+
+  it("traces ordered candidate checks, decisions and caches without recording RPC payloads", async () => {
+    const logPath = "lookup-route.jsonl";
+    const javaRoots = ["첫째", "둘째", "셋째"];
+    const marker = "dynamic_not_a_file";
+    for (const dir of javaRoots) await fs.mkdir(path.join(root, dir, "sample"), { recursive: true });
+    await fs.mkdir(path.join(root, javaRoots[2], "secret"), { recursive: true });
+    await fs.writeFile(path.join(root, javaRoots[1], "sample/Helper.java"), "package sample; public class Other {}");
+    await fs.writeFile(path.join(root, javaRoots[2], "sample/Helper.java"), "package sample; public class Helper {}");
+    await fs.writeFile(path.join(root, javaRoots[2], "secret/Hidden.java"), "package secret; class Hidden {}");
+    for (const dir of [javaRoots[0], javaRoots[2]]) {
+      await fs.writeFile(path.join(root, dir, "sample/Clash.java"), "package sample; public class Clash {}");
+    }
+    await fs.writeFile(path.join(root, "page.jsp"),
+      '<%@ page import="sample.*, secret.Hidden" %><% new Helper(); new Helper(); %>' +
+      '<jsp:include page="${' + marker + '}" />');
+    const client = await start(12000, { path: logPath }, undefined, javaRoots);
+    const first = await client.pages("resolve_references", { targets: [
+      { targetId: "page", kind: "jsp", path: "/page.jsp" },
+      { targetId: "clash", kind: "java", className: "sample.Clash" }
+    ] });
+    const extension = await client.pages("resolve_references", {
+      baseSnapshotId: first[0].snapshotId, targets: [{ targetId: "again", kind: "java", className: "sample.Helper" }]
+    });
+    expect(extension.flatMap(({ targets }) => targets ?? [])).toMatchObject([{ targetId: "again", status: "resolved" }]);
+    await stop?.();
+
+    const { text, records } = await readLogs(logPath);
+    const attempts = records.filter((row) => row.event === "lookup.candidate" && row.className === "sample.Helper" && row.path === "sample/Helper.java");
+    expect(attempts).toMatchObject([
+      { rootId: "java-1", outcome: "rejected", reason: "SOURCE_NOT_FOUND" },
+      { rootId: "java-2", outcome: "rejected", reason: "SOURCE_DECLARATION_MISMATCH" },
+      { rootId: "java-3", outcome: "matched", reason: "SOURCE_MATCH", cache: "miss" }
+    ]);
+    expect(records).toEqual(expect.arrayContaining([
+      expect.objectContaining({ event: "lookup.decision", lookupId: attempts[0].lookupId, lookupKind: "java_type",
+        expression: "Helper", strategy: "wildcard_import", candidates: [expect.objectContaining({
+          rootId: "java-3", path: "sample/Helper.java", outcome: "selected", reason: "UNIQUE_MATCH"
+        })] }),
+      expect.objectContaining({ event: "lookup.decision", lookupKind: "target", targetIndex: 2, status: "ambiguous",
+        candidates: [
+          expect.objectContaining({ rootId: "java-1", outcome: "retained", reason: "SOURCE_AMBIGUOUS" }),
+          expect.objectContaining({ rootId: "java-3", outcome: "retained", reason: "SOURCE_AMBIGUOUS" })
+        ] }),
+      expect.objectContaining({ event: "lookup.decision", lookupKind: "java_import", reason: "JAVA_TYPE_ACCESS",
+        candidates: [expect.objectContaining({ path: "secret/Hidden.java", outcome: "rejected" })] }),
+      expect.objectContaining({ event: "lookup.decision", lookupKind: "jsp_include", reason: "JSP_INCLUDE_DYNAMIC" }),
+      expect.objectContaining({ event: "lookup.cache", cache: "java_lookup", className: "sample.Helper", result: "hit", cacheScope: "request" }),
+      expect.objectContaining({ event: "lookup.cache", cache: "java_lookup", className: "sample.Helper", result: "hit", cacheScope: "snapshot" })
+    ]));
+    const traced = records.filter(({ requestId }) => requestId === attempts[0].requestId).flatMap(({ sequence }) =>
+      sequence === undefined ? [] : [sequence]);
+    expect(traced).toEqual(traced.map((_, index) => index + 1));
+    expect(records.every(({ payload, path: candidate }) => payload === undefined && (!candidate || !path.isAbsolute(candidate)))).toBe(true);
+    expect(text).not.toContain(marker);
+  }, 20000);
 
   it("keeps bytes and worker analysis frozen while paginating Unicode paths and references", async () => {
     await fs.mkdir(path.join(root, "java 소스", "app"), { recursive: true });

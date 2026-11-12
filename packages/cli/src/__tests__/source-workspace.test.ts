@@ -6,6 +6,7 @@ import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LeflectConfig, SourceResolutionConfig } from "@leflect-java/schema";
 
+import type { McpSystemLogger } from "../source-mcp-log";
 import { normalizeJspPath, SourceWorkspace, type SourceFile } from "../source-workspace";
 
 describe("source workspace", () => {
@@ -112,6 +113,39 @@ describe("source workspace", () => {
     expect(normalizeJspPath("../shared/head.jsp", "/web/parts/body.jsp")).toBe("/web/shared/head.jsp");
     expect(normalizeJspPath("../../secret.jsp", "/body.jsp")).toBeUndefined();
     expect(normalizeJspPath("C:\\outside\\secret.jsp")).toBeUndefined();
+  });
+
+  it("traces candidate order, declaration rejection, duplicate roots, and bytes cache scope", async () => {
+    const events: { event: string; fields?: Record<string, unknown> }[] = [];
+    const trace: McpSystemLogger = (event, fields) => { events.push({ event, fields }); };
+    const candidate = { kind: "java", className: "app.Service", path: "app/Service.java" };
+    await fs.mkdir(path.join(root, "empty"));
+    await write("wrong/app/Service.java", "package elsewhere; class Service {}");
+    await write("valid/app/Service.java", "package app; class Service { String secretPayload; }");
+    const workspace = new SourceWorkspace(config({ javaRoots: ["empty", "wrong", "valid", "valid/."] }));
+    const session = workspace.start();
+
+    const found = await session.resolveJava("app.Service", verifyFixture, undefined, undefined, trace);
+    expect(found.status).toBe("resolved");
+    expect(events.map(({ event }) => event)).toEqual(Array(4).fill("lookup.candidate"));
+    expect(events.map(({ fields }) => fields)).toMatchObject([
+      { ...candidate, rootId: "java-1", outcome: "rejected", reason: "SOURCE_NOT_FOUND" },
+      { ...candidate, rootId: "java-2", outcome: "rejected", reason: "SOURCE_DECLARATION_MISMATCH", cache: "miss" },
+      { ...candidate, rootId: "java-3", outcome: "matched", reason: "SOURCE_MATCH", cache: "miss" },
+      { ...candidate, rootId: "java-4", outcome: "duplicate", reason: "SOURCE_DUPLICATE", cache: "hit", cacheScope: "request" }
+    ]);
+    expect(JSON.stringify(events)).not.toContain(JSON.stringify(root).slice(1, -1));
+    expect(JSON.stringify(events)).not.toContain("secretPayload");
+
+    events.length = 0;
+    const extended = workspace.start({ baseSources: session.sources.values() });
+    await extended.resolveJava("app.Service", verifyFixture, undefined, undefined, trace);
+    expect(events[2].fields).toMatchObject({ outcome: "matched", cache: "hit", cacheScope: "snapshot" });
+
+    events.length = 0;
+    const limited = new SourceWorkspace(config({ javaRoots: ["valid", "wrong"], limits: { maxProbes: 1 } })).start();
+    await limited.resolveJava("app.Service", verifyFixture, undefined, undefined, trace);
+    expect(events[1].fields).toMatchObject({ ...candidate, rootId: "java-2", outcome: "skipped", reason: "SOURCE_LIMIT" });
   });
 
   it("reports byte decoding failures and hashes the original bytes with file overrides", async () => {

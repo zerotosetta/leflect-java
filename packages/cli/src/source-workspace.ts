@@ -6,6 +6,7 @@ import type { LeflectConfig, SourceResolutionLimits } from "@leflect-java/schema
 
 import { SourceClasspath } from "./source-classpath";
 import type { SourceCandidate, SourceDiagnostic, SourceKind, SourceStatus } from "./source-contract";
+import type { McpSystemLogger } from "./source-mcp-log";
 export { SourceClasspath, SourceClasspathError } from "./source-classpath";
 export type { SourceCandidate, SourceDiagnostic } from "./source-contract";
 
@@ -43,6 +44,9 @@ type Root = RootDefinition & { realPath?: string; diagnostic: SourceDiagnostic }
 type Attempt = SourceCandidate & { absolutePath: string; mapped: boolean; root?: Root };
 type LookupSessionOptions = { signal?: AbortSignal; baseSources?: Iterable<SourceFile>; baseClasspath?: SourceClasspath };
 type DeclarationVerifier = (source: SourceFile, className: string) => boolean | Promise<boolean>;
+type CacheScope = "request" | "snapshot";
+type BytesCacheTrace = { cache?: "hit" | "miss"; cacheScope?: CacheScope };
+type CandidateOutcome = "matched" | "rejected" | "duplicate" | "skipped";
 
 export class SourceWorkspace {
   readonly limits: SourceResolutionLimits;
@@ -80,7 +84,7 @@ export class SourceLookupSession {
   probes = 0;
   totalSourceBytes = 0;
 
-  private readonly byRealPath = new Map<string, SourceFile>();
+  private readonly byRealPath = new Map<string, { source: SourceFile; scope: CacheScope }>();
   private inspectedFiles = 0;
   private inspectedBytes = 0;
   private rootStates?: Promise<Root[]>;
@@ -90,7 +94,7 @@ export class SourceLookupSession {
     const timeout = AbortSignal.timeout(Math.min(workspace.limits.timeoutMs, 2_147_483_647));
     this.signal = options.signal ? combineSignals(options.signal, timeout) : timeout;
     if (options.baseClasspath) this.classpath = Promise.resolve(options.baseClasspath);
-    for (const source of options.baseSources ?? []) this.remember(source);
+    for (const source of options.baseSources ?? []) this.remember(source, "snapshot");
     this.inspectedFiles = this.sources.size;
     this.inspectedBytes = this.totalSourceBytes;
   }
@@ -103,7 +107,7 @@ export class SourceLookupSession {
     return this.classpath ??= SourceClasspath.capture(this.workspace.config, this.signal);
   }
 
-  async resolveJsp(input: string): Promise<SourceLookupResult> {
+  async resolveJsp(input: string, trace?: McpSystemLogger): Promise<SourceLookupResult> {
     const logicalPath = normalizeJspPath(input);
     if (!logicalPath) return failure("blocked", "SOURCE_BOUNDARY", "Invalid JSP logical path");
     const roots = await this.getRoots();
@@ -112,14 +116,15 @@ export class SourceLookupSession {
     const attempts = [mapped === undefined
       ? rootAttempt(web, logicalPath.slice(1), { logicalPath })
       : this.mapAttempt(mapped, { logicalPath }, roots, "web-map")];
-    return this.inspect("jsp", attempts);
+    return this.inspect("jsp", attempts, undefined, trace);
   }
 
   async resolveJava(
     className: string,
     verify?: DeclarationVerifier,
     ownerClassName = className,
-    { searchClasspath = true } = {}
+    { searchClasspath = true } = {},
+    trace?: McpSystemLogger
   ): Promise<SourceLookupResult> {
     if (!isJavaClassName(className) || !isJavaClassName(ownerClassName) ||
       (ownerClassName !== className && !className.startsWith(`${ownerClassName}.`))) {
@@ -131,10 +136,10 @@ export class SourceLookupSession {
     const attempts = mapped === undefined
       ? roots.slice(1).map((root) => rootAttempt(root, javaPath, { className }))
       : [this.mapAttempt(mapped, { className }, roots, "java-map")];
-    const sources = await this.inspect("java", attempts, verify && ((source) => verify(source, className)));
+    const sources = await this.inspect("java", attempts, verify && ((source) => verify(source, className)), trace);
     if (!searchClasspath || (sources.status !== "missing" && (sources.status !== "blocked" || sources.candidates.length))) return sources;
 
-    const binaries = await this.resolveBinary(className, ownerClassName === className ? undefined : ownerClassName);
+    const binaries = await this.resolveBinary(className, ownerClassName === className ? undefined : ownerClassName, trace);
     return {
       ...binaries,
       status: binaries.status === "limit" || sources.status === "missing" ? binaries.status : sources.status,
@@ -143,13 +148,13 @@ export class SourceLookupSession {
     };
   }
 
-  async resolveBinary(className: string, requiredOwner?: string): Promise<SourceLookupResult> {
+  async resolveBinary(className: string, requiredOwner?: string, trace?: McpSystemLogger): Promise<SourceLookupResult> {
     if (!isJavaClassName(className) || (requiredOwner !== undefined &&
       (!isJavaClassName(requiredOwner) || !className.startsWith(`${requiredOwner}.`)))) {
       return failure("unsupported", "SOURCE_JAVA_NAME", "Invalid Java class name");
     }
     const classpath = await this.pinClasspath();
-    const binaries = classpath.find(className, () => this.consumeProbe(), this.signal, requiredOwner);
+    const binaries = classpath.find(className, () => this.consumeProbe(), this.signal, requiredOwner, trace);
     const diagnostics = [...classpath.diagnostics, ...binaries.diagnostics];
     return {
       status: binaries.limited ? "limit" : binaries.candidates.length ? "binary_only" : "missing",
@@ -194,7 +199,7 @@ export class SourceLookupSession {
   }
 
   private async inspect(
-    kind: SourceKind, attempts: Attempt[], verify?: (source: SourceFile) => boolean | Promise<boolean>
+    kind: SourceKind, attempts: Attempt[], verify?: (source: SourceFile) => boolean | Promise<boolean>, trace?: McpSystemLogger
   ): Promise<SourceLookupResult> {
     const diagnostics: SourceDiagnostic[] = [];
     const candidates = new Map<string, SourceCandidate>();
@@ -207,47 +212,67 @@ export class SourceLookupSession {
       if (!this.consumeProbe()) {
         limited = true;
         diagnostics.push(this.limitDiagnostic(attempt));
+        trace?.("lookup.candidate", { kind, ...candidateMetadata(attempt), mapped: attempt.mapped, outcome: "skipped", reason: "SOURCE_LIMIT" });
         break;
       }
+      const bytesCache: BytesCacheTrace | undefined = trace ? {} : undefined;
+      let sourceId: string | undefined;
+      let outcome: CandidateOutcome = "rejected";
+      let reason = "SOURCE_ACCESS";
       try {
-        const source = await this.readSource(kind, attempt);
+        const source = await this.readSource(kind, attempt, bytesCache);
         this.signal.throwIfAborted();
         if (kind === "java" && !verify) {
+          reason = "SOURCE_DECLARATION_UNVERIFIED";
           unsupported = true;
           incompleteCandidates.push(candidateMetadata(attempt));
-          diagnostics.push(attemptDiagnostic(attempt, "SOURCE_DECLARATION_UNVERIFIED", "Java declaration could not be verified"));
+          diagnostics.push(attemptDiagnostic(attempt, reason, "Java declaration could not be verified"));
           continue;
         }
         if (verify) {
           const declaresType = await verify(source);
           this.signal.throwIfAborted();
           if (!declaresType) {
-            diagnostics.push(attemptDiagnostic(attempt, "SOURCE_DECLARATION_MISMATCH", "File does not declare the requested Java type"));
+            reason = "SOURCE_DECLARATION_MISMATCH";
+            diagnostics.push(attemptDiagnostic(attempt, reason, "File does not declare the requested Java type"));
             continue;
           }
         }
         this.remember(source);
+        sourceId = source.sourceId;
         if (!candidates.has(source.sourceId)) {
           candidates.set(source.sourceId, { ...candidateMetadata(attempt), sourceId: source.sourceId, sourceHash: source.sourceHash });
+          outcome = "matched";
+          reason = "SOURCE_MATCH";
+        } else {
+          outcome = "duplicate";
+          reason = "SOURCE_DUPLICATE";
         }
       } catch (error) {
         const code = errorCode(error);
         if (this.signal.aborted) {
+          outcome = "skipped";
+          reason = "SOURCE_LIMIT";
           limited = true;
           diagnostics.push(this.limitDiagnostic(attempt));
           break;
         }
         if (code === "SOURCE_LIMIT") {
+          outcome = "skipped";
+          reason = code;
           limited = true;
-          diagnostics.push(attemptDiagnostic(attempt, code, "Source exceeds the configured collection limits"));
+          diagnostics.push(attemptDiagnostic(attempt, reason, "Source exceeds the configured collection limits"));
         } else if (isMissing(error)) {
-          diagnostics.push(attemptDiagnostic(attempt, "SOURCE_NOT_FOUND", "No source file at the candidate path"));
+          reason = "SOURCE_NOT_FOUND";
+          diagnostics.push(attemptDiagnostic(attempt, reason, "No source file at the candidate path"));
         } else {
           blocked = true;
-          const diagnosticCode = code?.startsWith("SOURCE_") ? code : "SOURCE_ACCESS";
+          reason = code?.startsWith("SOURCE_") ? code : "SOURCE_ACCESS";
           const message = error instanceof SourceReadError ? error.message : "Source candidate could not be inspected";
-          diagnostics.push(attemptDiagnostic(attempt, diagnosticCode, message));
+          diagnostics.push(attemptDiagnostic(attempt, reason, message));
         }
+      } finally {
+        trace?.("lookup.candidate", { kind, ...candidateMetadata(attempt), mapped: attempt.mapped, sourceId, outcome, reason, ...bytesCache });
       }
     }
 
@@ -261,9 +286,12 @@ export class SourceLookupSession {
     return { status, complete, candidates: [...candidates.values(), ...incompleteCandidates], diagnostics };
   }
 
-  private async readSource(kind: SourceKind, attempt: Attempt): Promise<SourceFile> {
+  private async readSource(kind: SourceKind, attempt: Attempt, cache?: BytesCacheTrace): Promise<SourceFile> {
     const direct = this.byRealPath.get(attempt.absolutePath);
-    if (direct) return direct;
+    if (direct) {
+      if (cache) Object.assign(cache, { cache: "hit", cacheScope: direct.scope });
+      return direct.source;
+    }
 
     if (!attempt.mapped && !attempt.root?.realPath) {
       throw new SourceReadError("SOURCE_ROOT_UNAVAILABLE", "Configured source root is missing or inaccessible");
@@ -281,7 +309,10 @@ export class SourceLookupSession {
       throw new SourceReadError("SOURCE_BOUNDARY", "Candidate resolves outside the configured source boundary");
     }
     const previous = this.byRealPath.get(realPath);
-    if (previous) return previous;
+    if (previous) {
+      if (cache) Object.assign(cache, { cache: "hit", cacheScope: previous.scope });
+      return previous.source;
+    }
 
     const limits = this.workspace.limits;
     const stats = await fs.stat(realPath);
@@ -291,6 +322,7 @@ export class SourceLookupSession {
       throw new SourceReadError("SOURCE_LIMIT", "Source exceeds the configured collection limits");
     }
 
+    if (cache) cache.cache = "miss";
     const handle = await fs.open(realPath, "r");
     try {
       const opened = await handle.stat();
@@ -340,10 +372,10 @@ export class SourceLookupSession {
       await hasNoPathLinks(attempt.absolutePath);
   }
 
-  private remember(source: SourceFile): void {
+  private remember(source: SourceFile, scope: CacheScope = "request"): void {
     if (this.sources.has(source.sourceId)) return;
     this.sources.set(source.sourceId, source);
-    this.byRealPath.set(source.realPath, source);
+    this.byRealPath.set(source.realPath, { source, scope });
     this.totalSourceBytes += source.bytes.length;
   }
 
