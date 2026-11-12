@@ -6,12 +6,22 @@ import { pipeline } from "stream/promises";
 
 import AdmZip from "adm-zip";
 import type { LeflectConfig } from "@leflect-java/schema";
+
+import type { McpSystemLogger } from "./source-mcp-log";
 import type { SourceCandidate, SourceDiagnostic } from "./source-workspace";
 
 type FileVersion = { path: string; hash: string };
 type Archive = { kind: "archive"; file: FileVersion; name: string; classes: ReadonlySet<string> };
 type ClassesDirectory = { kind: "directory"; directory: string; files: ReadonlyMap<string, string> };
-type Entry = { rootId: string; content?: Archive | ClassesDirectory };
+type CapturedEntry = { rootId: string; content: Archive | ClassesDirectory };
+type SkippedEntry = {
+  rootId: string;
+  content?: undefined;
+  archiveName?: string;
+  reason: "classpath_alias" | "classpath_unavailable" | "classpath_capture_cancelled";
+  aliasOf?: string;
+};
+type Entry = CapturedEntry | SkippedEntry;
 
 export class SourceClasspathError extends Error {
   constructor(readonly code: string, message: string) { super(message); }
@@ -23,14 +33,18 @@ export class SourceClasspath {
   static async capture(config: LeflectConfig, signal: AbortSignal): Promise<SourceClasspath> {
     const entries: Entry[] = [];
     const diagnostics: SourceDiagnostic[] = [];
-    const seen = new Set<string>();
+    const seen = new Map<string, CapturedEntry>();
     for (const [index, configuredPath] of (config.java?.classpath ?? []).entries()) {
       const rootId = `classpath-${index + 1}`;
       try {
         signal.throwIfAborted();
         const realPath = await fs.realpath(path.resolve(config.root, configuredPath));
-        if (seen.has(realPath)) {
-          entries.push({ rootId });
+        const original = seen.get(realPath);
+        if (original) {
+          entries.push({
+            rootId, reason: "classpath_alias", aliasOf: original.rootId,
+            archiveName: original.content.kind === "archive" ? path.basename(configuredPath) : undefined
+          });
           continue;
         }
         const stat = await fs.stat(realPath);
@@ -51,10 +65,15 @@ export class SourceClasspath {
         } else {
           throw new Error("Unsupported configured classpath entry");
         }
-        entries.push({ rootId, content });
-        seen.add(realPath);
+        const entry = { rootId, content };
+        entries.push(entry);
+        seen.set(realPath, entry);
       } catch {
-        entries.push({ rootId });
+        entries.push({
+          rootId,
+          reason: signal.aborted ? "classpath_capture_cancelled" : "classpath_unavailable",
+          archiveName: /\.jar$/i.test(configuredPath) ? path.basename(configuredPath) : undefined
+        });
         diagnostics.push({
           code: signal.aborted ? "SOURCE_LIMIT" : "SOURCE_CLASSPATH",
           message: signal.aborted ? "Classpath collection timed out or was canceled" : "Configured classpath could not be captured",
@@ -66,24 +85,46 @@ export class SourceClasspath {
     return new SourceClasspath(entries, diagnostics);
   }
 
-  find(className: string, consumeProbe: () => boolean, signal: AbortSignal, requiredOwner?: string): {
+  find(className: string, consumeProbe: () => boolean, signal: AbortSignal, requiredOwner?: string, trace?: McpSystemLogger): {
     candidates: SourceCandidate[]; diagnostics: SourceDiagnostic[]; limited: boolean;
   } {
     const candidates: SourceCandidate[] = [];
     const paths = binaryClassPaths(className, requiredOwner);
-    if (signal.aborted) return { candidates, limited: true, diagnostics: [{
-      code: "SOURCE_LIMIT", message: "Classpath lookup timed out or was canceled"
-    }] };
-    for (const { rootId, content } of this.entries) {
+    const skip = (entry: Entry, reason: SkippedEntry["reason"] | "probe_limit" | "cancelled", aliasOf?: string) =>
+      trace?.("lookup.candidate", {
+        kind: "binary", rootId: entry.rootId, path: binaryCandidatePath(entry, paths[0]), className,
+        outcome: "skipped", reason, ...(aliasOf && { aliasOf })
+      });
+    if (signal.aborted) {
+      if (this.entries[0]) skip(this.entries[0], "cancelled");
+      return { candidates, limited: true, diagnostics: [{
+        code: "SOURCE_LIMIT", message: "Classpath lookup timed out or was canceled"
+      }] };
+    }
+    for (const entry of this.entries) {
+      const { rootId, content } = entry;
       if (!consumeProbe()) {
+        skip(entry, signal.aborted ? "cancelled" : "probe_limit");
         return { candidates, limited: true, diagnostics: [{
           code: "SOURCE_LIMIT", rootId, path: paths[0],
           message: signal.aborted ? "Classpath lookup timed out or was canceled" : "Classpath probe limit reached"
         }] };
       }
-      if (!content) continue;
-      const relative = paths.find((entry) => content.kind === "archive" ? content.classes.has(entry) : content.files.has(entry));
-      if (relative) candidates.push({ className, rootId, path: content.kind === "archive" ? `${content.name}!/${relative}` : relative });
+      if (!content) {
+        skip(entry, entry.reason, entry.aliasOf);
+        continue;
+      }
+      for (const relative of paths) {
+        const matched = content.kind === "archive" ? content.classes.has(relative) : content.files.has(relative);
+        const candidatePath = binaryCandidatePath(entry, relative);
+        trace?.("lookup.candidate", {
+          kind: "binary", rootId, path: candidatePath, className,
+          outcome: matched ? "matched" : "rejected", reason: matched ? "class_found" : "not_in_catalog"
+        });
+        if (!matched) continue;
+        candidates.push({ className, rootId, path: candidatePath });
+        break;
+      }
     }
     return { candidates, diagnostics: [], limited: false };
   }
@@ -157,6 +198,11 @@ function binaryClassPaths(className: string, requiredOwner?: string): string[] {
     const type = segments.slice(index).join("$");
     return `${[...segments.slice(0, index), type].join("/")}.class`;
   }).reverse();
+}
+
+function binaryCandidatePath(entry: Entry, relative: string): string {
+  const archiveName = entry.content ? (entry.content.kind === "archive" ? entry.content.name : undefined) : entry.archiveName;
+  return archiveName ? `${archiveName}!/${relative}` : relative;
 }
 
 async function copyChecked(file: FileVersion, destination: string, signal?: AbortSignal): Promise<void> {

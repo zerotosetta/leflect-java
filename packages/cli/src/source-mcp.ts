@@ -276,6 +276,9 @@ class SourceMcpServer {
     if (args.cursor !== undefined) {
       fields(args, ["cursor"]);
       const cursor = this.cursors.get(string(args.cursor));
+      if (name === "resolve_references") log?.("lookup.cache", {
+        sequence: 1, cache: "cursor", result: cursor?.name === name ? "hit" : "miss", snapshotId: cursor?.snapshotId
+      });
       if (!cursor) throw new SourceRequestError("SNAPSHOT_EXPIRED", "The source page cursor has expired.");
       if (cursor.name !== name) invalid("The cursor belongs to a different tool.");
       this.resolution.getSnapshot(cursor.snapshotId);

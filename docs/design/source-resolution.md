@@ -47,6 +47,10 @@ analysis3 0.1.5에서는 `leflectMcp.cli`에 이 변경을 포함한 LeflectJava
 
 UTF-8 JSONL 파일에 실행 시각, 세션·요청 ID, 호출 방향, 도구와 전송 바이트 수를 기록한다. 서버와 Java worker의 시작·종료, 실패 코드, 시간 초과, 취소와 결과 요약도 같은 파일에 기록한다. 기존 파일에는 새 세션의 기록을 이어 쓴다.
 
+원문 탐색은 `lookup.start`부터 `lookup.decision`까지 같은 `lookupId`로 묶인다. `targetIndex`는 요청의 대상 배열에서 1부터 시작하는 순번이다. `sessionId`와 `requestId`가 같은 레코드를 `sequence` 순으로 읽으면 실제 후보 검사 순서를 알 수 있다. `lookup.candidate`에는 루트 ID, 상대 경로와 검사 결과·사유가 기록된다. `lookup.probe`와 `lookup.probe_result`는 현재 패키지나 import 등으로 만든 타입 후보의 결과를 담고, `lookup.decision`은 최종 선택·보류·탈락 후보를 담는다. `lookup.cache`는 조회 결과나 문법 분석 등의 재사용을 기록한다. 파일 바이트의 재사용은 후보 레코드의 `cache`와 `cacheScope`에서 확인할 수 있다.
+
+탐색 메타데이터는 `includePayloads: false`에서도 기록된다. 절대 파일시스템 경로 대신 루트 ID와 상대 경로를 사용한다. JDK 조회는 `lookup.platform`에 클래스 이름과 접근 결과로 기록된다.
+
 `includePayloads`의 기본값은 `false`다. `true`이면 줄 구분자를 제외한 요청·응답을 `payload`에 저장하고 오류 상세와 worker 출력 일부도 기록한다. 이 모드의 로그에는 Java·JSP 원문이 포함될 수 있다. 1 MiB를 넘는 메시지는 크기와 `payloadOmitted`를 기록한다. 대기 중인 로그가 4 MiB를 넘으면 일부 항목을 생략하고 정상 종료 시 `logging.dropped`에 건수를 기록한다.
 
 파일을 열거나 쓸 수 없으면 stderr에 `[leflect-mcp-log]` 경고를 출력하고 MCP 요청 처리를 계속한다. analysis3에서는 `analysis3.json`의 `leflectMcp.logging`에 같은 옵션을 지정할 수 있다.

@@ -17,6 +17,7 @@ import {
 } from "./source-syntax";
 import {
   SourceWorkspace,
+  isJavaClassName,
   normalizeJspPath,
   type SourceClasspath,
   type SourceFile,
@@ -26,7 +27,7 @@ import {
 
 type ImportEvidence = { entry: SyntaxImport; source: SourceFile };
 type JspPart = JspJavaPart & { source: SourceFile; context: IncludeContext };
-type TypeLookup = { lookup: SourceLookupResult; name?: string; entry?: ImportEvidence };
+type TypeLookup = { lookup: SourceLookupResult; name?: string; entry?: ImportEvidence; strategy?: string; reason?: string };
 type ParentType = { name: string; source?: SourceFile; platform?: boolean };
 export type JspTranslationUnit = { parts: JspPart[]; imports: ImportEvidence[]; sources: Set<string> };
 
@@ -76,8 +77,15 @@ export class SourceResolution {
     }
     const base = request.baseSnapshotId ? this.getSnapshot(request.baseSnapshotId) : undefined;
     const session = this.workspace.start({ signal, baseSources: base?.sources.values(), baseClasspath: base?.classpath });
+    let sequence = 0;
+    const trace: McpSystemLogger | undefined = log && ((event, fields, level) =>
+      log(event, { ...fields, sequence: ++sequence }, level));
+    trace?.("lookup.cache", {
+      cache: "classpath_catalog", result: base ? "hit" : "miss", cacheScope: base ? "snapshot" : undefined,
+      baseSnapshotId: base?.id
+    });
     const classpath = await session.pinClasspath();
-    const resolution = new ReferenceCollector(this.config, session, maxDepth, request.scope?.followReferences ?? false, session.signal, base, log);
+    const resolution = new ReferenceCollector(this.config, session, maxDepth, request.scope?.followReferences ?? false, session.signal, base, log, trace);
     resolution.diagnostics.push(...classpath.diagnostics);
     resolution.partial = classpath.diagnostics.length > 0;
     try {
@@ -152,7 +160,10 @@ class ReferenceCollector {
   private readonly seenPages = new Map<string, number>();
   private readonly inheritedTypes = new Map<string, Promise<TypeLookup | undefined>>();
   private readonly platformMembers = new Map<string, Promise<string[] | undefined>>();
+  private readonly traceTargets = new Map<string, number>();
   private steps = 0;
+  private lookupId = 0;
+  private trace?: McpSystemLogger;
 
   constructor(
     config: LeflectConfig,
@@ -161,7 +172,8 @@ class ReferenceCollector {
     private readonly follow: boolean,
     private readonly signal?: AbortSignal,
     private readonly base?: SourceSnapshot,
-    log?: McpSystemLogger
+    log?: McpSystemLogger,
+    private readonly lookupLog?: McpSystemLogger
   ) {
     this.reader = createSourceSyntaxReader(config, { signal, log });
     this.jspPaths = new Map(base?.jspPaths);
@@ -175,16 +187,67 @@ class ReferenceCollector {
     await this.reader.close();
   }
 
+  private async traceLookup(
+    targetId: string, context: Record<string, unknown>, resolve: () => Promise<TypeLookup>
+  ): Promise<TypeLookup> {
+    if (!this.lookupLog) return resolve();
+    const previous = this.trace;
+    const lookupId = ++this.lookupId;
+    const targetIndex = this.traceTargets.get(targetId);
+    this.trace = (event, fields, level) => this.lookupLog?.(event, { ...context, ...fields, lookupId, targetIndex }, level);
+    this.trace("lookup.start");
+    try {
+      const result = await resolve();
+      this.traceDecision("lookup.decision", result);
+      return result;
+    } catch (cause) {
+      this.trace("lookup.error", {
+        reason: this.signal?.aborted ? "SOURCE_LIMIT" : cause instanceof SourceRequestError ? cause.code : "LOOKUP_FAILED"
+      }, "warn");
+      throw cause;
+    } finally {
+      this.trace = previous;
+    }
+  }
+
+  private traceDecision(event: "lookup.decision" | "lookup.probe_result", result: TypeLookup): void {
+    if (!this.trace) return;
+    const { lookup, name, strategy } = result;
+    const { status, complete, diagnostics } = lookup;
+    const reason = result.reason ?? lookupReason(lookup, strategy);
+    const outcome = status === "resolved" && complete ? (event === "lookup.decision" ? "selected" : "matched") :
+      reason === "JAVA_TYPE_ACCESS" ? "rejected" : "retained";
+    const candidates = lookup.candidates.map(({ rootId, path, className, sourceId }) => ({
+      rootId, path, className, sourceId, reason, outcome
+    }));
+    this.trace(event, {
+      status, complete, className: name, strategy, reason, candidates,
+      diagnosticCodes: [...new Set(diagnostics.map(({ code }) => code))].slice(0, 32)
+    });
+  }
+
+  private traceCache(cache: string, hit: boolean, fields: Record<string, unknown>, snapshot = false): void {
+    const trace = this.trace ?? this.lookupLog;
+    trace?.("lookup.cache", {
+      ...fields, cache, result: hit ? "hit" : "miss",
+      cacheScope: hit ? snapshot ? "snapshot" : "request" : undefined
+    });
+  }
+
   async collect(targets: SourceTarget[]): Promise<void> {
     const rootsDiagnostics = await this.session.getRootDiagnostics();
     this.diagnostics.push(...rootsDiagnostics);
     if (rootsDiagnostics.some(({ code }) => code !== "SOURCE_ROOT_READY")) this.partial = true;
     const roots: { target: SourceTarget; source?: SourceFile }[] = [];
-    for (const target of targets) {
+    for (const [index, target] of targets.entries()) {
+      if (this.lookupLog) this.traceTargets.set(target.targetId, index + 1);
       let lookup: SourceLookupResult;
       try {
-        this.signal?.throwIfAborted();
-        lookup = await this.lookupTarget(target);
+        const result = await this.traceLookup(target.targetId, { lookupKind: "target", targetKind: target.kind }, async () => {
+          this.signal?.throwIfAborted();
+          return { lookup: await this.lookupTarget(target), strategy: target.kind === "source" ? "snapshot_source" : "target" };
+        });
+        lookup = result.lookup;
       } catch (error) {
         if (!this.signal?.aborted) throw error;
         lookup = emptyLookup("limit");
@@ -229,6 +292,7 @@ class ReferenceCollector {
     if (target.kind === "java") return this.findType(target.className);
     if (target.kind === "jsp") return this.lookupJsp(target.path);
     const source = this.base?.sources.get(target.sourceId);
+    this.traceCache("snapshot_source", !!source, { sourceId: source?.sourceId }, true);
     if (!source) {
       return Promise.resolve({
         ...emptyLookup("missing"),
@@ -239,10 +303,12 @@ class ReferenceCollector {
   }
 
   private lookupJsp(logical: string): Promise<SourceLookupResult> {
-    logical = normalizeJspPath(logical) ?? logical;
+    const normalized = normalizeJspPath(logical);
+    logical = normalized ?? logical;
     let lookup = this.jspLookups.get(logical);
+    this.traceCache("jsp_lookup", !!lookup, { logicalPath: normalized }, this.base?.jspLookups.has(logical));
     if (!lookup) {
-      lookup = this.session.resolveJsp(logical);
+      lookup = this.session.resolveJsp(logical, this.trace);
       this.jspLookups.set(logical, lookup);
     }
     return lookup;
@@ -250,6 +316,7 @@ class ReferenceCollector {
 
   private syntax(source: SourceFile): Promise<JavaSyntax> {
     let syntax = this.javaSyntax.get(source.sourceId);
+    this.traceCache("java_syntax", !!syntax, { sourceId: source.sourceId, rootId: source.rootId, path: source.path });
     if (!syntax) {
       syntax = this.reader.java(source.text).then((parsed) => {
         this.javaDeclarations.set(source.sourceId, parsed.declarations);
@@ -263,6 +330,9 @@ class ReferenceCollector {
   private lookupJava(className: string, fileOwner?: string, requiredOwner?: string): Promise<SourceLookupResult> {
     const key = [className, fileOwner, requiredOwner].join("\0");
     let lookup = this.javaLookups.get(key);
+    this.traceCache("java_lookup", !!lookup, {
+      className: isJavaClassName(className) ? className : undefined, fileOwner, requiredOwner
+    }, this.base?.javaLookups.has(key));
     if (!lookup) {
       lookup = this.session.resolveJava(className, async (source, name) => {
         const syntax = await this.syntax(source);
@@ -272,7 +342,7 @@ class ReferenceCollector {
         const expected = fileOwner ?? name;
         const simple = expected.split(".").at(-1)!;
         return expected === (syntax.packageName ? `${syntax.packageName}.${simple}` : simple) && declared(expected);
-      }, fileOwner, { searchClasspath: false });
+      }, fileOwner, { searchClasspath: false }, this.trace);
       this.javaLookups.set(key, lookup);
     }
     return lookup;
@@ -280,9 +350,15 @@ class ReferenceCollector {
 
   private platformType(name: string): Promise<"public" | "nonpublic" | "missing"> {
     let result = this.platformTypes.get(name);
+    this.traceCache("platform_type", !!result, { className: name });
     if (!result) {
-      result = this.reader.platformTypeAccess(name).catch((error) => {
+      const trace = this.trace;
+      result = this.reader.platformTypeAccess(name).then((access) => {
+        trace?.("lookup.platform", { rootId: "jdk", className: name, access });
+        return access;
+      }, (error) => {
         if (this.signal?.aborted) throw error;
+        trace?.("lookup.platform", { rootId: "jdk", className: name, reason: "WORKER_UNAVAILABLE" }, "warn");
         return "missing";
       });
       this.platformTypes.set(name, result);
@@ -313,7 +389,9 @@ class ReferenceCollector {
 
   private async collectJava(targetId: string, source: SourceFile, depth: number): Promise<void> {
     const key = targetId + "\0" + source.sourceId;
-    if ((this.seenJava.get(key) ?? Infinity) <= depth) return;
+    const seen = (this.seenJava.get(key) ?? Infinity) <= depth;
+    this.traceCache("reference_expansion", seen, { targetIndex: this.traceTargets.get(targetId), sourceId: source.sourceId, kind: "java" });
+    if (seen) return;
     this.seenJava.set(key, depth);
     this.signal?.throwIfAborted();
     const syntax = await this.syntax(source);
@@ -327,7 +405,9 @@ class ReferenceCollector {
 
   private async collectPage(targetId: string, source: SourceFile, logical: string, depth: number, ancestors: string[]): Promise<void> {
     const key = targetId + "\0" + logical + "\0" + source.sourceId;
-    if ((this.seenPages.get(key) ?? Infinity) <= depth) return;
+    const seen = (this.seenPages.get(key) ?? Infinity) <= depth;
+    this.traceCache("reference_expansion", seen, { targetIndex: this.traceTargets.get(targetId), sourceId: source.sourceId, kind: "jsp", logicalPath: logical });
+    if (seen) return;
     this.seenPages.set(key, depth);
     const context: IncludeContext = { entryPath: logical, entrySourceId: source.sourceId, includeChain: [] };
     const unit: JspTranslationUnit = { imports: [], parts: [], sources: new Set() };
@@ -382,9 +462,13 @@ class ReferenceCollector {
       const page = include.kind === "translation" ? logical : context.entryPath;
       const rawPath = include.expression.split(/[?#]/, 1)[0];
       const includePath = normalizeJspPath(rawPath, page);
-      const lookup = include.dynamic
-        ? emptyLookup("dynamic")
-        : includePath ? await this.lookupJsp(includePath) : emptyLookup("blocked");
+      const { lookup } = await this.traceLookup(targetId, {
+        lookupKind: "jsp_include", location, logicalPath: include.dynamic ? undefined : includePath
+      }, async () => ({
+        lookup: include.dynamic ? emptyLookup("dynamic") : includePath ? await this.lookupJsp(includePath) : emptyLookup("blocked"),
+        strategy: include.kind === "translation" ? "translation_include" : "request_include",
+        reason: include.dynamic ? "JSP_INCLUDE_DYNAMIC" : !includePath ? "SOURCE_BOUNDARY" : undefined
+      }));
       this.references.push({
         targetId, kind: "jsp-include", expression: include.expression, location, context, includeKind: include.kind,
         status: lookup.status, candidates: lookup.candidates
@@ -445,7 +529,11 @@ class ReferenceCollector {
       this.checkExpansionBudget();
       if (entry.wildcard && !entry.static) continue;
       const location = locateSource(source, entry.location);
-      const lookup = entry.static ? emptyLookup("unsupported") : await this.exactType(entry.name, pkg, source);
+      const { lookup } = await this.traceLookup(targetId, { lookupKind: "java_import", location, className: entry.name }, async () => ({
+        lookup: entry.static ? emptyLookup("unsupported") : await this.exactType(entry.name, pkg, source),
+        strategy: entry.static ? "static_import" : "explicit_import",
+        reason: entry.static ? "JAVA_IMPORT_UNSUPPORTED" : undefined
+      }));
       await this.recordType(targetId, entry.name, location, lookup, depth, { importLocation: location, context });
     }
   }
@@ -469,8 +557,9 @@ class ReferenceCollector {
 
     const binaryKey = ["binary", name, requiredOwner].join("\0");
     let binaryLookup = this.javaLookups.get(binaryKey);
+    this.traceCache("binary_lookup", !!binaryLookup, { className: name, requiredOwner }, this.base?.javaLookups.has(binaryKey));
     if (!binaryLookup) {
-      binaryLookup = this.session.resolveBinary(name, requiredOwner);
+      binaryLookup = this.session.resolveBinary(name, requiredOwner, this.trace);
       this.javaLookups.set(binaryKey, binaryLookup);
     }
     const binaries = await binaryLookup;
@@ -518,31 +607,36 @@ class ReferenceCollector {
   ): Promise<void> {
     this.checkExpansionBudget();
     const location = locateSource(source, type.location);
-    if (type.shadowed) {
-      if (source.kind === "java" && await this.isPrivateFromOtherTopLevel(type, source)) {
-        await this.recordType(targetId, type.expression, location, {
-          ...emptyLookup("unsupported"),
-          diagnostics: [{ code: "JAVA_TYPE_ACCESS", message: "The candidate type is private to a different top-level declaration." }]
-        }, depth, { context });
-        return;
+    const result = await this.traceLookup(targetId, { lookupKind: "java_type", location, expression: type.expression }, async () => {
+      if (type.shadowed) {
+        if (source.kind === "java" && await this.isPrivateFromOtherTopLevel(type, source)) {
+          return {
+            lookup: {
+              ...emptyLookup("unsupported"),
+              diagnostics: [{ code: "JAVA_TYPE_ACCESS", message: "The candidate type is private to a different top-level declaration." }]
+            },
+            strategy: "lexical"
+          };
+        }
+        return { lookup: emptyLookup("resolved", true), name: type.resolvedName, strategy: "lexical" };
       }
+      if (type.role === "qualifier" && !type.resolvedName) {
+        // An unbound expression qualifier could be a value. Only report positive
+        // declaration evidence for its written qualified spelling.
+        return this.probeType(type.expression, source, pkg, "qualified_name");
+      }
+      const head = type.expression.split(".", 1)[0];
+      const inherited = await this.inheritedType(type, source, head, pkg);
+      return this.lookupTypeName(type.expression, source, imports, pkg, inherited);
+    });
+    if (type.shadowed && result.lookup.status === "resolved") {
       this.references.push({
         targetId, kind: "java-type", expression: type.expression, location, context,
         status: "resolved", binding: type.resolvedName ? "verified" : "unresolved", candidates: []
       });
       return;
     }
-    let result: TypeLookup;
-    if (type.role === "qualifier" && !type.resolvedName) {
-      // An unbound expression qualifier could be a value. Only report positive
-      // declaration evidence for its written qualified spelling.
-      result = await this.probeType(type.expression, source, pkg);
-      if (!result.lookup.candidates.length) return;
-    } else {
-      const head = type.expression.split(".", 1)[0];
-      const inherited = await this.inheritedType(type, source, head, pkg);
-      result = await this.lookupTypeName(type.expression, source, imports, pkg, inherited);
-    }
+    if (!type.shadowed && type.role === "qualifier" && !type.resolvedName && !result.lookup.candidates.length) return;
     const { lookup, name, entry } = result;
     await this.recordType(targetId, type.expression, location, lookup, depth, {
       context,
@@ -564,9 +658,12 @@ class ReferenceCollector {
   }
 
   private async probeType(
-    name: string, source: SourceFile, pkg: string, entry?: ImportEvidence, owner?: string
+    name: string, source: SourceFile, pkg: string, strategy: string, entry?: ImportEvidence, owner?: string
   ): Promise<TypeLookup> {
-    return { name, entry, lookup: await this.exactType(name, pkg, source, owner) };
+    this.trace?.("lookup.probe", { className: name, strategy, requiredOwner: owner });
+    const result = { name, entry, strategy, lookup: await this.exactType(name, pkg, source, owner) };
+    this.traceDecision("lookup.probe_result", result);
+    return result;
   }
 
   private async lookupTypeName(
@@ -588,7 +685,7 @@ class ReferenceCollector {
     const memberProbes: TypeLookup[] = [];
     if (foundOwner || first.lookup.status === "ambiguous") {
       for (const owner of owners) {
-        memberProbes.push(await this.probeType(owner + suffix, source, pkg, first.entry, owner));
+        memberProbes.push(await this.probeType(owner + suffix, source, pkg, "member_type", first.entry, owner));
       }
     }
     if (foundOwner) {
@@ -604,7 +701,7 @@ class ReferenceCollector {
     }
     if (first.entry && !first.entry.entry.wildcard) return first;
 
-    const qualified = await this.probeType(expression, source, pkg);
+    const qualified = await this.probeType(expression, source, pkg, "qualified_name");
     if (isAbsentType(first.lookup)) return possiblyStatic ? staticImportUncertain(qualified) : qualified;
     return {
       ...qualified,
@@ -626,11 +723,11 @@ class ReferenceCollector {
     const explicit = new Map(imports.filter(({ entry }) => !entry.wildcard && !entry.static &&
       entry.name.split(".").at(-1) === name).map((item) => [item.entry.name, item]));
     if (explicit.size) {
-      for (const [qualified, entry] of explicit) options.push(await this.probeType(qualified, source, pkg, entry));
+      for (const [qualified, entry] of explicit) options.push(await this.probeType(qualified, source, pkg, "explicit_import", entry));
       return selectType(options, explicit.size > 1);
     }
 
-    const same = await this.probeType(pkg ? pkg + "." + name : name, source, pkg);
+    const same = await this.probeType(pkg ? pkg + "." + name : name, source, pkg, "same_package");
     options.push(same);
     if (same.lookup.status === "resolved" || same.lookup.status === "binary_only" || same.lookup.status === "ambiguous") {
       return selectType(options);
@@ -642,7 +739,9 @@ class ReferenceCollector {
     for (const item of imports) {
       if (item.entry.wildcard && !item.entry.static) wildcard.set(item.entry.name, item);
     }
-    for (const [prefix, entry] of wildcard) options.push(await this.probeType(prefix + "." + name, source, pkg, entry));
+    for (const [prefix, entry] of wildcard) {
+      options.push(await this.probeType(prefix + "." + name, source, pkg, entry ? "wildcard_import" : "default_import", entry));
+    }
     return selectType(options);
   }
 
@@ -657,12 +756,13 @@ class ReferenceCollector {
       if (!declaration?.superTypes.length) continue;
       const key = source.sourceId + "\0" + enclosing + "\0" + name;
       let lookup = this.inheritedTypes.get(key);
+      this.traceCache("inherited_member", !!lookup, { className: enclosing, member: name });
       if (!lookup) {
         lookup = this.lookupInheritedMembers(declaration, source, name, pkg, new Set(), 0);
         this.inheritedTypes.set(key, lookup);
       }
       const result = await lookup;
-      if (result) return result;
+      if (result) return { ...result, strategy: "inherited_member" };
     }
     return undefined;
   }
@@ -752,6 +852,7 @@ class ReferenceCollector {
   private lookupPlatformMembers(owner: string, member: string): Promise<string[] | undefined> {
     const key = owner + "\0" + member;
     let lookup = this.platformMembers.get(key);
+    this.traceCache("platform_members", !!lookup, { className: owner, member });
     if (!lookup) {
       lookup = this.reader.platformMemberTypes(owner, member).catch((error) => {
         if (this.signal?.aborted) throw error;
@@ -782,9 +883,29 @@ class ReferenceCollector {
     const dependency = this.follow ? this.resolvedSource(lookup) : undefined;
     if (!dependency) return;
     const seen = this.seenJava.get(targetId + "\0" + dependency.sourceId);
-    if (seen !== undefined && seen <= depth + 1) return;
+    if (seen !== undefined && seen <= depth + 1) {
+      this.traceCache("reference_expansion", true, { targetIndex: this.traceTargets.get(targetId), sourceId: dependency.sourceId, kind: "java" });
+      return;
+    }
     if (depth >= this.maxDepth) this.reportLimit(targetId, "The Java reference exceeds the requested depth.", location);
     else await this.collectJava(targetId, dependency, depth + 1);
+  }
+}
+
+function lookupReason(lookup: SourceLookupResult, strategy?: string): string {
+  switch (lookup.status) {
+    case "resolved": return strategy === "lexical" ? "LEXICAL_BINDING" : "UNIQUE_MATCH";
+    case "binary_only": return "BINARY_MATCH";
+    case "ambiguous": return "SOURCE_AMBIGUOUS";
+    case "limit": return "SOURCE_LIMIT";
+    case "missing": return "SOURCE_NOT_FOUND";
+    case "unsupported":
+      if (lookup.diagnostics.some(({ code }) => code === "JAVA_TYPE_ACCESS")) return "JAVA_TYPE_ACCESS";
+      if (lookup.diagnostics.some(({ code }) => code === "JAVA_STATIC_IMPORT")) return "JAVA_STATIC_IMPORT";
+      return "SOURCE_UNSUPPORTED";
+    default:
+      return lookup.diagnostics.find(({ code }) => code !== "SOURCE_NOT_FOUND" && code !== "SOURCE_DECLARATION_MISMATCH")?.code ??
+        lookup.status.toUpperCase();
   }
 }
 
